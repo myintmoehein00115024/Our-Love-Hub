@@ -34,13 +34,7 @@
     .enter{border:0;width:100%;min-height:54px;border-radius:999px;background:linear-gradient(115deg,#b778a4,#8f7abb);color:#fff;font-weight:750;margin-top:22px;box-shadow:0 11px 25px #a46d9f37;transition:transform .2s,box-shadow .2s}.enter:hover{transform:translateY(-2px);box-shadow:0 15px 29px #a46d9f47}
     #error{min-height:23px;margin:12px 0 0;color:#a54273;font-size:.84rem;font-weight:650}#error:empty{visibility:hidden}
     .footnote{font-size:.79rem;color:#a18b9b;margin:13px 0 0}
-    #hub{padding-block:clamp(32px,5vh,65px) 60px}.hub-head{text-align:center;margin:0 auto 35px}.hub-head .logo{width:88px;height:88px}.hub-head .eyebrow{margin-top:18px}.hub-head h1{font:700 clamp(2.35rem,6vw,4rem)/1.12 Georgia,serif;letter-spacing:-.05em;margin:8px 0}.hub-head p{color:var(--muted);line-height:1.75;margin:14px auto;max-width:500px}
-    .days{display:inline-flex;align-items:center;gap:9px;border:1px solid #ffffffcf;border-radius:99px;padding:10px 18px;background:#ffffff85;color:#916b8b;font-size:.84rem;box-shadow:0 5px 15px #966d9910}
-    .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;margin:0 auto;max-width:940px}
-    .card{display:flex;align-items:flex-start;gap:19px;min-height:170px;padding:28px;border:1px solid #fff;border-radius:27px;background:#ffffffb8;text-decoration:none;color:var(--ink);box-shadow:0 10px 35px #70415c16;transition:transform .2s,box-shadow .2s,background .2s}.card:hover,.card:focus-visible{transform:translateY(-4px);box-shadow:0 18px 40px #70415c25;background:#fff}
-    .card img{height:55px;width:55px;flex:0 0 55px;border-radius:16px}.card h2{font-size:clamp(1.06rem,2vw,1.35rem);margin:4px 0 10px;line-height:1.35}.card p{font-size:.87rem;color:#896d80;line-height:1.7;margin:0}.arrow{margin-left:auto;color:#ad82aa;font-size:1.35rem}
-    .hub-foot{text-align:center;margin-top:35px;color:#a18597;font-size:.86rem}.lock{border:0;background:transparent;color:#906f8a;cursor:pointer;text-decoration:underline;text-underline-offset:3px;padding:8px}
-    @media(max-width:670px){.frame{padding-inline:17px}.grid{grid-template-columns:1fr;gap:13px}.card{min-height:123px;padding:22px;gap:16px}.card img{width:48px;height:48px;flex-basis:48px}.card h2{margin-top:0}.gate-card{border-radius:27px}#gate{padding-block:28px}}
+    @media(max-width:670px){.frame{padding-inline:17px}.gate-card{border-radius:27px}#gate{padding-block:28px}}
     @media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;transition:none!important}}
   </style>
 </head>
@@ -63,48 +57,52 @@
       <p class="footnote">From our first day · to forever</p>
     </section>
   </main>
-  <main id="hub" class="frame" hidden>
-    <header class="hub-head"><img class="logo" src="./assets/icon-192.png" alt="Our Love Hub" width="88" height="88">
-      <div class="eyebrow">M ♡ T · ONE LOVE, FOUR WORLDS</div><h1>Our Love Hub</h1>
-      <p>从我们的第一天开始，每一年、每一份礼物、每一句想你，都珍藏在这里。</p>
-      <div class="days">♡ <span id="daysTogether">我们的故事，一直在继续</span></div>
-    </header>
-    <section class="grid" aria-label="我们的四个小世界">
-      <a class="card" href="./Our-Journey/"><img src="./assets/icon-192.png" alt="" width="55" height="55"><div><h2>Our Journey</h2><p>我们的回忆，相册和一起走过的故事</p></div><span class="arrow" aria-hidden="true">↗</span></a>
-      <a class="card" href="./Always-Yours-Chat/"><img src="./assets/icon-192.png" alt="" width="55" height="55"><div><h2>Always Yours Chat</h2><p>每一句悄悄话，都有属于我们的地方</p></div><span class="arrow" aria-hidden="true">↗</span></a>
-      <a class="card" href="./2025-For-My-Girlfriend/"><img src="./assets/icon-192.png" alt="" width="55" height="55"><div><h2>2025 年给女朋友做的</h2><p>ThinThin · 2025 年 8 月 23 日 · 23 岁生日礼物</p></div><span class="arrow" aria-hidden="true">↗</span></a>
-      <a class="card" href="./2026-For-My-Girlfriend/"><img src="./assets/icon-192.png" alt="" width="55" height="55"><div><h2>2026 年给女朋友做的</h2><p>PuTuTuLay · 2026 年 8 月 23 日 · 24 岁生日礼物</p></div><span class="arrow" aria-hidden="true">↗</span></a>
-    </section>
-    <footer class="hub-foot">Made with love ♡ <button class="lock" id="lockButton" type="button">锁上这个小世界</button></footer>
-  </main>
   <script>
   (function(){
     'use strict';
     var KEY='our_love_hub_unlocked_at';
     var DAY='2024-03-23';
-    var gate=document.getElementById('gate');
-    var hub=document.getElementById('hub');
+    var form=document.getElementById('loginForm');
     var error=document.getElementById('error');
     var input=document.getElementById('anniversary');
-    function unlocked(){try{return !!sessionStorage.getItem(KEY);}catch(_){return false;}}
-    function showHub(){gate.hidden=true;hub.hidden=false;var t=new Date();var diff=Math.round((Date.UTC(t.getFullYear(),t.getMonth(),t.getDate())-Date.UTC(2024,2,23))/86400000);document.getElementById('daysTogether').textContent='从 2024 年 3 月 23 日开始，我们已经相爱 '+Math.max(0,diff)+' 天 ♡';}
-    function showGate(){hub.hidden=true;gate.hidden=false;error.textContent='';input.value='';}
-    if(unlocked())showHub();else showGate();
-    document.getElementById('loginForm').addEventListener('submit',function(e){
+    function openJourney(){
+      // Resolve relative to this index so GitHub Pages repo paths work correctly.
+      window.location.replace(new URL('./Our-Journey/',document.baseURI).href);
+    }
+    function unlocked(){
+      try { return !!sessionStorage.getItem(KEY); }
+      catch (_) { return false; }
+    }
+    // An unlocked tab goes straight to Our Journey; no intermediate dashboard.
+    if (unlocked()) { openJourney(); return; }
+    form.addEventListener('submit',function(e){
       e.preventDefault();
-      if(!input.value){error.textContent='先选择我们在一起的日期哦 ♡';input.focus();return;}
-      if(input.value!==DAY){error.textContent='好像不是那一天，再想想我们的故事 ♡';input.focus();return;}
-      try{sessionStorage.setItem(KEY,String(Date.now()));}catch(_){}
-      // The 2025 birthday story retains its own 15-minute unlock behavior.
-      try{var stamp=String(Date.now());localStorage.setItem('thinthin_story_unlocked_at',stamp);sessionStorage.setItem('thinthin_story_unlocked_at',stamp);}catch(_){}
-      error.textContent='';showHub();
+      if (!input.value){
+        error.textContent='先选择我们在一起的日期哦 ♡';
+        input.focus();
+        return;
+      }
+      if (input.value!==DAY){
+        error.textContent='好像不是那一天，再想想我们的故事 ♡';
+        input.focus();
+        return;
+      }
+      try { sessionStorage.setItem(KEY,String(Date.now())); } catch (_) {}
+      // Preserve the existing short-lived birthday-story unlock on hub login.
+      try {
+        var stamp=String(Date.now());
+        localStorage.setItem('thinthin_story_unlocked_at',stamp);
+        sessionStorage.setItem('thinthin_story_unlocked_at',stamp);
+      } catch (_) {}
+      error.textContent='';
+      openJourney();
     });
     input.addEventListener('input',function(){error.textContent='';});
-    document.getElementById('lockButton').addEventListener('click',function(){
-      try{sessionStorage.removeItem(KEY);sessionStorage.removeItem('thinthin_story_unlocked_at');localStorage.removeItem('thinthin_story_unlocked_at');}catch(_){}
-      showGate();input.focus();window.scrollTo({top:0,behavior:'instant'});
-    });
-    if('serviceWorker' in navigator)window.addEventListener('load',function(){navigator.serviceWorker.register('./service-worker.js',{scope:'./'}).catch(function(){});});
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load',function(){
+        navigator.serviceWorker.register('./service-worker.js',{scope:'./'}).catch(function(){});
+      });
+    }
   })();
   </script>
 </body>
