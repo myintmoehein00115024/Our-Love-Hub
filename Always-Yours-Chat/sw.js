@@ -1,5 +1,5 @@
-const CACHE="always-yours-v15-3-romantic-chat";
-const ASSETS=["./","./index.html","./styles.css","./app.js","./manifest.webmanifest","./icons/favicon-32.png","./icons/icon-192.png","./icons/icon-512.png","./icons/icon-512-maskable.png","./icons/apple-touch-icon.png"];
+const CACHE="always-yours-v16-unified-icon";
+const ASSETS=["./","./index.html","./styles.css","./app.js","../manifest.webmanifest","../assets/favicon-32.png","../assets/icon-192.png","../assets/icon-512.png","../assets/icon-512-maskable.png","../assets/apple-touch-icon.png"];
 self.addEventListener("install",e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting())));
 self.addEventListener("activate",e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith("always-yours-")&&k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
 self.addEventListener("fetch",e=>{

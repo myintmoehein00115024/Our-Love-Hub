@@ -533,21 +533,23 @@ button,a{touch-action:manipulation;}
   <meta name="theme-color" content="#f58aa8">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="Always Yours">
-  <link rel="icon" type="image/png" sizes="192x192" href="heart-icon-192.png">
-  <link rel="icon" type="image/png" sizes="512x512" href="heart-icon-512.png">
-  <link rel="apple-touch-icon" sizes="180x180" href="heart-icon-192.png">
-  <link rel="manifest" href="site.webmanifest">
+  <meta name="apple-mobile-web-app-title" content="Our Love Hub">
+
+<link rel="icon" type="image/png" sizes="512x512" href="heart-icon-512.png">
+
+<link rel="manifest" href="../manifest.webmanifest">
   <!-- ===== Home Screen / Shortcut Icon END ===== -->
 
 <script>
   // Register the local service worker so supported browsers can install this page as an app.
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./sw.js?v=6", { scope: "./" }).catch(() => {});
+      navigator.serviceWorker.register("./sw.js?v=8", { scope: "./" }).catch(() => {});
     });
   }
 </script>
+  <link rel="icon" type="image/png" sizes="32x32" href="../assets/favicon-32.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="../assets/apple-touch-icon.png">
 </head>
 <body>
 

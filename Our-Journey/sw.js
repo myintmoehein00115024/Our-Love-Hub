@@ -1,16 +1,15 @@
-const CACHE = "our-journey-v12-anniversary-20240323";
+const CACHE = "our-journey-v13-unified-icon";
 const CORE = [
   "./",
   "./index.html",
   "./styles.css",
   "./app.js",
   "./drive-config.js",
-  "./manifest.webmanifest",
-  "./icons/icon-192.png",
-  "./icons/icon-512.png",
-  "./icons/apple-touch-icon.png",
-  "./icons/favicon-48.png",
-  "./icons/favicon-32.png"
+  "../manifest.webmanifest",
+  "../assets/icon-192.png",
+  "../assets/icon-512.png",
+  "../assets/apple-touch-icon.png",
+  "../assets/favicon-32.png"
 ];
 
 self.addEventListener("install", event => {

@@ -127,10 +127,12 @@
   async function registerSW() {
     if (!("serviceWorker" in navigator)) return;
     try {
-      const manifest = document.querySelector('link[rel="manifest"]');
-      const base = manifest ? new URL(manifest.href, document.baseURI) : new URL("./", document.baseURI);
-      const swUrl = new URL("service-worker.js", base);
-      const scope = new URL("./", base).href;
+      // The shared manifest lives in the hub; SW registration must stay in this module.
+      const scriptTag = document.querySelector('script[src*="pwa-install.js"]');
+      if (!scriptTag) return;
+      const base = new URL('../', scriptTag.src);
+      const swUrl = new URL('service-worker.js', base);
+      const scope = base.href;
       await navigator.serviceWorker.register(swUrl.href, { scope, updateViaCache: "none" });
     } catch (_) {}
   }
