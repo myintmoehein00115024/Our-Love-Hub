@@ -20,29 +20,21 @@
       <img class="unified-logo" src="../assets/icon-192.png" alt="Our Love Hub 统一爱心 Logo" width="74" height="74">
       <div class="eyebrow">OUR LOVE HUB · 2024.03.23</div>
       <h1>Always Yours<span class="brand-heart"> ♡</span></h1>
-      <p class="intro">只有我们的小小聊天室。选择身份，输入对应日期，再走进只属于我们的对话。</p>
+      <p class="intro">只有我们两个人。选 HE 或 SHE，直接进入聊天 ♡</p>
       <div class="identity-label">今天你是…</div>
       <div class="role-grid" role="group" aria-label="选择聊天身份">
         <button type="button" class="role-card name-option" data-name="Ko Ko" aria-label="HE — 男朋友">
           <span class="role-symbol" aria-hidden="true">♡</span>
-          <strong>HE</strong><small>男朋友 · Ko Ko</small><span class="role-enter">验证日期 ↗</span>
+          <strong>HE</strong><small>男朋友 · Ko Ko</small><span class="role-enter">进入聊天 ↗</span>
         </button>
         <button type="button" class="role-card name-option" data-name="Chit Chit" aria-label="SHE — 女朋友">
           <span class="role-symbol" aria-hidden="true">✿</span>
-          <strong>SHE</strong><small>女朋友 · Chit Chit</small><span class="role-enter">验证日期 ↗</span>
+          <strong>SHE</strong><small>女朋友 · Chit Chit</small><span class="role-enter">进入聊天 ↗</span>
         </button>
       </div>
       <div id="selectedPerson" class="sr-only" aria-live="polite"></div>
-      <form id="birthdayStep" class="birthday-step hidden" autocomplete="off" novalidate>
-        <div class="birthday-heading"><span class="birthday-lock" aria-hidden="true">♡</span><div><strong id="birthdayTitle">我们的专属日期</strong><small>输入正确日期才能继续</small></div></div>
-        <label for="birthdayInput">出生日期</label>
-        <input id="birthdayInput" type="date" autocomplete="off" required aria-describedby="birthdayError" />
-        <div id="birthdayError" class="birthday-error" role="status" aria-live="polite"></div>
-        <button type="submit" class="primary-button birthday-submit">验证并进入 ♡</button>
-        <div class="birthday-note">日期仅用于这个网页的入口检查；聊天内容另由独立的共同密钥加密。</div>
-      </form>
       <div id="setup" class="first-setup hidden" aria-live="polite">
-        <div class="setup-caption">仅首次连接这台设备</div>
+        <div class="setup-caption">仅首次连接这台设备（无需生日验证）</div>
         <p>输入你们之前使用的共同密钥一次，保留原有聊天的端到端加密。以后只需点击 HE / SHE。</p>
         <label for="secret" class="setup-label">共同密钥（不会上传或写入 GitHub）</label>
         <div class="secret-wrap">
@@ -53,13 +45,13 @@
       </div>
       <div id="status" class="status" role="status" aria-live="polite"></div>
       <details class="connection-settings" id="connectionSettings">
-        <summary>连接诊断 / 设置 Cloudflare 地址 <span aria-hidden="true">⌄</span></summary>
+        <summary>连接诊断 / 设置 Supabase 地址 <span aria-hidden="true">⌄</span></summary>
         <div class="connection-settings-inner">
-          <label for="workerUrlInput">您的 Cloudflare Worker API 地址</label>
-          <input type="url" id="workerUrlInput" inputmode="url" spellcheck="false" autocomplete="off" placeholder="https://your-worker.your-subdomain.workers.dev" />
+          <label for="workerUrlInput">您的 Supabase Chat Edge Function 地址</label>
+          <input type="url" id="workerUrlInput" inputmode="url" spellcheck="false" autocomplete="off" placeholder="https://项目ID.supabase.co/functions/v1/always-yours-chat" />
           <button type="button" id="testWorkerBtn" class="worker-test-button">检测连接并保存地址</button>
           <p id="workerTestResult" class="worker-test-result" role="status" aria-live="polite"></p>
-          <p class="worker-guide">先在 Cloudflare 部署 Chat Worker，确认绑定原有 DB 和 PHOTOS；再将 Worker 地址填在这里。设置仅保存在本机，不会写入 GitHub。不要输入任何聊天密码。</p>
+          <p class="worker-guide">请先在独立 Supabase 项目执行私有数据库 SQL，并部署 always-yours-chat Edge Function，再粘贴函数 URL。聊天密钥只存放在您本机。</p>
         </div>
       </details>
       <div class="gate-bottom">

@@ -1,15 +1,16 @@
-// The Worker origin is public; the secret and encryption key are not.
-const WORKER_URL_KEY="alwaysYoursWorkerUrlV1";
+// Supabase Edge Function URL is public. The chat encryption key remains on each device.
+const WORKER_URL_KEY="alwaysYoursSupabaseFunctionUrlV1";
 function validWorkerUrl(raw){
   try{
     const parsed=new URL(String(raw||"").trim());
-    if(parsed.protocol!=="https:" || parsed.username || parsed.password || parsed.search || parsed.hash || parsed.pathname!=="/" && parsed.pathname!=="" || !parsed.hostname || parsed.port) return null;
-    if(parsed.hostname==="localhost" || parsed.hostname==="127.0.0.1" || parsed.hostname.endsWith(".local"))return null;
-    return parsed.origin;
+    if(parsed.protocol!=="https:" || parsed.username || parsed.password || parsed.search || parsed.hash || parsed.port) return null;
+    if(!/^[a-z0-9-]+\.supabase\.co$/.test(parsed.hostname))return null;
+    if(!/^\/functions\/v1\/always-yours-chat\/?$/.test(parsed.pathname))return null;
+    return parsed.origin+parsed.pathname.replace(/\/$/,"");
   }catch{return null;}
 }
 let savedWorkerUrl=null;try{savedWorkerUrl=localStorage.getItem(WORKER_URL_KEY);}catch{}
-let API_BASE = validWorkerUrl(savedWorkerUrl) || validWorkerUrl(window.ALWAYS_YOURS_CHAT_ROUTES.apiBase);
+let API_BASE = validWorkerUrl(savedWorkerUrl) || validWorkerUrl(window.ALWAYS_YOURS_CHAT_ROUTES?.apiBase);
 const API_TIMEOUT_MS = 9000;
 const POLL_MS = 10000;
 const TTL_MS = 48 * 60 * 60 * 1000;
@@ -77,6 +78,7 @@ ensurePresenceUi();
 ensureEditBar();
 
 let selectedName = "Ko Ko";
+let roleChosen = false;
 try{selectedName=localStorage.getItem("alwaysYoursName") || "Ko Ko";}catch{}
 const DEVICE_DB = "always-yours-private-device-v1";
 function openDeviceDb(){
@@ -101,56 +103,25 @@ async function deviceRecord(mode,record){
 async function deviceCredentials(){try{const v=await deviceRecord("get");return v?.key&&/^[a-f0-9]{40}$/.test(v?.room)?v:null;}catch{return null;}}
 function revealSetup(msg=""){ $("setup").classList.remove("hidden"); if(msg)setStatus(msg); secretInput.focus(); }
 async function openPreparedRoom(){
-  if(!roomId||!cryptoKey||selectedName!==verifiedRole) return;
+  if(!roomId||!cryptoKey||!validRole(selectedName))return;
   lastMessageIds="";firstSync=true;
   const cached=await loadCache();
   showChat();
-  $("roomLabel").textContent=`${selectedName === "Ko Ko" ? "HE · Ko Ko" : "SHE · Chit Chit"}  ♡`;
+  $("roomLabel").textContent=`${selectedName === "Ko Ko" ? "HE · Ko Ko" : "SHE · Chit Chit"} ♡`;
   if(cached.length)renderMessages(cached);
   updateConnection("连接中…");
-  startPolling();startPresence();refreshNotifyButton();
+  startPolling();startPresence();refreshNotifyButton().catch(()=>{});
 }
-// Date gate is a convenience check. It is public client-side code, NOT strong authentication.
-// The independent high-entropy chat passphrase is what protects messages.
-const ROLE_BIRTHDAYS=Object.freeze({"Ko Ko":"2002-03-21","Chit Chit":"2002-08-23"});
-let pendingRole=null;
-let verifiedRole=null;
-let birthdayBusy=false;
-function chooseRole(name){
-  if(!Object.hasOwn(ROLE_BIRTHDAYS,name))return;
-  pendingRole=name; verifiedRole=null;
-  roomId=null;cryptoKey=null;
-  $("setup").classList.add("hidden");
-  $("birthdayStep").classList.remove("hidden");
-  $("birthdayInput").value="";
-  $("birthdayError").textContent="";
-  $("birthdayTitle").textContent=name==="Ko Ko"?"HE · 男朋友的生日":"SHE · 女朋友的生日";
+function validRole(name){return name==="Ko Ko"||name==="Chit Chit";}
+async function chooseRole(name){
+  if(!validRole(name))return;
+  selectedName=name;roleChosen=true;
+  try{localStorage.setItem("alwaysYoursName",selectedName);}catch{}
   document.querySelectorAll(".name-option").forEach(b=>b.classList.toggle("selected-role",b.dataset.name===name));
-  setStatus("");
-  $("birthdayInput").focus();
-}
-async function verifyBirthday(evt){
-  evt.preventDefault();
-  if(birthdayBusy||!pendingRole)return;
-  const picked=$("birthdayInput").value;
-  if(picked!==ROLE_BIRTHDAYS[pendingRole]){
-    $("birthdayError").textContent="日期不正确，请重新确认 ♡";
-    $("birthdayInput").value="";
-    $("birthdayInput").focus();
-    return;
-  }
-  birthdayBusy=true;
-  try{
-    verifiedRole=pendingRole;
-    selectedName=verifiedRole;
-    try{localStorage.setItem("alwaysYoursName",selectedName);}catch{}
-    syncNameChoice();
-    $("birthdayStep").classList.add("hidden");
-    $("birthdayInput").value="";
-    const stored=await deviceCredentials();
-    if(stored){roomId=stored.room;cryptoKey=stored.key;$("setup").classList.add("hidden");await openPreparedRoom();}
-    else revealSetup("首次使用这台设备，请再输入一次原有的独立聊天加密密钥。");
-  }finally{birthdayBusy=false;}
+  syncNameChoice();setStatus("");
+  const stored=await deviceCredentials();
+  if(stored){roomId=stored.room;cryptoKey=stored.key;$("setup").classList.add("hidden");await openPreparedRoom();}
+  else revealSetup("首次使用，请输入一次你们共同保存的独立聊天加密密钥，以后只需选择 HE / SHE。您不需要输入生日。");
 }
 
 let roomId = null;
@@ -223,10 +194,7 @@ function formatSeenTime(value){ return new Intl.DateTimeFormat(undefined,{hour:"
 
 function showChat(){ gate.classList.add("hidden"); chat.classList.remove("hidden"); ensurePresenceUi(); ensureEditBar(); }
 function showGate(){
-  verifiedRole=null;pendingRole=null;
-  $("birthdayStep").classList.add("hidden");
-  $("birthdayInput").value="";
-  $("birthdayError").textContent="";
+  roleChosen=false;
   document.querySelectorAll(".name-option").forEach(b=>b.classList.remove("selected-role"));
   messagesEl.replaceChildren();
   emptyState.classList.remove("hidden");
@@ -334,26 +302,26 @@ function showBackendIssue(error){
   if(!banner)return;
   const problem=String(error?.message||"").slice(0,120);
   $("networkBannerText").textContent=/fetch|network|abort|load failed|failed/i.test(problem)?
-    "云端暂时连接失败。当前消息未送达；请检查 Cloudflare Worker 地址、部署和网络。":
-    `聊天服务提示：${problem||"未连接"}。请检查 Cloudflare 部署。`;
+    "云端暂时连接失败。当前消息未送达；请检查 Supabase Edge Function 地址、部署和网络。":
+    `聊天服务提示：${problem||"未连接"}。请检查 Supabase 部署。`;
   banner.classList.remove("hidden");
   chat.classList.add("has-network-issue");
 }
 function clearBackendIssue(){ $("chatNetworkBanner")?.classList.add("hidden");chat.classList.remove("has-network-issue"); }
 async function checkWorkerURL(raw,save){
   const url=validWorkerUrl(raw);
-  if(!url)throw new Error("请输入有效的 HTTPS Worker 地址（不要带 /api/health 或其他路径）。");
+  if(!url)throw new Error("请输入 Supabase Edge Function 完整地址：https://项目ID.supabase.co/functions/v1/always-yours-chat");
   const controller=new AbortController();
   const timer=setTimeout(()=>controller.abort(),8000);
   try{
     const res=await fetch(`${url}/api/health`,{mode:"cors",cache:"no-store",signal:controller.signal});
     const payload=await res.json().catch(()=>null);
-    if(!res.ok||!payload?.ok||payload.service!=="always-yours-chat-api")throw new Error("地址可访问，但不是已就绪的 Always Yours Chat Worker。");
-    if(!payload.photos)throw new Error("Worker 缺少 PHOTOS（照片 KV）绑定。");
+    if(!res.ok||!payload?.ok||payload.service!=="always-yours-chat-api")throw new Error("Supabase 函数未就绪：请检查数据库和私有图片存储。");
+    if(!payload.photos)throw new Error("Supabase 私有图片存储桶尚未配置。");
     if(save){API_BASE=url;localStorage.setItem(WORKER_URL_KEY,url);}
-    return "连接检测通过：已找到 Chat Worker。";
+    return "连接检测通过：Supabase 聊天服务已就绪。";
   }catch(error){
-    if(error?.name==="AbortError"||error instanceof TypeError)throw new Error("无法访问 Worker：请确认 Worker 已部署、URL 正确且允许当前 GitHub 域名访问（CORS）。");
+    if(error?.name==="AbortError"||error instanceof TypeError)throw new Error("无法访问 Supabase：请确认 Edge Function 已部署、URL 正确且允许 GitHub 域名访问。");
     throw error;
   }finally{clearTimeout(timer);}
 }
@@ -361,7 +329,7 @@ const workerUrlInput=$("workerUrlInput");
 if(workerUrlInput)workerUrlInput.value=API_BASE||"";
 $("testWorkerBtn")?.addEventListener("click",async()=>{
   const btn=$("testWorkerBtn"),label=$("workerTestResult");
-  btn.disabled=true;label.textContent="正在检测 Cloudflare 连接…";
+  btn.disabled=true;label.textContent="正在检测 Supabase 连接…";
   try{label.textContent=await checkWorkerURL(workerUrlInput.value,true);label.classList.add("is-success");clearBackendIssue();}
   catch(error){label.textContent=error.message;label.classList.remove("is-success");}
   finally{btn.disabled=false;}
@@ -370,9 +338,10 @@ $("networkSettingsBtn")?.addEventListener("click",()=>{
   showGate();roomId=null;cryptoKey=null;
   $("connectionSettings").open=true;
   $("workerUrlInput").focus();
-  setStatus("聊天内容没有丢失。检查并保存正确的 Worker 地址后，再选择身份登录。");
+  setStatus("本地加密内容不会被删除。保存正确的 Supabase Function 地址后重新选择身份。");
 });
 async function apiGetMessages(){
+  if(!API_BASE)throw new Error("尚未配置 Supabase 服务地址，请在入口的连接设置中填写 Edge Function URL。");
   return withTimeout(async(signal)=>{
     const res=await fetch(`${API_BASE}/api/messages`,{method:"GET",headers:{"X-Room-Key":roomId},signal,cache:"no-store"});
     const data=await res.json().catch(()=>({}));
@@ -382,6 +351,7 @@ async function apiGetMessages(){
 }
 
 async function apiSendMessage(payload){
+  if(!API_BASE)throw new Error("尚未配置 Supabase 服务地址，消息未发送。");
   return withTimeout(async(signal)=>{
     const res=await fetch(`${API_BASE}/api/messages`,{
       method:"POST",
@@ -456,6 +426,7 @@ async function apiGetPresence(){
 
 
 async function apiUploadMedia(encryptedBuffer, mediaKey){
+  if(!API_BASE)throw new Error("尚未配置 Supabase 服务地址，照片未上传。");
   return withTimeout(async(signal)=>{
     const res=await fetch(`${API_BASE}/api/media`,{
       method:"POST",
@@ -711,7 +682,7 @@ function startPolling(){
 function stopPolling(){ if(pollTimer){clearInterval(pollTimer);pollTimer=null;} }
 
 async function connectRoom(secret){
-  if(!verifiedRole||selectedName!==verifiedRole){setStatus("请先选择 HE / SHE 并验证日期。");return;}
+  if(!roleChosen||!validRole(selectedName)){setStatus("请先选择 HE 或 SHE。");return;}
   secret=sanitizeSecret(secret);
   if(secret.length<10){setStatus("共同密钥至少需要 10 个字符。");return;}
   setStatus("正在安全保存设备连接…");
@@ -776,7 +747,7 @@ async function editMessage(){
 async function sendMessage(kind="text", value=input.value){
   const textValue=String(value||"").trim();
   const hasPhoto=Boolean(selectedPhotoFile);
-  if(!roomId || !cryptoKey || verifiedRole!==selectedName || (!textValue && !hasPhoto)) return;
+  if(!roomId || !cryptoKey || !validRole(selectedName) || (!textValue && !hasPhoto)) return;
   if(textValue.length>2000){ toast("Message is too long."); return; }
   sendBtn.disabled=true;
   try{
@@ -824,8 +795,6 @@ function syncNameChoice(){
   if(selectedPerson)selectedPerson.textContent=`${selectedName=== "Ko Ko" ? "HE" : "SHE"} 已选择`;
 }
 for(const btn of document.querySelectorAll(".name-option"))btn.addEventListener("click",()=>chooseRole(btn.dataset.name));
-$("birthdayStep").addEventListener("submit",verifyBirthday);
-$("birthdayInput").addEventListener("input",()=>{$("birthdayError").textContent="";});
 syncNameChoice();
 $("toggleSecret").addEventListener("click",()=>{
   const show=secretInput.type==="password";secretInput.type=show?"text":"password";
@@ -838,8 +807,7 @@ $("changeSecretBtn").addEventListener("click",()=>{showGate();roomId=null;crypto
 $("resetDeviceBtn").addEventListener("click",async()=>{
   if(!confirm("要重新配置这台设备吗？此操作不会删除云端消息，但需要再次输入之前的共同密钥。"))return;
   await deviceRecord("delete");roomId=null;cryptoKey=null;
-  if(verifiedRole)revealSetup("请重新输入之前的共同密钥。");
-  else setStatus("设备已重置。请选择 HE / SHE 并验证日期。");
+  revealSetup("请重新输入之前的共同密钥。");
 });
 sendBtn.addEventListener("click",()=>editingMessageId?editMessage():sendMessage());
 photoBtn?.addEventListener("click",()=>photoInput?.click());
@@ -1097,9 +1065,9 @@ function b64urlToBytes(value){
 }
 async function refreshNotifyButton(){
   if(!notifyBtn)return;
-  const supported=("serviceWorker" in navigator)&&("PushManager" in window)&&("Notification" in window);
+  const supported=Boolean(API_BASE)&&("serviceWorker" in navigator)&&("PushManager" in window)&&("Notification" in window);
   notifyBtn.disabled=!supported;
-  if(!supported){notifyBtn.textContent="此浏览器不支持推送";return;}
+  if(!supported){notifyBtn.textContent=API_BASE?"此浏览器不支持推送":"先连接 Supabase 再开启通知";return;}
   const reg=await navigator.serviceWorker.ready;
   const subscription=await reg.pushManager.getSubscription();
   const registration=roomId?`${roomId}:${selectedName}`:"";
@@ -1111,13 +1079,14 @@ notifyBtn?.addEventListener("click",async()=>{
   if(!roomId){toast("请先进入聊天");return;}
   notifyBtn.disabled=true;
   try{
+    if(!API_BASE)throw new Error("请先连接 Supabase 后再配置手机推送。");
     if(!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) throw new Error("当前浏览器不支持推送。iPhone 请用 Safari 添加到主屏幕后，从桌面图标打开。");
     const permit=await Notification.requestPermission();
     if(permit!=="granted")throw new Error("需要在系统中允许此网站发送通知。");
     const reg=await navigator.serviceWorker.ready;
     const configRes=await fetch(`${API_BASE}/api/push/config`,{cache:"no-store"});
     const config=await configRes.json();
-    if(!configRes.ok||!config.publicKey)throw new Error(config.error||"Cloudflare 推送服务尚未配置。");
+    if(!configRes.ok||!config.publicKey)throw new Error(config.error||"Supabase 推送服务尚未配置。");
     let sub=await reg.pushManager.getSubscription();
     if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64urlToBytes(config.publicKey)});
     const response=await fetch(`${API_BASE}/api/push/subscribe`,{

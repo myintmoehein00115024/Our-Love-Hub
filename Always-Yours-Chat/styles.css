@@ -708,7 +708,7 @@ body::before,body::after{font-size:120px;color:rgba(204,113,164,.11);z-index:0}
 @media(max-width:640px){.couple-gate{padding:29px 19px;border-radius:26px}.role-grid{gap:10px}.role-card{padding:17px 13px;min-height:182px;border-radius:20px}.role-card strong{font-size:29px}.chat-card{min-height:0;height:100dvh;border-radius:0}.shell:has(.chat-card:not(.hidden)){padding:0}.chat-header{padding:16px 13px 12px;gap:12px}.header-actions{display:flex;flex-wrap:wrap;justify-content:flex-start;margin-top:8px}.chat-subline{display:none}.ghost-button{padding:8px 9px}.composer-wrap{padding-bottom:calc(10px + env(safe-area-inset-bottom))}}
 @media(max-width:350px){.couple-gate h1{font-size:40px}.role-card small{font-size:11px}}
 
-/* v19 · Anniversary-aligned role birthdate checkpoint / Cloudflare diagnostics */
+/* v20 · Supabase connection settings & HE/SHE quick entrance */
 .couple-gate{max-width:730px;padding-top:34px;padding-bottom:28px}
 .couple-gate .unified-logo{width:66px;height:66px;margin-bottom:13px}
 .couple-gate h1{font-size:clamp(39px,6vw,64px)}
@@ -716,17 +716,6 @@ body::before,body::after{font-size:120px;color:rgba(204,113,164,.11);z-index:0}
 .role-card{min-height:170px;padding:21px 20px 15px}
 .role-card.selected-role{border-color:#d481b4;background:linear-gradient(140deg,#fff3f9,#f3eaff);box-shadow:0 8px 24px rgba(173,102,158,.14)}
 .role-card.selected-role .role-enter{color:#884f81}
-.birthday-step{margin-top:17px;padding:20px;border:1px solid #ecd5e7;border-radius:24px;background:linear-gradient(145deg,rgba(255,252,255,.98),rgba(246,237,255,.82));text-align:left;box-shadow:0 12px 28px rgba(118,74,131,.07)}
-.birthday-heading{display:flex;gap:12px;align-items:center;margin-bottom:15px}
-.birthday-lock{display:grid;place-items:center;width:41px;height:41px;border-radius:13px;background:linear-gradient(140deg,#f7d6eb,#e8dcff);font-size:25px;color:#a76499}
-.birthday-heading strong{display:block;font-size:15px;color:#67435f}
-.birthday-heading small{display:block;margin-top:3px;font-size:12px;color:#9c8195}
-.birthday-step>label,.connection-settings label{display:block;font-size:12px;font-weight:800;color:#846080;margin-bottom:7px}
-.birthday-step input,.connection-settings input{display:block;width:100%;min-height:50px;border:1.5px solid #ddc5df;border-radius:15px;background:#fff;color:#644663;padding:10px 15px;font:600 16px system-ui;outline:none}
-.birthday-step input:focus,.connection-settings input:focus{border-color:#b880c0;box-shadow:0 0 0 4px #f7e7f5}
-.birthday-error{min-height:18px;margin:7px 0 0;color:#a54265;font-size:12px;font-weight:700}
-.birthday-submit{margin-top:10px}
-.birthday-note{font-size:11px;line-height:1.6;margin-top:11px;color:#917b90}
 .connection-settings{margin-top:16px;text-align:left;border:1px solid #ead9e7;border-radius:19px;background:rgba(255,255,255,.64)}
 .connection-settings summary{cursor:pointer;padding:13px 15px;color:#937590;font-size:12px;font-weight:700;list-style:none}
 .connection-settings summary::-webkit-details-marker{display:none}
@@ -767,7 +756,6 @@ body::before,body::after{font-size:120px;color:rgba(204,113,164,.11);z-index:0}
  .role-grid{gap:10px}
  .role-card{min-height:155px;padding:15px 13px}
  .role-card strong{font-size:27px}
- .birthday-step{padding:15px}
  .chat-card{height:100dvh;min-height:0;border-radius:0}
  .composer-wrap{padding:10px 11px calc(8px + env(safe-area-inset-bottom))}
 }
