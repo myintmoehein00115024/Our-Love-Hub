@@ -1,4 +1,15 @@
-const API_BASE = window.ALWAYS_YOURS_CHAT_ROUTES.apiBase;
+// The Worker origin is public; the secret and encryption key are not.
+const WORKER_URL_KEY="alwaysYoursWorkerUrlV1";
+function validWorkerUrl(raw){
+  try{
+    const parsed=new URL(String(raw||"").trim());
+    if(parsed.protocol!=="https:" || parsed.username || parsed.password || parsed.search || parsed.hash || parsed.pathname!=="/" && parsed.pathname!=="" || !parsed.hostname || parsed.port) return null;
+    if(parsed.hostname==="localhost" || parsed.hostname==="127.0.0.1" || parsed.hostname.endsWith(".local"))return null;
+    return parsed.origin;
+  }catch{return null;}
+}
+let savedWorkerUrl=null;try{savedWorkerUrl=localStorage.getItem(WORKER_URL_KEY);}catch{}
+let API_BASE = validWorkerUrl(savedWorkerUrl) || validWorkerUrl(window.ALWAYS_YOURS_CHAT_ROUTES.apiBase);
 const API_TIMEOUT_MS = 9000;
 const POLL_MS = 10000;
 const TTL_MS = 48 * 60 * 60 * 1000;
@@ -90,7 +101,7 @@ async function deviceRecord(mode,record){
 async function deviceCredentials(){try{const v=await deviceRecord("get");return v?.key&&/^[a-f0-9]{40}$/.test(v?.room)?v:null;}catch{return null;}}
 function revealSetup(msg=""){ $("setup").classList.remove("hidden"); if(msg)setStatus(msg); secretInput.focus(); }
 async function openPreparedRoom(){
-  if(!roomId||!cryptoKey) return;
+  if(!roomId||!cryptoKey||selectedName!==verifiedRole) return;
   lastMessageIds="";firstSync=true;
   const cached=await loadCache();
   showChat();
@@ -99,13 +110,47 @@ async function openPreparedRoom(){
   updateConnection("连接中…");
   startPolling();startPresence();refreshNotifyButton();
 }
-async function chooseRole(name){
-  if(!["Ko Ko","Chit Chit"].includes(name))return;
-  selectedName=name;try{localStorage.setItem("alwaysYoursName",name);}catch{}syncNameChoice();
-  setStatus("正在进入我们的聊天室…");
-  const stored=await deviceCredentials();
-  if(stored){roomId=stored.room;cryptoKey=stored.key;$("setup").classList.add("hidden");openPreparedRoom();}
-  else revealSetup("第一次使用此设备，需要先连接原来的加密房间。");
+// Date gate is a convenience check. It is public client-side code, NOT strong authentication.
+// The independent high-entropy chat passphrase is what protects messages.
+const ROLE_BIRTHDAYS=Object.freeze({"Ko Ko":"2002-03-21","Chit Chit":"2002-08-23"});
+let pendingRole=null;
+let verifiedRole=null;
+let birthdayBusy=false;
+function chooseRole(name){
+  if(!Object.hasOwn(ROLE_BIRTHDAYS,name))return;
+  pendingRole=name; verifiedRole=null;
+  roomId=null;cryptoKey=null;
+  $("setup").classList.add("hidden");
+  $("birthdayStep").classList.remove("hidden");
+  $("birthdayInput").value="";
+  $("birthdayError").textContent="";
+  $("birthdayTitle").textContent=name==="Ko Ko"?"HE · 男朋友的生日":"SHE · 女朋友的生日";
+  document.querySelectorAll(".name-option").forEach(b=>b.classList.toggle("selected-role",b.dataset.name===name));
+  setStatus("");
+  $("birthdayInput").focus();
+}
+async function verifyBirthday(evt){
+  evt.preventDefault();
+  if(birthdayBusy||!pendingRole)return;
+  const picked=$("birthdayInput").value;
+  if(picked!==ROLE_BIRTHDAYS[pendingRole]){
+    $("birthdayError").textContent="日期不正确，请重新确认 ♡";
+    $("birthdayInput").value="";
+    $("birthdayInput").focus();
+    return;
+  }
+  birthdayBusy=true;
+  try{
+    verifiedRole=pendingRole;
+    selectedName=verifiedRole;
+    try{localStorage.setItem("alwaysYoursName",selectedName);}catch{}
+    syncNameChoice();
+    $("birthdayStep").classList.add("hidden");
+    $("birthdayInput").value="";
+    const stored=await deviceCredentials();
+    if(stored){roomId=stored.room;cryptoKey=stored.key;$("setup").classList.add("hidden");await openPreparedRoom();}
+    else revealSetup("首次使用这台设备，请再输入一次原有的独立聊天加密密钥。");
+  }finally{birthdayBusy=false;}
 }
 
 let roomId = null;
@@ -178,6 +223,18 @@ function formatSeenTime(value){ return new Intl.DateTimeFormat(undefined,{hour:"
 
 function showChat(){ gate.classList.add("hidden"); chat.classList.remove("hidden"); ensurePresenceUi(); ensureEditBar(); }
 function showGate(){
+  verifiedRole=null;pendingRole=null;
+  $("birthdayStep").classList.add("hidden");
+  $("birthdayInput").value="";
+  $("birthdayError").textContent="";
+  document.querySelectorAll(".name-option").forEach(b=>b.classList.remove("selected-role"));
+  messagesEl.replaceChildren();
+  emptyState.classList.remove("hidden");
+  lastMessageIds="";lastRenderedCount=0;firstSync=true;
+  readMarkedIds.clear();
+  for(const url of mediaObjectUrls){try{URL.revokeObjectURL(url)}catch{}}
+  mediaObjectUrls.clear();
+  clearBackendIssue();
   chat.classList.add("hidden");
   gate.classList.remove("hidden");
   stopPolling();
@@ -272,6 +329,49 @@ async function withTimeout(promise){
   try{ return await promise(controller.signal); } finally { clearTimeout(timer); }
 }
 
+function showBackendIssue(error){
+  const banner=$("chatNetworkBanner");
+  if(!banner)return;
+  const problem=String(error?.message||"").slice(0,120);
+  $("networkBannerText").textContent=/fetch|network|abort|load failed|failed/i.test(problem)?
+    "云端暂时连接失败。当前消息未送达；请检查 Cloudflare Worker 地址、部署和网络。":
+    `聊天服务提示：${problem||"未连接"}。请检查 Cloudflare 部署。`;
+  banner.classList.remove("hidden");
+  chat.classList.add("has-network-issue");
+}
+function clearBackendIssue(){ $("chatNetworkBanner")?.classList.add("hidden");chat.classList.remove("has-network-issue"); }
+async function checkWorkerURL(raw,save){
+  const url=validWorkerUrl(raw);
+  if(!url)throw new Error("请输入有效的 HTTPS Worker 地址（不要带 /api/health 或其他路径）。");
+  const controller=new AbortController();
+  const timer=setTimeout(()=>controller.abort(),8000);
+  try{
+    const res=await fetch(`${url}/api/health`,{mode:"cors",cache:"no-store",signal:controller.signal});
+    const payload=await res.json().catch(()=>null);
+    if(!res.ok||!payload?.ok||payload.service!=="always-yours-chat-api")throw new Error("地址可访问，但不是已就绪的 Always Yours Chat Worker。");
+    if(!payload.photos)throw new Error("Worker 缺少 PHOTOS（照片 KV）绑定。");
+    if(save){API_BASE=url;localStorage.setItem(WORKER_URL_KEY,url);}
+    return "连接检测通过：已找到 Chat Worker。";
+  }catch(error){
+    if(error?.name==="AbortError"||error instanceof TypeError)throw new Error("无法访问 Worker：请确认 Worker 已部署、URL 正确且允许当前 GitHub 域名访问（CORS）。");
+    throw error;
+  }finally{clearTimeout(timer);}
+}
+const workerUrlInput=$("workerUrlInput");
+if(workerUrlInput)workerUrlInput.value=API_BASE||"";
+$("testWorkerBtn")?.addEventListener("click",async()=>{
+  const btn=$("testWorkerBtn"),label=$("workerTestResult");
+  btn.disabled=true;label.textContent="正在检测 Cloudflare 连接…";
+  try{label.textContent=await checkWorkerURL(workerUrlInput.value,true);label.classList.add("is-success");clearBackendIssue();}
+  catch(error){label.textContent=error.message;label.classList.remove("is-success");}
+  finally{btn.disabled=false;}
+});
+$("networkSettingsBtn")?.addEventListener("click",()=>{
+  showGate();roomId=null;cryptoKey=null;
+  $("connectionSettings").open=true;
+  $("workerUrlInput").focus();
+  setStatus("聊天内容没有丢失。检查并保存正确的 Worker 地址后，再选择身份登录。");
+});
 async function apiGetMessages(){
   return withTimeout(async(signal)=>{
     const res=await fetch(`${API_BASE}/api/messages`,{method:"GET",headers:{"X-Room-Key":roomId},signal,cache:"no-store"});
@@ -587,15 +687,17 @@ async function syncMessages({silent=false}={}){
     if(changed || !messagesEl.children.length) renderMessages(items);
     markVisibleMessagesRead(items);
     syncPresence();
-    updateConnection("Live · synced");
+    updateConnection("已连接 · 已同步");
+    clearBackendIssue();
     if(!firstSync && changed && items.length>lastRenderedCount){ showNewHint(); }
     firstSync=false;
     lastRenderedCount=items.length;
   }catch(error){
-    const cached=loadCache();
+    const cached=await loadCache();
     if(cached.length && !messagesEl.children.length) renderMessages(cached);
-    updateConnection(navigator.onLine?"Waiting for sync…":"Offline · saved here");
-    if(!silent && navigator.onLine) toast("Couldn't sync right now.");
+    updateConnection(navigator.onLine?"服务器未连接":"离线 · 最近消息仅在本机");
+    showBackendIssue(error);
+    if(!silent && navigator.onLine) toast("聊天服务器未连接，请检查连接设置。");
   }finally{
     syncing=false;
   }
@@ -609,6 +711,7 @@ function startPolling(){
 function stopPolling(){ if(pollTimer){clearInterval(pollTimer);pollTimer=null;} }
 
 async function connectRoom(secret){
+  if(!verifiedRole||selectedName!==verifiedRole){setStatus("请先选择 HE / SHE 并验证日期。");return;}
   secret=sanitizeSecret(secret);
   if(secret.length<10){setStatus("共同密钥至少需要 10 个字符。");return;}
   setStatus("正在安全保存设备连接…");
@@ -673,7 +776,7 @@ async function editMessage(){
 async function sendMessage(kind="text", value=input.value){
   const textValue=String(value||"").trim();
   const hasPhoto=Boolean(selectedPhotoFile);
-  if(!roomId || !cryptoKey || (!textValue && !hasPhoto)) return;
+  if(!roomId || !cryptoKey || verifiedRole!==selectedName || (!textValue && !hasPhoto)) return;
   if(textValue.length>2000){ toast("Message is too long."); return; }
   sendBtn.disabled=true;
   try{
@@ -703,11 +806,13 @@ async function sendMessage(kind="text", value=input.value){
     stickerPanel.classList.add("hidden");
     if(emojiPanel) emojiPanel.classList.add("hidden");
     setStatus("");
+    clearBackendIssue();
     await syncMessages({silent:true});
   }catch(error){
     console.error(error);
     toast(navigator.onLine?(error.message||"Could not send right now."):"You're offline · try again when connected.");
-    updateConnection("Offline · saved here");
+    updateConnection("未送达 · 请检查连接");
+    showBackendIssue(error);
   }finally{
     updateSendButton();
     input.focus();
@@ -719,6 +824,8 @@ function syncNameChoice(){
   if(selectedPerson)selectedPerson.textContent=`${selectedName=== "Ko Ko" ? "HE" : "SHE"} 已选择`;
 }
 for(const btn of document.querySelectorAll(".name-option"))btn.addEventListener("click",()=>chooseRole(btn.dataset.name));
+$("birthdayStep").addEventListener("submit",verifyBirthday);
+$("birthdayInput").addEventListener("input",()=>{$("birthdayError").textContent="";});
 syncNameChoice();
 $("toggleSecret").addEventListener("click",()=>{
   const show=secretInput.type==="password";secretInput.type=show?"text":"password";
@@ -730,7 +837,9 @@ secretInput.addEventListener("keydown",e=>{if(e.key==="Enter")connectRoom(secret
 $("changeSecretBtn").addEventListener("click",()=>{showGate();roomId=null;cryptoKey=null;setStatus("");$("setup").classList.add("hidden");});
 $("resetDeviceBtn").addEventListener("click",async()=>{
   if(!confirm("要重新配置这台设备吗？此操作不会删除云端消息，但需要再次输入之前的共同密钥。"))return;
-  await deviceRecord("delete");roomId=null;cryptoKey=null;revealSetup("请重新输入之前的共同密钥。");
+  await deviceRecord("delete");roomId=null;cryptoKey=null;
+  if(verifiedRole)revealSetup("请重新输入之前的共同密钥。");
+  else setStatus("设备已重置。请选择 HE / SHE 并验证日期。");
 });
 sendBtn.addEventListener("click",()=>editingMessageId?editMessage():sendMessage());
 photoBtn?.addEventListener("click",()=>photoInput?.click());

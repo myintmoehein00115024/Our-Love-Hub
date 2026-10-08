@@ -20,19 +20,27 @@
       <img class="unified-logo" src="../assets/icon-192.png" alt="Our Love Hub 统一爱心 Logo" width="74" height="74">
       <div class="eyebrow">OUR LOVE HUB · 2024.03.23</div>
       <h1>Always Yours<span class="brand-heart"> ♡</span></h1>
-      <p class="intro">只有我们两个人的小小聊天室。选择你是谁，就进入我们的对话。</p>
+      <p class="intro">只有我们的小小聊天室。选择身份，输入对应日期，再走进只属于我们的对话。</p>
       <div class="identity-label">今天你是…</div>
       <div class="role-grid" role="group" aria-label="选择聊天身份">
         <button type="button" class="role-card name-option" data-name="Ko Ko" aria-label="HE — 男朋友">
           <span class="role-symbol" aria-hidden="true">♡</span>
-          <strong>HE</strong><small>男朋友 · Ko Ko</small><span class="role-enter">进入聊天 ↗</span>
+          <strong>HE</strong><small>男朋友 · Ko Ko</small><span class="role-enter">验证日期 ↗</span>
         </button>
         <button type="button" class="role-card name-option" data-name="Chit Chit" aria-label="SHE — 女朋友">
           <span class="role-symbol" aria-hidden="true">✿</span>
-          <strong>SHE</strong><small>女朋友 · Chit Chit</small><span class="role-enter">进入聊天 ↗</span>
+          <strong>SHE</strong><small>女朋友 · Chit Chit</small><span class="role-enter">验证日期 ↗</span>
         </button>
       </div>
       <div id="selectedPerson" class="sr-only" aria-live="polite"></div>
+      <form id="birthdayStep" class="birthday-step hidden" autocomplete="off" novalidate>
+        <div class="birthday-heading"><span class="birthday-lock" aria-hidden="true">♡</span><div><strong id="birthdayTitle">我们的专属日期</strong><small>输入正确日期才能继续</small></div></div>
+        <label for="birthdayInput">出生日期</label>
+        <input id="birthdayInput" type="date" autocomplete="off" required aria-describedby="birthdayError" />
+        <div id="birthdayError" class="birthday-error" role="status" aria-live="polite"></div>
+        <button type="submit" class="primary-button birthday-submit">验证并进入 ♡</button>
+        <div class="birthday-note">日期仅用于这个网页的入口检查；聊天内容另由独立的共同密钥加密。</div>
+      </form>
       <div id="setup" class="first-setup hidden" aria-live="polite">
         <div class="setup-caption">仅首次连接这台设备</div>
         <p>输入你们之前使用的共同密钥一次，保留原有聊天的端到端加密。以后只需点击 HE / SHE。</p>
@@ -44,6 +52,16 @@
         <button id="enterBtn" class="primary-button" type="button">保存本设备并进入 ♡</button>
       </div>
       <div id="status" class="status" role="status" aria-live="polite"></div>
+      <details class="connection-settings" id="connectionSettings">
+        <summary>连接诊断 / 设置 Cloudflare 地址 <span aria-hidden="true">⌄</span></summary>
+        <div class="connection-settings-inner">
+          <label for="workerUrlInput">您的 Cloudflare Worker API 地址</label>
+          <input type="url" id="workerUrlInput" inputmode="url" spellcheck="false" autocomplete="off" placeholder="https://your-worker.your-subdomain.workers.dev" />
+          <button type="button" id="testWorkerBtn" class="worker-test-button">检测连接并保存地址</button>
+          <p id="workerTestResult" class="worker-test-result" role="status" aria-live="polite"></p>
+          <p class="worker-guide">先在 Cloudflare 部署 Chat Worker，确认绑定原有 DB 和 PHOTOS；再将 Worker 地址填在这里。设置仅保存在本机，不会写入 GitHub。不要输入任何聊天密码。</p>
+        </div>
+      </details>
       <div class="gate-bottom">
         <button id="gateInstallBtn" class="install-pill" type="button"><span class="install-pill-icon">♡</span><span><strong>添加到主屏幕</strong><small>下次一键找到我们的聊天室</small></span></button>
         <button id="resetDeviceBtn" class="quiet-link" type="button">重新配置此设备</button>
@@ -53,11 +71,14 @@
 
     <section id="chat" class="card chat-card hidden" aria-label="Private chat">
       <header class="chat-header">
-        <div>
+        <div class="chat-brand-row">
+          <img src="../assets/icon-192.png" alt="Our Love Hub" class="chat-brand-logo" width="52" height="52" />
+          <div>
           <div class="eyebrow">OUR LOVE HUB · JUST THE TWO OF US</div>
           <h2>Always Yours <span>♡</span></h2>
           <p id="roomLabel" class="room-label">Private room</p>
           <div class="chat-subline">2024.03.23 · 两颗心，一个小世界</div>
+          </div>
         </div>
         <div class="header-actions">
           <button id="changeSecretBtn" class="ghost-button" type="button">切换 HE / SHE</button>
@@ -66,6 +87,7 @@
         </div>
       </header>
 
+      <div id="chatNetworkBanner" class="chat-network-banner hidden" role="status" aria-live="polite"><span id="networkBannerText">聊天服务器暂时未连接，消息尚不能送达。</span><button type="button" id="networkSettingsBtn">检查连接</button></div>
       <div id="messages" class="messages" aria-live="polite"></div>
       <div id="emptyState" class="empty-state">
         <div class="empty-heart">♡</div>
