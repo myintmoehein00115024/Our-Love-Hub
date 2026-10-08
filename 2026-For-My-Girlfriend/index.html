@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Happy 24th Birthday, Chit Some Lay</title>
+<style>
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0;
+    font-family: "Avenir Next", "Segoe UI", sans-serif;
+    color:#3b2630;
+    background:linear-gradient(180deg,#fff8fb 0%,#fff 48%,#fff3f7 100%);
+    overflow-x:hidden;
+  }
+  .bg-heart{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:0}
+  .bg-heart span{
+    position:absolute;font-size:18px;opacity:.18;animation:float 12s linear infinite;
+  }
+  @keyframes float{
+    from{transform:translateY(110vh) rotate(0deg);opacity:0}
+    15%{opacity:.18} 85%{opacity:.18}
+    to{transform:translateY(-15vh) rotate(360deg);opacity:0}
+  }
+  .hero{
+    min-height:100vh;display:flex;align-items:center;justify-content:center;
+    text-align:center;padding:40px 20px;position:relative;z-index:1;
+  }
+  .hero-card{
+    width:min(900px,100%);padding:58px 28px 60px;border-radius:36px;
+    background:rgba(255,255,255,.82);backdrop-filter:blur(12px);
+    box-shadow:0 25px 80px rgba(177,75,116,.16);
+    border:1px solid rgba(255,105,160,.2);
+  }
+  .eyebrow{letter-spacing:4px;text-transform:uppercase;font-size:12px;color:#e83d7d;font-weight:700}
+  h1{font-size:clamp(48px,9vw,92px);line-height:.95;margin:22px 0 20px;color:#ed3f7c}
+  .hero p{font-size:clamp(18px,3vw,25px);line-height:1.6;margin:0 auto;max-width:650px}
+  .date{margin:30px auto 0;font-size:14px;letter-spacing:2px;color:#8b6875}
+  .btn{
+    display:inline-block;margin-top:35px;padding:15px 28px;border-radius:999px;
+    background:#ed3f7c;color:white;text-decoration:none;font-weight:700;
+    box-shadow:0 12px 28px rgba(237,63,124,.25);transition:.25s;
+  }
+  .btn:hover{transform:translateY(-3px)}
+  section{position:relative;z-index:1;padding:90px 20px}
+  .wrap{max-width:900px;margin:auto}
+  .section-title{text-align:center;font-size:38px;margin:0 0 18px;color:#4a2935}
+  .section-sub{text-align:center;color:#8a6875;line-height:1.7;margin:0 auto 45px;max-width:650px}
+  .letter{
+    background:white;border-radius:28px;padding:38px;box-shadow:0 18px 60px rgba(80,30,50,.08);
+    border:1px solid #f6dce6;line-height:1.95;font-size:17px;
+  }
+  .quote{
+    margin-top:24px;padding:25px;border-left:4px solid #ed3f7c;background:#fff5f8;
+    border-radius:0 18px 18px 0;font-style:italic;
+  }
+  .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:20px}
+  .card{
+    background:white;border:1px solid #f6dce6;border-radius:24px;padding:28px;
+    box-shadow:0 12px 40px rgba(80,30,50,.06)
+  }
+  .card .icon{font-size:32px}.card h3{margin:14px 0 8px}.card p{margin:0;color:#765c67;line-height:1.7}
+  .timeline{border-left:2px solid #f1bfd0;margin:40px auto;padding-left:28px;max-width:720px}
+  .moment{position:relative;margin-bottom:32px}.moment:before{
+    content:"";position:absolute;width:12px;height:12px;background:#ed3f7c;border-radius:50%;
+    left:-35px;top:7px;box-shadow:0 0 0 5px #fff0f5;
+  }
+  .moment strong{color:#ed3f7c}
+  .dream{
+    text-align:center;background:linear-gradient(135deg,#fff,#fff1f6);
+    border-radius:32px;padding:55px 25px;border:1px solid #f6dce6
+  }
+  .dream h2{font-size:42px;margin:0 0 15px;color:#ed3f7c}
+  .dream p{max-width:650px;margin:auto;line-height:1.9;color:#765c67}
+  footer{text-align:center;padding:65px 20px 90px;position:relative;z-index:1}
+  footer .big-heart{font-size:55px}
+  footer p{color:#8a6875}
+  .signature{font-size:22px;color:#ed3f7c;font-weight:700}
+  @media(max-width:650px){
+    .hero-card{padding:45px 20px;border-radius:28px}
+    .grid{grid-template-columns:1fr}
+    .letter{padding:25px}
+    section{padding:70px 16px}
+  }
+
+/* ===== Romantic hero visual upgrade ===== */
+.hero-card{position:relative;overflow:hidden}
+.hero-card::before{
+  content:"";position:absolute;width:330px;height:330px;right:-15px;top:80px;
+  border-radius:50%;
+  background:radial-gradient(circle,rgba(255,83,142,.14) 0%,rgba(255,170,205,.07) 42%,transparent 72%);
+  pointer-events:none
+}
+.hero-card::after{
+  content:"";position:absolute;inset:0;border-radius:inherit;
+  box-shadow:inset 0 0 70px rgba(255,118,165,.05);pointer-events:none
+}
+
+/* Heart is now directly below the name, rather than beside the heading. */
+.hero-heart-wrap{
+  position:relative;
+  right:auto;top:auto;
+  width:76px;height:62px;
+  margin:2px auto 10px;
+  z-index:5;
+  pointer-events:none;
+}
+.hero-heart{
+  position:absolute;
+  left:22px;top:22px;
+  width:34px;height:34px;
+  transform:rotate(-45deg);
+  transform-origin:center;
+  background:linear-gradient(145deg,#ffabc5 0%,#ff4f86 43%,#ed174f 100%);
+  border-radius:7px 7px 5px 5px;
+  box-shadow:0 7px 15px rgba(237,23,79,.22),0 0 0 5px rgba(255,196,216,.22),0 0 20px rgba(255,87,142,.22);
+  animation:realHeartbeat 1.12s infinite;
+  will-change:transform
+}
+.hero-heart:before,.hero-heart:after{
+  content:"";position:absolute;width:34px;height:34px;border-radius:50%;background:inherit
+}
+.hero-heart:before{left:0;top:-17px}.hero-heart:after{left:17px;top:0}
+.hero-heart-shine{
+  position:absolute;z-index:10;width:10px;height:17px;left:7px;top:3px;
+  border-radius:50%;
+  background:linear-gradient(180deg,rgba(255,255,255,.82),rgba(255,255,255,0));
+  transform:rotate(45deg);filter:blur(.4px)
+}
+.heartbeat-ring{
+  position:absolute;left:8px;top:8px;width:60px;height:60px;
+  border:1.5px solid rgba(255,125,167,.30);border-radius:50%;
+  animation:ringPulse 1.12s infinite
+}
+.heart-spark{
+  position:absolute;color:#ff4d83;font-size:11px;line-height:1;
+  animation:sparkFloat 2.4s ease-in-out infinite;opacity:.8
+}
+.heart-spark.s1{right:0;top:2px}.heart-spark.s2{left:1px;top:23px;font-size:9px;animation-delay:.55s}
+.heart-spark.s3{right:7px;bottom:0;font-size:9px;animation-delay:1s}
+
+@keyframes realHeartbeat{
+  0%,100%{transform:rotate(-45deg) scale(1)}
+  8%{transform:rotate(-45deg) scale(1.12)}
+  16%{transform:rotate(-45deg) scale(1)}
+  27%{transform:rotate(-45deg) scale(1.17)}
+  40%,100%{transform:rotate(-45deg) scale(1)}
+}
+@keyframes ringPulse{
+  0%,100%{transform:scale(.86);opacity:.12}
+  10%{transform:scale(1.03);opacity:.52}
+  22%{transform:scale(.89);opacity:.16}
+  30%{transform:scale(1.11);opacity:.42}
+  46%{transform:scale(.86);opacity:0}
+}
+@keyframes sparkFloat{
+  0%,100%{transform:translateY(0) scale(.86);opacity:.35}
+  50%{transform:translateY(-5px) scale(1.12);opacity:1}
+}
+
+/* Typography tuned to the reference image: rounded, bold, clean, and compact. */
+.eyebrow{
+  letter-spacing:4px;text-transform:uppercase;font-size:12px;
+  color:#e83d7d;font-weight:800
+}
+.hero-card h1{
+  font-family:"Arial Rounded MT Bold","Avenir Next Rounded","Trebuchet MS",sans-serif;
+  font-weight:900;
+  font-size:clamp(46px,8.4vw,88px);
+  line-height:.96;
+  letter-spacing:-2.2px;
+  margin:22px 0 10px;
+  color:#ed3f7c;
+  text-shadow:0 5px 0 rgba(255,255,255,.65),0 9px 20px rgba(237,63,124,.14)
+}
+.hero-card .hero-heart-wrap + h1{margin-top:4px}
+.hero p{
+  font-family:"Avenir Next","Segoe UI",sans-serif;
+  font-size:clamp(18px,3vw,25px);line-height:1.55;
+  margin:0 auto;max-width:650px
+}
+
+@media(max-width:650px){
+  .hero-card{padding:45px 20px;border-radius:28px}
+  .hero-card::before{right:-20%;top:40px;width:230px;height:230px}
+  .hero-card h1{
+    font-size:clamp(43px,11vw,64px);
+    letter-spacing:-1.6px;
+    padding-right:0
+  }
+  .hero-heart-wrap{margin-top:0;margin-bottom:8px;transform:scale(.9)}
+}
+@media(prefers-reduced-motion:reduce){
+  .hero-heart,.hero-heart-wrap,.heartbeat-ring,.heart-spark{animation:none}
+}
+
+
+/* ===== Little Love Space ===== */
+.little-love-space{
+  position:relative;
+  z-index:1;
+  padding:20px 20px 70px;
+}
+.little-love-window{
+  position:relative;
+  overflow:hidden;
+  width:min(760px,100%);
+  margin:0 auto;
+  padding:42px 28px 46px;
+  text-align:center;
+  border-radius:32px;
+  background:linear-gradient(145deg,rgba(255,255,255,.96),rgba(255,239,246,.94));
+  border:1px solid rgba(237,63,124,.16);
+  box-shadow:0 22px 65px rgba(80,30,50,.10);
+}
+.window-glow{
+  position:absolute;
+  width:280px;
+  height:280px;
+  right:-95px;
+  top:-120px;
+  border-radius:50%;
+  background:radial-gradient(circle,rgba(255,83,142,.18),transparent 70%);
+  pointer-events:none;
+}
+.little-love-window:before{
+  content:"♡";
+  position:absolute;
+  left:-12px;
+  bottom:-52px;
+  color:rgba(237,63,124,.07);
+  font-size:130px;
+  line-height:1;
+  pointer-events:none;
+}
+.window-label{
+  position:relative;
+  font-family:"Avenir Next","Segoe UI",sans-serif;
+  font-size:11px;
+  font-weight:800;
+  letter-spacing:3px;
+  color:#e83d7d;
+}
+.little-love-window h2{
+  position:relative;
+  margin:12px 0 12px;
+  font-family:"Arial Rounded MT Bold","Avenir Next Rounded","Trebuchet MS",sans-serif;
+  font-size:clamp(27px,5vw,39px);
+  line-height:1.13;
+  color:#4a2935;
+}
+.little-love-window p{
+  position:relative;
+  max-width:570px;
+  margin:0 auto 25px;
+  color:#765c67;
+  font-family:"Avenir Next","Segoe UI",sans-serif;
+  font-size:15px;
+  line-height:1.8;
+}
+.little-love-button{
+  position:relative;
+  display:inline-flex !important;
+  visibility:visible !important;
+  opacity:1 !important;
+  align-items:center;
+  justify-content:center;
+  gap:12px;
+  min-height:52px;
+  padding:15px 25px;
+  border-radius:999px;
+  background:#ed3f7c;
+  color:#fff;
+  text-decoration:none;
+  font-family:"Avenir Next","Segoe UI",sans-serif;
+  font-size:14px;
+  font-weight:700;
+  box-shadow:0 12px 30px rgba(237,63,124,.24);
+  transition:transform .25s ease,box-shadow .25s ease;
+  animation:littleLovePulse 2.2s ease-in-out infinite;
+}
+.little-love-button:after{
+  content:"";
+  position:absolute;
+  inset:-7px;
+  border:1px solid rgba(237,63,124,.25);
+  border-radius:999px;
+  animation:littleLoveRing 2.2s ease-out infinite;
+}
+.little-love-button:hover{
+  transform:translateY(-4px);
+  box-shadow:0 17px 38px rgba(237,63,124,.30);
+}
+.little-arrow{
+  font-size:20px;
+  line-height:1;
+  animation:littleArrowMove 1.15s ease-in-out infinite;
+}
+@keyframes littleLovePulse{
+  0%,100%{transform:translateY(0);box-shadow:0 12px 30px rgba(237,63,124,.22)}
+  50%{transform:translateY(-3px);box-shadow:0 17px 36px rgba(237,63,124,.30)}
+}
+@keyframes littleLoveRing{
+  0%{transform:scale(.96);opacity:.75}
+  100%{transform:scale(1.12);opacity:0}
+}
+@keyframes littleArrowMove{
+  0%,100%{transform:translateX(0)}
+  50%{transform:translateX(5px)}
+}
+@media(max-width:650px){
+  .little-love-space{padding:5px 16px 55px}
+  .little-love-window{padding:34px 18px 38px;border-radius:26px}
+  .little-love-button{width:100%;max-width:330px}
+}
+@media(prefers-reduced-motion:reduce){
+  .little-love-button,.little-love-button:after,.little-arrow{animation:none}
+}
+/* ===== Little Love Space END ===== */
+
+
+
+</style>
+
+
+<style id="add-to-home-css">
+/* ===== Add to Home / Install App ===== */
+#addToHomeBtn{
+  position:fixed;
+  top:max(16px, env(safe-area-inset-top));
+  right:max(18px, env(safe-area-inset-right));
+  z-index:10000;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:9px;
+  min-height:54px;
+  padding:14px 22px;
+  border:1px solid rgba(255,255,255,.82);
+  border-radius:999px;
+  background:rgba(255,255,255,.88);
+  color:#765c80;
+  font:700 15px/1 "Avenir Next","Segoe UI",sans-serif;
+  box-shadow:0 10px 30px rgba(80,30,50,.14), inset 0 0 0 1px rgba(237,63,124,.05);
+  backdrop-filter:blur(14px);
+  -webkit-backdrop-filter:blur(14px);
+  cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+  user-select:none;
+  -webkit-user-select:none;
+  touch-action:manipulation;
+  transition:transform .22s ease,box-shadow .22s ease,background .22s ease;
+}
+#addToHomeBtn:hover{
+  transform:translateY(-2px);
+  background:rgba(255,255,255,.96);
+  box-shadow:0 14px 34px rgba(80,30,50,.18);
+}
+#addToHomeBtn:active{transform:translateY(0) scale(.98)}
+#addToHomeBtn:focus-visible{
+  outline:3px solid rgba(237,63,124,.28);
+  outline-offset:4px;
+}
+#addToHomeBtn .home-icon{
+  width:22px;height:22px;display:grid;place-items:center;
+  color:#cf79a4;font-size:21px;line-height:1;
+}
+#addToHomeBtn .home-label{white-space:nowrap}
+#addToHomeBtn.is-hidden{display:none}
+@media(max-width:650px){
+  #addToHomeBtn{
+    top:max(12px, env(safe-area-inset-top));
+    right:max(12px, env(safe-area-inset-right));
+    min-height:48px;
+    padding:12px 16px;
+    gap:7px;
+    font-size:13px;
+  }
+  #addToHomeBtn .home-icon{font-size:19px;width:20px;height:20px}
+}
+@media(max-width:380px){
+  #addToHomeBtn{padding:11px 14px;font-size:12px}
+}
+@media(prefers-reduced-motion:reduce){
+  #addToHomeBtn{transition:none}
+}
+</style>
+
+
+<style id="install-guide-css">
+/* ===== OS-aware Add to Home guide ===== */
+#installGuideOverlay{
+  position:fixed;inset:0;z-index:11000;display:none;align-items:center;justify-content:center;
+  padding:24px;background:rgba(44,29,43,.30);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+}
+#installGuideOverlay.show{display:flex;animation:installFadeIn .22s ease both}
+#installGuideCard{
+  width:min(580px,calc(100vw - 32px));max-height:min(760px,calc(100vh - 32px));overflow:auto;
+  padding:30px 30px 26px;border:1px solid rgba(237,63,124,.12);border-radius:30px;
+  background:linear-gradient(180deg,rgba(255,255,255,.98),rgba(255,248,252,.98));
+  box-shadow:0 28px 90px rgba(71,35,57,.24),0 0 0 1px rgba(255,255,255,.7) inset;
+  color:#6f5876;text-align:center;position:relative;
+}
+.install-guide-heart{font-size:42px;line-height:1;color:#d27dad;margin:0 0 10px;filter:drop-shadow(0 5px 10px rgba(210,125,173,.18))}
+.install-guide-title{margin:0;font-family:Georgia,"Times New Roman",serif;font-size:clamp(24px,4vw,34px);line-height:1.2;color:#6c5573;font-weight:700}
+.install-guide-subtitle{margin:12px auto 20px;max-width:480px;font-size:15px;line-height:1.7;color:#8a728f}
+.install-guide-steps{
+  margin:0 auto;padding:18px 20px;border-radius:20px;text-align:left;
+  background:rgba(255,249,252,.92);border:1px solid rgba(237,63,124,.10);
+  box-shadow:0 8px 22px rgba(237,63,124,.05) inset;
+}
+.install-guide-step{display:flex;gap:10px;align-items:flex-start;font-size:14px;line-height:1.65;font-weight:600;color:#7b647f}
+.install-guide-step+.install-guide-step{margin-top:9px}
+.install-guide-num{flex:0 0 auto;font-weight:800;color:#765c80}
+.install-guide-note{margin:15px 0 0;font-size:12px;line-height:1.55;color:#9b859f}
+.install-guide-actions{display:flex;justify-content:center;gap:10px;margin-top:22px}
+#installGuideClose{
+  min-width:130px;padding:12px 24px;border-radius:999px;border:1px solid rgba(237,63,124,.18);
+  background:rgba(255,255,255,.75);color:#8a6a89;font:700 14px/1 "Avenir Next","Segoe UI",sans-serif;
+  cursor:pointer;box-shadow:0 8px 18px rgba(237,63,124,.06);touch-action:manipulation;
+}
+#installGuideNative{
+  display:none;min-width:130px;padding:12px 24px;border:0;border-radius:999px;
+  background:#ed3f7c;color:#fff;font:700 14px/1 "Avenir Next","Segoe UI",sans-serif;
+  cursor:pointer;box-shadow:0 10px 22px rgba(237,63,124,.22);touch-action:manipulation;
+}
+#installGuideOverlay.android-native #installGuideNative{display:inline-block}
+@keyframes installFadeIn{from{opacity:0}to{opacity:1}}
+@media(max-width:650px){
+  #installGuideOverlay{padding:16px}
+  #installGuideCard{width:100%;padding:26px 20px 22px;border-radius:26px;max-height:calc(100vh - 24px)}
+  .install-guide-heart{font-size:38px}
+  .install-guide-subtitle{font-size:14px;margin-bottom:17px}
+  .install-guide-steps{padding:16px}
+  .install-guide-step{font-size:13px}
+  .install-guide-actions{margin-top:18px}
+}
+@media(prefers-reduced-motion:reduce){#installGuideOverlay.show{animation:none}}
+</style>
+
+<style id="music-css">
+#musicPlayer{
+  position:fixed;right:16px;bottom:16px;z-index:9999;
+  width:54px;height:54px;border:0;border-radius:50%;
+  background:rgba(255,255,255,.94);
+  box-shadow:0 8px 28px rgba(80,30,50,.18);
+  color:#ed3f7c;font-size:22px;cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+}
+#musicPlayer.playing{animation:musicPulse 1.5s infinite}
+#youtubeAudioFrame{
+  position:fixed;width:2px;height:2px;left:-10px;bottom:-10px;
+  opacity:0;pointer-events:none;border:0;
+}
+@keyframes musicPulse{
+  0%,100%{transform:scale(1)}
+  50%{transform:scale(1.08)}
+}
+
+/* ===== Cross-device polish ===== */
+html{
+  -webkit-text-size-adjust:100%;
+  text-size-adjust:100%;
+  scroll-padding-top:20px;
+}
+body{
+  min-width:0;
+  -webkit-tap-highlight-color:transparent;
+}
+img,svg,video,iframe{max-width:100%;}
+button,a{touch-action:manipulation;}
+.btn,.little-love-button,#musicPlayer{
+  -webkit-user-select:none;
+  user-select:none;
+}
+.btn:focus-visible,.little-love-button:focus-visible,#musicPlayer:focus-visible{
+  outline:3px solid rgba(237,63,124,.35);
+  outline-offset:4px;
+}
+@media (min-width:651px) and (max-width:1024px){
+  .hero{padding:34px 28px;}
+  .hero-card{width:min(820px,100%);padding:52px 30px;}
+  section{padding:78px 28px;}
+  .wrap{max-width:860px;}
+}
+@media (max-width:650px){
+  .hero{min-height:100svh;padding:22px 14px;}
+  .hero-card{width:100%;padding:38px 17px 42px;}
+  .hero-card h1{font-size:clamp(38px,10.8vw,62px);line-height:.98;}
+  .hero p{font-size:clamp(17px,4.5vw,21px);line-height:1.55;}
+  .date{font-size:12px;letter-spacing:1.3px;line-height:1.7;}
+  .btn{min-height:50px;padding:14px 22px;}
+  section{padding:62px 14px;}
+  .section-title{font-size:clamp(30px,8vw,38px);line-height:1.15;}
+  .section-sub{font-size:15px;margin-bottom:30px;}
+  .letter{padding:22px 20px;font-size:16px;line-height:1.85;border-radius:24px;}
+  .quote{padding:20px;margin-top:20px;}
+  .card{padding:24px 22px;}
+  .timeline{padding-left:22px;margin-left:8px;}
+  .moment:before{left:-29px;}
+  .dream{padding:40px 20px;border-radius:26px;}
+  .dream h2{font-size:clamp(32px,9vw,42px);} 
+  .little-love-window h2{font-size:clamp(26px,7.5vw,36px);}
+  .little-love-window p{font-size:14px;line-height:1.75;}
+  #musicPlayer{
+    right:max(12px,env(safe-area-inset-right));
+    bottom:max(12px,env(safe-area-inset-bottom));
+    width:52px;height:52px;
+  }
+}
+@media (max-width:380px){
+  .hero-card{padding-left:14px;padding-right:14px;}
+  .hero-card h1{font-size:clamp(35px,10.5vw,48px);letter-spacing:-1.2px;}
+  .eyebrow{font-size:10px;letter-spacing:2.5px;}
+  .date{font-size:11px;}
+  .letter{padding:20px 17px;}
+}
+@media (orientation:landscape) and (max-height:560px){
+  .hero{min-height:auto;padding:24px 14px;}
+  .hero-card{padding:30px 22px;}
+  .hero-card h1{font-size:clamp(38px,8vw,64px);}
+  section{padding-top:50px;padding-bottom:50px;}
+}
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto;}
+  *,*::before,*::after{animation-duration:.01ms !important;animation-iteration-count:1 !important;transition-duration:.01ms !important;}
+}
+</style>
+
+
+  <!-- ===== Home Screen / Shortcut Icon ===== -->
+  <meta name="theme-color" content="#f58aa8">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Always Yours">
+  <link rel="icon" type="image/png" sizes="192x192" href="heart-icon-192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="heart-icon-512.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="heart-icon-192.png">
+  <link rel="manifest" href="site.webmanifest">
+  <!-- ===== Home Screen / Shortcut Icon END ===== -->
+
+<script>
+  // Register the local service worker so supported browsers can install this page as an app.
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("./sw.js?v=6", { scope: "./" }).catch(() => {});
+    });
+  }
+</script>
+</head>
+<body>
+
+<!-- ===== Add to Home / Install App ===== -->
+<button id="addToHomeBtn" type="button" aria-label="Add this website to your home screen">
+  <span class="home-icon" aria-hidden="true">♡</span>
+  <span class="home-label">Add to Home</span>
+</button>
+<!-- ===== Add to Home / Install App END ===== -->
+
+<!-- ===== OS-aware Add to Home Guide ===== -->
+<div id="installGuideOverlay" role="dialog" aria-modal="true" aria-labelledby="installGuideTitle" aria-describedby="installGuideSubtitle">
+  <div id="installGuideCard">
+    <div class="install-guide-heart" aria-hidden="true">♡</div>
+    <h2 id="installGuideTitle" class="install-guide-title">Keep our little world close</h2>
+    <p id="installGuideSubtitle" class="install-guide-subtitle">Add this little page to your home screen and open it like a private app. ♡</p>
+    <div id="installGuideSteps" class="install-guide-steps"></div>
+    <p id="installGuideNote" class="install-guide-note"></p>
+    <div class="install-guide-actions">
+      <button id="installGuideClose" type="button">Maybe later</button>
+      <button id="installGuideNative" type="button">Install now</button>
+    </div>
+  </div>
+</div>
+<!-- ===== OS-aware Add to Home Guide END ===== -->
+
+
+<div class="bg-heart" aria-hidden="true">
+  <span style="left:5%;animation-delay:0s">♡</span>
+  <span style="left:18%;animation-delay:3s">♥</span>
+  <span style="left:32%;animation-delay:7s">♡</span>
+  <span style="left:48%;animation-delay:2s">♥</span>
+  <span style="left:64%;animation-delay:5s">♡</span>
+  <span style="left:80%;animation-delay:1s">♥</span>
+  <span style="left:92%;animation-delay:8s">♡</span>
+</div>
+
+<header class="hero">
+  <div class="hero-card">
+    <div class="eyebrow">A little surprise, made just for you</div>
+    <h1>Happy Birthday,<br>Chit Sone Lay</h1>
+    <div class="hero-heart-wrap" aria-hidden="true">
+      <div class="heartbeat-ring"></div>
+      <div class="hero-heart"><span class="hero-heart-shine"></span></div>
+      <span class="heart-spark s1">♥</span>
+      <span class="heart-spark s2">✦</span>
+      <span class="heart-spark s3">♥</span>
+    </div>
+    <p>Today is all about celebrating the beautiful person you are — and how lucky I feel to have you in my life.</p>
+    <div class="date">23 · AUGUST · 2026 &nbsp; • &nbsp; 24 YEARS YOUNG</div>
+    <a class="btn" href="#message">Open Your Letter ↓</a>
+  </div>
+</header>
+
+<section id="message">
+  <div class="wrap">
+    <h2 class="section-title">A Yan Chit Ya Thu Lay ATwak 💌</h2>
+    <p class="section-sub">Distance may separate two places, but it doesn't have to separate two hearts.</p>
+    <div class="letter">
+      <p>Happy 24th birthday, Chit Sone Pu Tu Lay Yay💕.</p>
+      <p>I wish I could be beside you today, see your smile with my own eyes, give you a real hug, and celebrate this special day together. Even though we are far apart, please remember that you are never far from my heart.</p>
+      <p>Thank you for being part of my life, for the little moments, the conversations, the laughter, and all the memories we are still creating together.</p>
+      <p>On your birthday, I don't just wish you happiness for today. I wish you a year filled with beautiful surprises, peaceful days, big dreams coming true, and many reasons to smile.</p>
+      <div class="quote">“One day, I hope we won't have to count the distance between us anymore — only the days we've spent together.”</div>
+      <p>Until then, I will keep choosing you, loving you, and looking forward to every next chapter of our story.</p>
+      <p>Happy birthday, A Yan Chit Ya Tu Thin Thin Lay Yay💞</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2 class="section-title">What I Love Most About You</h2>
+    <p class="section-sub">Not just one thing. There are too many little things that make you, you.</p>
+    <div class="grid">
+      <div class="card"><div class="icon">🌷</div><h3>Your Heart</h3><p>The kindness, warmth, and love you give to the people around you.</p></div>
+      <div class="card"><div class="icon">✨</div><h3>Your Smile</h3><p>One smile from you can make an ordinary day feel completely different.</p></div>
+      <div class="card"><div class="icon">🌙</div><h3>Your Presence</h3><p>Even from far away, somehow you still make my days feel less lonely.</p></div>
+      <div class="card"><div class="icon">💗</div><h3>The Way You Are</h3><p>I don't need a perfect person. I love the real you — exactly as you are.</p></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2 class="section-title">Our Story 📖</h2>
+    <p class="section-sub">A few chapters of us — with many more waiting to be written.</p>
+    <div class="timeline">
+      <div class="moment"><strong>Chapter 01 · We Met</strong><br>Somehow, two separate lives crossed paths and became a story.</div>
+      <div class="moment"><strong>Chapter 02 · We Chose Each Other</strong><br>From conversations to memories, little by little, you became someone special.</div>
+      <div class="moment"><strong>Chapter 03 · Long Distance</strong><br>Different places, different days, but the same feeling — still choosing each other.</div>
+      <div class="moment"><strong>Chapter 04 · What's Next</strong><br>The best chapter hasn't happened yet. I believe there are beautiful days ahead of us.</div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="dream">
+      <h2>Dreams Together 👩‍❤️‍👨</h2>
+      <p>I want more than messages on a screen. I want ordinary mornings together, spontaneous trips, late-night conversations without a phone between us, sharing food, taking silly photos, and simply being next to you.</p>
+      <p style="margin-top:18px">Until that day comes, let's keep building our little future — one day at a time.</p>
+    </div>
+  </div>
+</section>
+
+
+
+
+
+<!-- ===== Little Love Space ===== -->
+<section class="little-love-space">
+  <div class="little-love-window">
+    <div class="window-glow"></div>
+    <div class="window-label">ONE MORE LITTLE SURPRISE</div>
+    <h2>There’s Another Place<br>Made Just for You 💞</h2>
+    <p>
+      If you made it all the way here, there is one more little corner
+      waiting for you — a place made with all my love.
+    </p>
+    <a class="little-love-button"
+       href="../2025-For-My-Girlfriend/"
+       target="_self">
+      <span>Open Our Little Love Space</span>
+      <span class="little-arrow">→</span>
+    </a>
+  </div>
+</section>
+<!-- ===== Little Love Space END ===== -->
+
+<footer>
+  <div class="big-heart">💝</div>
+  <h2>Happy Birthday, Chit Sone Pu Tuu</h2>
+  <p>Made with love, just for you.</p>
+  <div class="signature">Chit Sone Thin Thin Lay Yay💕</div>
+</footer>
+
+<script>
+  // Small surprise: tap the page several times to release hearts.
+  let taps = 0;
+  document.addEventListener("click", () => {
+    taps++;
+    if (taps >= 5) {
+      for(let i=0;i<18;i++){
+        const h=document.createElement("div");
+        h.textContent=["♥","♡","✨"][Math.floor(Math.random()*3)];
+        h.style.position="fixed";
+        h.style.left=(45+Math.random()*10)+"%";
+        h.style.top="55%";
+        h.style.fontSize=(14+Math.random()*22)+"px";
+        h.style.zIndex=99;
+        h.style.pointerEvents="none";
+        document.body.appendChild(h);
+        const x=(Math.random()*240-120), y=-(120+Math.random()*280);
+        h.animate([{transform:"translate(0,0) scale(.5)",opacity:1},
+                   {transform:`translate(${x}px,${y}px) scale(1.2)`,opacity:0}],
+                  {duration:1300+Math.random()*700,easing:"ease-out"}).onfinish=()=>h.remove();
+      }
+      taps=0;
+    }
+  });
+</script>
+
+<!-- MUSIC PLAYER START -->
+<button id="musicPlayer" type="button" aria-label="Play music" title="Play music">🎵</button>
+<div id="youtubeAudioFrame" aria-hidden="true"></div>
+<script src="https://www.youtube.com/iframe_api"></script>
+<script>
+let musicYT = null;
+let musicReady = false;
+let musicPlaying = false;
+const MUSIC_ID = "acgqcvERIBg";
+const musicButton = document.getElementById("musicPlayer");
+
+function onYouTubeIframeAPIReady(){
+  musicYT = new YT.Player("youtubeAudioFrame", {
+    width: "2",
+    height: "2",
+    videoId: MUSIC_ID,
+    playerVars: {
+      autoplay: 0,
+      controls: 0,
+      loop: 1,
+      playlist: MUSIC_ID,
+      playsinline: 1,
+      rel: 0
+    },
+    events: {
+      onReady: function(){ musicReady = true; },
+      onStateChange: function(e){
+        if(e.data === YT.PlayerState.PLAYING){
+          musicPlaying = true;
+          musicButton.textContent = "🔊";
+          musicButton.classList.add("playing");
+          musicButton.setAttribute("aria-label","Pause music");
+        } else if(e.data === YT.PlayerState.PAUSED || e.data === YT.PlayerState.ENDED){
+          musicPlaying = false;
+          musicButton.textContent = "🎵";
+          musicButton.classList.remove("playing");
+          musicButton.setAttribute("aria-label","Play music");
+        }
+      }
+    }
+  });
+}
+
+function toggleMusic(ev){
+  if(ev) ev.preventDefault();
+  if(!musicReady || !musicYT) return;
+  try{
+    if(musicPlaying){
+      musicYT.pauseVideo();
+    }else{
+      musicYT.playVideo();
+    }
+  }catch(err){
+    console.log("Music playback was blocked:", err);
+  }
+}
+
+/* pointerup is especially useful on mobile Chrome; click is the fallback. */
+musicButton.addEventListener("pointerup", toggleMusic, {passive:false});
+musicButton.addEventListener("click", toggleMusic);
+
+/* Also start music from the existing "Open Your Letter" button.
+   This is a genuine user gesture on Android Chrome. */
+const openLetter = document.querySelector('a[href="#message"]');
+if(openLetter){
+  openLetter.addEventListener("pointerup", function(){
+    if(musicReady && musicYT && !musicPlaying) musicYT.playVideo();
+  }, {passive:true});
+  openLetter.addEventListener("click", function(){
+    if(musicReady && musicYT && !musicPlaying) musicYT.playVideo();
+  });
+}
+</script>
+<!-- MUSIC PLAYER END -->
+
+
+<script id="add-to-home-script">
+/* ===== OS-aware Add to Home / Install App ===== */
+(() => {
+  const installButton = document.getElementById("addToHomeBtn");
+  const overlay = document.getElementById("installGuideOverlay");
+  const steps = document.getElementById("installGuideSteps");
+  const note = document.getElementById("installGuideNote");
+  const close = document.getElementById("installGuideClose");
+  const nativeBtn = document.getElementById("installGuideNative");
+  if (!installButton || !overlay || !steps) return;
+
+  let deferredInstallPrompt = null;
+  const ua = navigator.userAgent || "";
+  const platform = navigator.platform || "";
+  const isStandalone = () =>
+    window.matchMedia("(display-mode: standalone)").matches ||
+    window.matchMedia("(display-mode: fullscreen)").matches ||
+    window.navigator.standalone === true;
+  const isIOS = /iphone|ipad|ipod/i.test(ua) || (platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const isAndroid = /android/i.test(ua);
+  const isSamsung = /samsungbrowser/i.test(ua);
+  const isChromeAndroid = isAndroid && /chrome/i.test(ua) && !isSamsung && !/edg/i.test(ua);
+  const isFirefoxAndroid = isAndroid && /firefox/i.test(ua);
+  const isEdgeAndroid = isAndroid && /edg/i.test(ua);
+  const isIOSChrome = isIOS && /crios/i.test(ua);
+  const isIOSSafari = isIOS && !isIOSChrome && !/fxios|edgios/i.test(ua);
+
+  const show = () => overlay.classList.add("show");
+  const hide = () => overlay.classList.remove("show");
+  const step = (n, text) => `<div class="install-guide-step"><span class="install-guide-num">${n}</span><span>${text}</span></div>`;
+
+  function setGuide() {
+    overlay.classList.remove("android-native");
+    if (isIOSSafari || isIOSChrome) {
+      steps.innerHTML =
+        step("①", "Tap the <strong>Share</strong> button in your browser.") +
+        step("②", "Choose <strong>Add to Home Screen</strong> from the share sheet.") +
+        step("③", "Tap <strong>Add</strong> to keep our little world on your home screen. ♡");
+      note.textContent = isIOSChrome
+        ? "For the best iPhone experience, Safari is recommended for adding this page to the Home Screen."
+        : "This is the standard iPhone / iPad Home Screen method.";
+      return;
+    }
+    if (isSamsung) {
+      steps.innerHTML =
+        step("①", "Tap the <strong>Menu (☰)</strong> button in Samsung Internet.") +
+        step("②", "Choose <strong>Add page to</strong> → <strong>Home screen</strong>.") +
+        step("③", "Confirm the name, then tap <strong>Add</strong>. ♡");
+      note.textContent = "Samsung Internet uses its own Home Screen menu, so the instructions are matched to this browser.";
+      return;
+    }
+    if (isFirefoxAndroid) {
+      steps.innerHTML =
+        step("①", "Tap the <strong>⋮ menu</strong> in Firefox.") +
+        step("②", "Choose <strong>Install</strong> or <strong>Add to Home screen</strong> when shown.") +
+        step("③", "Confirm the shortcut on your Home Screen. ♡");
+      note.textContent = "Firefox may label this option slightly differently depending on the Android version.";
+      return;
+    }
+    if (isEdgeAndroid) {
+      steps.innerHTML =
+        step("①", "Tap the <strong>⋯ menu</strong> in Microsoft Edge.") +
+        step("②", "Choose <strong>Add to phone</strong> / <strong>Install app</strong>.") +
+        step("③", "Confirm the installation. ♡");
+      note.textContent = "The exact menu label can vary by Edge and Android version.";
+      return;
+    }
+    if (isAndroid) {
+      steps.innerHTML =
+        step("①", "Open the browser <strong>⋮ menu</strong> or tap the install icon in the address bar.") +
+        step("②", "Choose <strong>Install app</strong> or <strong>Add to Home screen</strong>.") +
+        step("③", "Confirm and open it like a private app. ♡");
+      note.textContent = "The wording can vary slightly by Android version and browser.";
+      return;
+    }
+    steps.innerHTML =
+      step("①", "Open the browser menu or the install icon near the address bar.") +
+      step("②", "Choose <strong>Install</strong> or <strong>Add to desktop</strong>.") +
+      step("③", "Confirm and open it like a private app. ♡");
+    note.textContent = "Your browser decides the exact installation label and system dialog.";
+  }
+
+  window.addEventListener("beforeinstallprompt", (event) => {
+    event.preventDefault();
+    deferredInstallPrompt = event;
+  });
+
+  installButton.addEventListener("click", () => {
+    if (isStandalone()) return;
+    setGuide();
+    if (deferredInstallPrompt && isAndroid) overlay.classList.add("android-native");
+    show();
+  });
+
+  nativeBtn.addEventListener("click", async () => {
+    if (!deferredInstallPrompt) return;
+    try {
+      deferredInstallPrompt.prompt();
+      await deferredInstallPrompt.userChoice;
+    } catch (_) {}
+    deferredInstallPrompt = null;
+    hide();
+  });
+
+  close.addEventListener("click", hide);
+  overlay.addEventListener("click", (e) => { if (e.target === overlay) hide(); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") hide(); });
+
+  window.addEventListener("appinstalled", () => {
+    deferredInstallPrompt = null;
+    installButton.classList.add("is-hidden");
+    hide();
+  });
+
+  if (isStandalone()) installButton.classList.add("is-hidden");
+  else installButton.classList.remove("is-hidden");
+})();
+</script>
+
+</body>
+</html>

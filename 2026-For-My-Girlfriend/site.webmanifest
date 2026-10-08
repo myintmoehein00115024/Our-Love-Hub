@@ -1,0 +1,25 @@
+{
+  "name": "Happy 24th Birthday, Chit Sone Lay",
+  "short_name": "Always Yours",
+  "description": "A little birthday surprise made with love.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#fff8fb",
+  "theme_color": "#f58aa8",
+  "icons": [
+    {
+      "src": "heart-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "heart-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
