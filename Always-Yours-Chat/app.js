@@ -9,8 +9,19 @@ function validWorkerUrl(raw){
     return parsed.origin+parsed.pathname.replace(/\/$/,"");
   }catch{return null;}
 }
-let savedWorkerUrl=null;try{savedWorkerUrl=localStorage.getItem(WORKER_URL_KEY);}catch{}
-let API_BASE = validWorkerUrl(savedWorkerUrl) || validWorkerUrl(window.ALWAYS_YOURS_CHAT_ROUTES?.apiBase);
+// Initialize this new, dedicated chat backend once, even if the browser cached
+// a previous Cloudflare/old Supabase connection. Later user overrides still persist.
+const DEFAULT_CHAT_API = validWorkerUrl(window.ALWAYS_YOURS_CHAT_ROUTES?.apiBase);
+const INITIALIZED_API_KEY="alwaysYoursChatProjectZegjegutcigbydtzggurInitializedV1";
+let savedWorkerUrl=null;
+try{
+  if(DEFAULT_CHAT_API && localStorage.getItem(INITIALIZED_API_KEY)!=="yes"){
+    localStorage.setItem(WORKER_URL_KEY,DEFAULT_CHAT_API);
+    localStorage.setItem(INITIALIZED_API_KEY,"yes");
+  }
+  savedWorkerUrl=localStorage.getItem(WORKER_URL_KEY);
+}catch{}
+let API_BASE = validWorkerUrl(savedWorkerUrl) || DEFAULT_CHAT_API;
 const API_TIMEOUT_MS = 9000;
 const POLL_MS = 10000;
 const TTL_MS = 48 * 60 * 60 * 1000;

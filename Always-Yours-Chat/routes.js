@@ -8,6 +8,6 @@
     siteHome: siteRoot.href,
     journeyHome: new URL("Our-Journey/", siteRoot).href,
     // Fill after creating a DEDICATED Supabase Chat project. Never paste a secret/service_role key.
-    apiBase: ""
+    apiBase: "https://zegjegutcigbydtzggur.supabase.co/functions/v1/always-yours-chat"
   });
 })();
