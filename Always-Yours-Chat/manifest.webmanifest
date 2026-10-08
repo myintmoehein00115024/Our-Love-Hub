@@ -1,15 +1,14 @@
 {
-  "id": "../",
-  "name": "Our Love Hub · M ♡ T",
-  "short_name": "Our Love Hub",
-  "description": "One little home for all our memories, messages, and birthday surprises.",
+  "id": "./",
+  "name": "Our Love Hub · Always Yours",
+  "short_name": "Always Yours",
+  "description": "HE ♡ SHE · 我们的两人聊天空间",
   "lang": "zh-CN",
-  "start_url": "../",
-  "scope": "../",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
-  "background_color": "#fcf3f8",
-  "theme_color": "#a66b9c",
-  "orientation": "any",
+  "background_color": "#fff5fa",
+  "theme_color": "#c969a0",
   "icons": [
     {
       "src": "../assets/icon-192.png",

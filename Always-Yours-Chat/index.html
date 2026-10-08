@@ -1,89 +1,80 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#efe8ff">
+  <meta name="theme-color" content="#f8ebf4">
   <meta name="description" content="A tiny private space for two hearts.">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="Our Love Hub">
-  <link rel="manifest" href="../manifest.webmanifest">
-
-<link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
-  <link rel="stylesheet" href="styles.css">
-  <title>Always Yours ♡</title>
+  <meta name="apple-mobile-web-app-title" content="Always Yours">
+  <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" type="image/png" sizes="32x32" href="../assets/favicon-32.png">
   <link rel="apple-touch-icon" sizes="180x180" href="../assets/apple-touch-icon.png">
+  <link rel="stylesheet" href="styles.css">
+  <title>Always Yours ♡ · Our Love Hub</title>
 </head>
 <body>
   <main class="shell">
-    <section id="gate" class="card gate-card">
-      <div class="brand-stack" aria-label="Always Yours">
-        <div class="brand-mark" aria-hidden="true">M <span>💞</span> T</div>
-        <div class="brand-script">Always yours ♡</div>
-      </div>
-      <div class="eyebrow">A PRIVATE LITTLE PLACE</div>
-      <h1>Always yours.</h1>
-      <p class="intro">A quiet room for two. Only someone with your shared secret can reach the same conversation.</p>
-
-      <div class="field-group">
-        <label for="displayName">Your name</label>
-        <div class="name-switch" role="group" aria-label="Choose your name">
-          <button type="button" class="name-option active" data-name="Ko Ko" aria-pressed="true">Ko Ko</button>
-          <button type="button" class="name-option" data-name="Chit Chit" aria-pressed="false">Chit Chit</button>
-        </div>
-        <div id="selectedPerson" class="selected-person" aria-live="polite">Selected: Ko Ko ♡</div>
-      </div>
-
-      <div class="field-group">
-        <label for="secret">Your stable secret <span class="label-soft">· shared only by us</span></label>
-        <div class="secret-wrap">
-          <input id="secret" type="text" autocomplete="off" spellcheck="false" placeholder="Type your secret exactly as you saved it" minlength="10" inputmode="text" aria-describedby="secretHint">
-          <button id="toggleSecret" class="icon-button secret-toggle" type="button" aria-label="Hide secret" aria-pressed="true">Hide</button>
-        </div>
-        <div id="secretHint" class="hint">Your secret is visible while you type, so you can check every character. Use the same strong secret on both devices.</div>
-      </div>
-
-      <button id="enterBtn" class="primary-button" type="button">Enter our chat ♡</button>
-      <div id="status" class="status" aria-live="polite"></div>
-
-      <div class="gate-actions">
-        <button id="gateInstallBtn" class="install-pill" type="button">
-          <span class="install-pill-icon">♡</span>
-          <span>
-            <strong>Add to Home</strong>
-            <small>Keep our little room on your device</small>
-          </span>
+    <section id="gate" class="card gate-card couple-gate">
+      <img class="unified-logo" src="../assets/icon-192.png" alt="Our Love Hub 统一爱心 Logo" width="74" height="74">
+      <div class="eyebrow">OUR LOVE HUB · 2024.03.23</div>
+      <h1>Always Yours<span class="brand-heart"> ♡</span></h1>
+      <p class="intro">只有我们两个人的小小聊天室。选择你是谁，就进入我们的对话。</p>
+      <div class="identity-label">今天你是…</div>
+      <div class="role-grid" role="group" aria-label="选择聊天身份">
+        <button type="button" class="role-card name-option" data-name="Ko Ko" aria-label="HE — 男朋友">
+          <span class="role-symbol" aria-hidden="true">♡</span>
+          <strong>HE</strong><small>男朋友 · Ko Ko</small><span class="role-enter">进入聊天 ↗</span>
+        </button>
+        <button type="button" class="role-card name-option" data-name="Chit Chit" aria-label="SHE — 女朋友">
+          <span class="role-symbol" aria-hidden="true">✿</span>
+          <strong>SHE</strong><small>女朋友 · Chit Chit</small><span class="role-enter">进入聊天 ↗</span>
         </button>
       </div>
-
-      <div class="tiny-note">Messages are encrypted in the browser before they are stored.</div>
+      <div id="selectedPerson" class="sr-only" aria-live="polite"></div>
+      <div id="setup" class="first-setup hidden" aria-live="polite">
+        <div class="setup-caption">仅首次连接这台设备</div>
+        <p>输入你们之前使用的共同密钥一次，保留原有聊天的端到端加密。以后只需点击 HE / SHE。</p>
+        <label for="secret" class="setup-label">共同密钥（不会上传或写入 GitHub）</label>
+        <div class="secret-wrap">
+          <input id="secret" type="password" autocomplete="off" spellcheck="false" placeholder="两台设备输入相同的旧密钥" minlength="10">
+          <button id="toggleSecret" class="icon-button secret-toggle" type="button" aria-label="显示密钥">显示</button>
+        </div>
+        <button id="enterBtn" class="primary-button" type="button">保存本设备并进入 ♡</button>
+      </div>
+      <div id="status" class="status" role="status" aria-live="polite"></div>
+      <div class="gate-bottom">
+        <button id="gateInstallBtn" class="install-pill" type="button"><span class="install-pill-icon">♡</span><span><strong>添加到主屏幕</strong><small>下次一键找到我们的聊天室</small></span></button>
+        <button id="resetDeviceBtn" class="quiet-link" type="button">重新配置此设备</button>
+      </div>
+      <div class="tiny-note">对话由共同密钥加密 · 消息保留 48 小时</div>
     </section>
 
     <section id="chat" class="card chat-card hidden" aria-label="Private chat">
       <header class="chat-header">
         <div>
-          <div class="eyebrow">OUR LITTLE ROOM</div>
+          <div class="eyebrow">OUR LOVE HUB · JUST THE TWO OF US</div>
           <h2>Always Yours <span>♡</span></h2>
           <p id="roomLabel" class="room-label">Private room</p>
-          <div class="chat-subline">two hearts · one quiet place · always yours ♡</div>
+          <div class="chat-subline">2024.03.23 · 两颗心，一个小世界</div>
         </div>
         <div class="header-actions">
-          <button id="changeSecretBtn" class="ghost-button" type="button">Change secret</button>
-          <button id="installBtn" class="ghost-button install-ghost" type="button">Add to Home</button>
+          <button id="changeSecretBtn" class="ghost-button" type="button">切换 HE / SHE</button>
+          <button id="notifyBtn" class="ghost-button notify-button" type="button">🔔 开启消息提醒</button>
+          <button id="installBtn" class="ghost-button install-ghost" type="button">添加到主屏幕</button>
         </div>
       </header>
 
       <div id="messages" class="messages" aria-live="polite"></div>
       <div id="emptyState" class="empty-state">
         <div class="empty-heart">♡</div>
-        <strong>Your little room is quiet.</strong>
-        <span>Leave the first message. It will stay here for two days.</span>
+        <strong>属于我们的第一条消息，等着你 ♡</strong>
+        <span>只有 HE 和 SHE 的聊天空间 · 消息保存 48 小时</span>
       </div>
 
       <div class="composer-wrap">
-        <div id="newMessageHint" class="new-message-hint hidden" aria-live="polite">New memory ♡</div>
+        <div id="newMessageHint" class="new-message-hint hidden" aria-live="polite">收到新消息 ♡</div>
         <div id="emojiPanel" class="emoji-panel hidden" aria-label="Emoji picker"></div>
         <div id="stickerPanel" class="sticker-panel hidden" aria-label="Stickers"></div>
         <div class="composer-tools">
@@ -105,10 +96,10 @@
           <button id="removePhotoBtn" class="photo-remove-button" type="button" aria-label="Remove selected photo">×</button>
         </div>
         <div class="composer">
-          <textarea id="messageInput" rows="1" maxlength="2000" placeholder="Write something only we need to see…"></textarea>
-          <button id="sendBtn" class="send-button" type="button">Send ♡</button>
+          <textarea id="messageInput" rows="1" maxlength="2000" placeholder="写给你的那个人…"></textarea>
+          <button id="sendBtn" class="send-button" type="button">发送 ♡</button>
         </div>
-        <div class="composer-foot">Private room · photos and messages disappear after 48 hours · only us ♡</div>
+        <div class="composer-foot">只有我们两个 · 照片和消息会在 48 小时后消失</div>
       </div>
     </section>
   </main>
@@ -128,6 +119,7 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
+  <script src="routes.js"></script>
   <script type="module" src="app.js"></script>
   <script>
     if ('serviceWorker' in navigator) {

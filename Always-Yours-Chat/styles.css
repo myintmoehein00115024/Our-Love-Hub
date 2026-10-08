@@ -666,3 +666,44 @@ self.addEventListener("fetch",e=>{
   .message-reaction-result,
   .message-reaction-summary{font-size:10px!important;margin-left:4px!important}
 }
+
+/* Our Love Hub 2026 · unified couple identity and mobile chat */
+:root{--bg1:#fff0f7;--bg2:#f2ebff;--ink:#4e334d;--muted:#8c728a;--pink:#c969a0;--lav:#a88add;--shadow:0 24px 70px rgba(112,71,118,.12)}
+body{background:radial-gradient(ellipse at 10% 5%,#ffe6f0 0,transparent 45%),radial-gradient(ellipse at 85% 85%,#eae0ff 0,transparent 45%),linear-gradient(145deg,#fff7fb,#f4eeff);}
+body::before,body::after{font-size:120px;color:rgba(204,113,164,.11);z-index:0}
+.card{border-radius:34px;background:rgba(255,255,255,.80);border:1px solid rgba(255,255,255,.92);box-shadow:0 22px 65px rgba(128,88,131,.12)}
+.couple-gate{max-width:670px;padding:42px clamp(22px,5vw,52px);overflow:hidden;position:relative}
+.unified-logo{display:block;width:74px;height:74px;margin:0 auto 16px;border-radius:20px;box-shadow:0 12px 30px rgba(181,104,158,.25)}
+.couple-gate h1{font-size:clamp(42px,7vw,66px);line-height:1.05;white-space:nowrap;letter-spacing:-.055em}
+.brand-heart{color:#c66da4;font-size:.7em}
+.couple-gate .intro{max-width:460px;margin:12px auto 28px;font-size:14px;line-height:1.85}
+.identity-label{text-align:left;font-size:12px;letter-spacing:.1em;color:#916789;font-weight:800;margin:0 0 12px 3px}
+.role-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px}
+.role-card{min-width:0;display:flex;flex-direction:column;align-items:flex-start;gap:7px;border:1px solid rgba(224,194,222,.85);border-radius:25px;padding:24px 20px 18px;min-height:205px;text-align:left;background:linear-gradient(145deg,#fffafd,#f7ecfa);box-shadow:0 14px 36px rgba(122,79,131,.06);cursor:pointer;transition:transform .2s,box-shadow .2s,border-color .2s}
+.role-card:nth-child(2){background:linear-gradient(145deg,#fdfaff,#eee7ff)}
+.role-card::before,.role-card::after{display:none!important}
+.role-card:hover,.role-card:focus-visible{transform:translateY(-4px);border-color:#c787b8;box-shadow:0 18px 38px rgba(134,83,143,.16);outline:none}
+.role-card strong{font-family:Georgia,serif;font-size:33px;letter-spacing:-.045em;color:#67445f}
+.role-card small{font-size:13px;color:#987f98}
+.role-card .role-enter{font-size:12px;font-weight:750;margin-top:auto;color:#ad6c9d}
+.role-symbol{display:grid;place-items:center;border-radius:15px;width:43px;height:43px;background:linear-gradient(135deg,#f8c9e2,#e2d5fd);color:#b75e98;font-size:26px}
+.first-setup{margin-top:20px;padding:21px;border:1px solid #eedbea;border-radius:23px;text-align:left;background:rgba(255,255,255,.9)}
+.first-setup .setup-caption{font-weight:800;color:#a66799;margin-bottom:6px;font-size:13px}
+.first-setup p{font-size:12px;line-height:1.75;color:#8e788a;margin-bottom:13px}
+.setup-label{font-size:12px;font-weight:800;display:block;margin-bottom:8px}
+.first-setup .primary-button{margin-top:12px}
+.gate-bottom{display:flex;align-items:center;justify-content:center;gap:16px;flex-wrap:wrap;margin-top:19px}
+.gate-bottom .install-pill{margin:0}
+.quiet-link{border:0;background:transparent;color:#9e7e97;text-decoration:underline;text-underline-offset:4px;font-size:12px;cursor:pointer}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
+.chat-card{height:min(880px,calc(100dvh - 30px));max-width:950px}
+.chat-header{background:linear-gradient(140deg,#fff9fc,#f2ebff);border-bottom:1px solid #f0e1ee}
+.chat-header h2{font-size:clamp(26px,4vw,35px)}
+.messages{background:radial-gradient(circle at 18% 12%,rgba(255,220,235,.25),transparent 35%),linear-gradient(165deg,rgba(255,255,255,.42),rgba(244,236,255,.45))}
+.mine .message-bubble{background:linear-gradient(135deg,#fee5f3,#e9dffd);border:1px solid #f5d8ec}
+.theirs .message-bubble{background:#fff;border:1px solid #f0e5ee}
+.composer-wrap{background:#fffafd}
+.notify-button{background:#fceaf4;border-color:#f2d2e7;color:#985f87}
+.notify-button.is-enabled{background:#eef9ee;color:#457b60;border-color:#cee7d4}
+@media(max-width:640px){.couple-gate{padding:29px 19px;border-radius:26px}.role-grid{gap:10px}.role-card{padding:17px 13px;min-height:182px;border-radius:20px}.role-card strong{font-size:29px}.chat-card{min-height:0;height:100dvh;border-radius:0}.shell:has(.chat-card:not(.hidden)){padding:0}.chat-header{padding:16px 13px 12px;gap:12px}.header-actions{display:flex;flex-wrap:wrap;justify-content:flex-start;margin-top:8px}.chat-subline{display:none}.ghost-button{padding:8px 9px}.composer-wrap{padding-bottom:calc(10px + env(safe-area-inset-bottom))}}
+@media(max-width:350px){.couple-gate h1{font-size:40px}.role-card small{font-size:11px}}
