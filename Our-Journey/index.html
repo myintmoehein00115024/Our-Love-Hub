@@ -1,348 +1,155 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#f7edf8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#f7eff9">
+  <meta name="description" content="Our Journey — 从 2024 年 3 月 23 日开始，只属于 M ♡ T 的故事。">
+  <meta name="robots" content="noindex,nofollow,noarchive">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Our Love Hub">
-  <meta name="mobile-web-app-capable" content="yes">
-  <link rel="manifest" href="../manifest.webmanifest">
-
-<link rel="icon" type="image/png" sizes="48x48" href="./icons/favicon-48.png">
-
-<meta name="description" content="Our little story — memories, birthdays, and the journey of M ♡ T.">
-  <title>Our Journey ♡ M 💞 T</title>
-  <link rel="stylesheet" href="styles.css">
-  <script src="drive-config.js"></script>
   <link rel="icon" type="image/png" sizes="32x32" href="../assets/favicon-32.png">
   <link rel="apple-touch-icon" sizes="180x180" href="../assets/apple-touch-icon.png">
+  <link rel="manifest" href="../manifest.webmanifest">
+  <title>Our Journey · 只属于我们的故事 ♡</title>
+  <link rel="stylesheet" href="./styles.css">
+  <script src="./routes.js" defer></script>
+  <script src="./app.js" defer></script>
 </head>
 <body>
-  <div class="page-glow glow-one"></div>
-  <div class="page-glow glow-two"></div>
-  <div class="sparkles" aria-hidden="true">
-    <span>✦</span><span>·</span><span>♡</span><span>✦</span><span>·</span>
+  <div class="ambient-hearts" aria-hidden="true"><span>♡</span><span>♡</span><span>♡</span></div>
+  <div class="site-wrap">
+    <header class="topbar">
+      <a href="#top" class="brand" aria-label="Our Journey 返回顶部">
+        <img src="../assets/icon-192.png" alt="" width="51" height="51">
+        <span class="brand-type"><strong>Our Journey</strong><small>M ♡ T · OUR LOVE HUB</small></span>
+      </a>
+      <nav class="topnav" aria-label="快速导航">
+        <a href="#our-places">我们的世界</a>
+        <a href="#our-timeline">纪念日</a>
+        <a class="nav-chat" data-site-route="chat" href="../Always-Yours-Chat/">悄悄话 <span aria-hidden="true">↗</span></a>
+      </nav>
+      <button class="install-button" id="installOpen" type="button" aria-haspopup="dialog">♡ <span>添加到桌面</span></button>
+    </header>
+
+    <main id="top">
+      <section class="hero-panel" aria-labelledby="heroTitle">
+        <div class="hero-copy">
+          <p class="eyebrow"><span class="eyebrow-dot">♥</span> M ♡ T · EST. 23 MAR 2024</p>
+          <h1 id="heroTitle">我们的故事，<br><em>一直在继续。</em></h1>
+          <p class="hero-lead">从 2024 年 3 月 23 日开始，<br class="only-wide">每一次相遇、每一份礼物、每一个平凡的今天，<br class="only-wide">都成了我们独一无二的回忆。</p>
+          <div class="hero-actions">
+            <a class="button button-main" href="#our-timeline">翻开我们的故事 <span aria-hidden="true">↘</span></a>
+            <a class="button button-light" data-site-route="chat" href="../Always-Yours-Chat/">打开悄悄话 <span aria-hidden="true">↗</span></a>
+          </div>
+          <p class="hero-quiet">TODAY · TOMORROW · ALWAYS <span aria-hidden="true">♡</span></p>
+        </div>
+        <aside class="anniversary-card" aria-label="我们的恋爱纪念日与相恋天数">
+          <span class="orbit orbit-one" aria-hidden="true"></span><span class="orbit orbit-two" aria-hidden="true"></span>
+          <img src="../assets/icon-192.png" alt="M ♡ T 统一爱心图标" class="anniversary-logo" width="90" height="90">
+          <span class="anniversary-label">OUR FIRST DAY</span>
+          <strong class="anniversary-date">2024.03.23</strong>
+          <div class="anniversary-divider"><span>♡</span></div>
+          <span class="anniversary-small">我们已经一起走过</span>
+          <div class="day-figure"><b id="storyDays" aria-live="polite">—</b><span>天</span></div>
+          <span class="anniversary-end">每一天，都值得被珍惜。</span>
+        </aside>
+      </section>
+
+      <div class="date-ribbon" aria-label="相恋纪念日">
+        <span class="date-ribbon-heart" aria-hidden="true">♡</span>
+        <span>从 <strong>2024 年 3 月 23 日</strong> 开始</span>
+        <i aria-hidden="true"></i>
+        <span>我们的故事，没有终点</span>
+        <span class="date-ribbon-heart" aria-hidden="true">♡</span>
+      </div>
+
+      <section class="section places" id="our-places" aria-labelledby="placesTitle">
+        <div class="section-heading">
+          <div><p class="eyebrow">THREE LITTLE WORLDS · ONE BIG LOVE</p><h2 id="placesTitle">藏着我们的<span>小小宇宙</span></h2><p class="section-description">每个角落，都是专门为你留下的一份心意。</p></div>
+          <span class="section-aside">MADE WITH LOVE ♡</span>
+        </div>
+        <div class="place-grid">
+          <a class="place-card card-chat" data-site-route="chat" href="../Always-Yours-Chat/">
+            <div class="card-top"><img src="../assets/icon-192.png" alt="" width="58" height="58"><span class="card-arrow" aria-hidden="true">↗</span></div>
+            <p class="card-kicker">01 / OUR PRIVATE SPACE</p>
+            <h3>Always Yours Chat</h3>
+            <p class="card-description">给每一句悄悄话、每一次想念，留一个只属于我们的地方。</p>
+            <span class="card-action">进入聊天空间 <span aria-hidden="true">→</span></span>
+          </a>
+          <a class="place-card card-2025" data-site-route="gift2025" href="../2025-For-My-Girlfriend/">
+            <div class="card-top"><img src="../assets/icon-192.png" alt="" width="58" height="58"><span class="card-arrow" aria-hidden="true">↗</span></div>
+            <p class="card-kicker">02 / 23 AUG 2025</p>
+            <h3>2025 年给女朋友做的</h3>
+            <p class="card-description">ThinThin · 为你 23 岁生日准备的第一份小小惊喜。</p>
+            <span class="card-action">打开 2025 的礼物 <span aria-hidden="true">→</span></span>
+          </a>
+          <a class="place-card card-2026" data-site-route="gift2026" href="../2026-For-My-Girlfriend/">
+            <div class="card-top"><img src="../assets/icon-192.png" alt="" width="58" height="58"><span class="card-arrow" aria-hidden="true">↗</span></div>
+            <p class="card-kicker">03 / 23 AUG 2026</p>
+            <h3>2026 年给女朋友做的</h3>
+            <p class="card-description">PuTuTuLay · 在你 24 岁生日，把新的爱写进故事里。</p>
+            <span class="card-action">打开 2026 的礼物 <span aria-hidden="true">→</span></span>
+          </a>
+        </div>
+      </section>
+
+      <section class="section timeline-section" id="our-timeline" aria-labelledby="timelineTitle">
+        <div class="section-heading">
+          <div><p class="eyebrow">THE CHAPTERS OF US</p><h2 id="timelineTitle">属于我们的<span>每一页</span></h2><p class="section-description">从第一次牵起手，到一年又一年的心动。</p></div>
+          <span class="section-aside">OUR JOURNEY · 2024—FOREVER</span>
+        </div>
+        <div class="timeline-list">
+          <article class="timeline-item">
+            <div class="timeline-point" aria-hidden="true">♡</div>
+            <div class="timeline-date"><strong>2024</strong><span>03 / 23</span></div>
+            <div class="timeline-copy"><span>CHAPTER 01 · THE BEGINNING</span><h3>故事开始的那一天</h3><p>2024 年 3 月 23 日，我们正式在一起了。从那一天起，平凡的日子有了特别的意义。</p></div>
+          </article>
+          <article class="timeline-item">
+            <div class="timeline-point" aria-hidden="true">♡</div>
+            <div class="timeline-date"><strong>2025</strong><span>08 / 23</span></div>
+            <div class="timeline-copy"><span>CHAPTER 02 · 23RD BIRTHDAY</span><h3>送给你 23 岁的生日礼物</h3><p>用代码、心意和好多好多爱，做出只属于 ThinThin 的小世界。</p><a data-site-route="gift2025" href="../2025-For-My-Girlfriend/">重温这一份礼物 ↗</a></div>
+          </article>
+          <article class="timeline-item">
+            <div class="timeline-point" aria-hidden="true">♡</div>
+            <div class="timeline-date"><strong>2026</strong><span>08 / 23</span></div>
+            <div class="timeline-copy"><span>CHAPTER 03 · 24TH BIRTHDAY</span><h3>又一年，还是最喜欢你</h3><p>在你 24 岁生日，把更多的小惊喜和我们一起走过的日子，悄悄收藏起来。</p><a data-site-route="gift2026" href="../2026-For-My-Girlfriend/">重温这一份礼物 ↗</a></div>
+          </article>
+          <article class="timeline-item future-item">
+            <div class="timeline-point" aria-hidden="true">∞</div>
+            <div class="timeline-date"><strong>∞</strong><span>FOREVER</span></div>
+            <div class="timeline-copy"><span>TO BE CONTINUED</span><h3>更多故事，还在未来等我们</h3><p>2027、2028，还有好多好多年，都想和你一起慢慢走。</p></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="closing-card" aria-label="给你的话">
+        <div class="closing-heart" aria-hidden="true">♡</div>
+        <p class="eyebrow">A LITTLE NOTE FOR YOU</p>
+        <h2>日子一天天过去，<br><em>喜欢你却从未减少。</em></h2>
+        <p>2024.03.23 — Forever. <span aria-hidden="true">♡</span></p>
+        <a class="button button-main" data-site-route="chat" href="../Always-Yours-Chat/">和你说说话 <span aria-hidden="true">↗</span></a>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div><strong>Our Journey <span>♡</span></strong><p>Made with love, for M ♡ T.</p></div>
+      <button id="lockJourney" type="button">锁上这个小世界 <span aria-hidden="true">↗</span></button>
+    </footer>
   </div>
 
-  <header class="site-header">
-    <div class="brand-row">
-      <div class="brand-mark brand-mark-v4" aria-label="M heart T">
-        <span class="line"></span>
-        <span class="brand-letter">M</span>
-        <span class="brand-heart" aria-hidden="true">♥</span>
-        <span class="brand-letter">T</span>
-        <span class="line"></span>
-      </div>
-      <button class="install-trigger" id="installTrigger" type="button" hidden>
-        <span>＋</span><b id="installLabel">Add to Home</b>
-      </button>
-    </div>
-    <h1>Our Journey<span>♡</span></h1>
-    <p>DIFFERENT DAYS · SAME LOVE</p>
-    <div class="journey-status">
-      <span class="status-dot"></span>
-      <span>OUR STORY IS STILL BEING WRITTEN</span>
-    </div>
-    <div class="header-note note-left">A little room<br>for a big love ♡</div>
-    <div class="header-note note-right">More memories<br>to come... ♡</div>
-  </header>
-
-
-  <div class="memory-modal" id="memoryModal" hidden aria-hidden="true">
-    <div class="memory-backdrop" data-memory-close></div>
-    <section class="memory-sheet" role="dialog" aria-modal="true" aria-labelledby="memoryTitle">
-      <button class="memory-close" type="button" data-memory-close aria-label="Close">×</button>
-      <span class="section-kicker">A NEW LITTLE MEMORY</span>
-      <h2 id="memoryTitle">Add something<br><em>worth keeping.</em></h2>
-
-      <div class="memory-file-row">
-        <label class="memory-file-picker" for="memoryFile">
-          <span class="memory-file-icon">＋</span>
-          <span><strong>Choose photo or video</strong><small id="memoryFileName">Nothing selected yet</small></span>
-        </label>
-        <input id="memoryFile" type="file" accept="image/*,video/*" hidden>
-      </div>
-
-      <div class="memory-preview" id="memoryPreview" hidden></div>
-
-      <div class="memory-form-grid">
-        <label><span>Date</span><input id="memoryDate" type="date"></label>
-        <label><span>Title</span><input id="memoryTitleInput" type="text" maxlength="80" placeholder="A little moment"></label>
-      </div>
-      <label class="memory-note-field"><span>Note</span><textarea id="memoryNote" maxlength="240" rows="3" placeholder="What makes this moment ours?"></textarea></label>
-
-      <label class="memory-toggle">
-        <input id="memorySoftTone" type="checkbox" checked>
-        <span class="toggle-ui"></span>
-        <span><strong>Soft pastel finish</strong><small>Subtle color polish for new photos. Originals are not overwritten.</small></span>
-      </label>
-
-      <div class="memory-progress" id="memoryProgress" hidden>
-        <div class="progress-top"><span id="memoryProgressLabel">Preparing…</span><b id="memoryProgressValue">0%</b></div>
-        <div class="progress-track"><i id="memoryProgressBar"></i></div>
-      </div>
-
-      <div class="memory-actions">
-        <button class="soft-btn" type="button" data-memory-close>Cancel</button>
-        <button class="primary-btn" type="button" id="memoryUploadBtn">Save to Google Drive <span>→</span></button>
-      </div>
-      <p class="memory-footnote">Large videos use resumable upload so a temporary connection drop is less painful.</p>
+  <button class="back-to-top" id="backTop" type="button" aria-label="回到页面顶部">↑</button>
+  <div class="dialog-layer" id="installDialog" hidden>
+    <div class="dialog-backdrop" data-close-install></div>
+    <section class="dialog-card" role="dialog" aria-modal="true" aria-labelledby="installTitle">
+      <button class="dialog-close" type="button" data-close-install aria-label="关闭">×</button>
+      <img src="../assets/icon-192.png" alt="Our Love Hub" width="72" height="72">
+      <p class="eyebrow">OUR LITTLE APP</p>
+      <h2 id="installTitle">把我们的故事<br>留在桌面 ♡</h2>
+      <p id="installInstructions">可在浏览器的菜单中选择“添加到主屏幕”或“安装应用”。</p>
+      <button id="nativeInstall" class="button button-main" type="button" hidden>安装 Our Love Hub →</button>
+      <button type="button" class="dialog-secondary" data-close-install>下次再说</button>
     </section>
   </div>
-
-  <div class="memory-lightbox" id="memoryLightbox" hidden aria-hidden="true">
-    <div class="lightbox-backdrop" data-lightbox-close></div>
-    <section class="lightbox-sheet" role="dialog" aria-modal="true" aria-label="Memory preview">
-      <button class="lightbox-close" type="button" data-lightbox-close aria-label="Close">×</button>
-      <div id="lightboxMedia"></div>
-      <div class="lightbox-caption" id="lightboxCaption"></div>
-    </section>
-  </div>
-
-  <div class="install-modal" id="installModal" hidden aria-hidden="true">
-    <div class="install-backdrop" data-install-close></div>
-    <section class="install-sheet" role="dialog" aria-modal="true" aria-labelledby="installTitle">
-      <button class="install-close" type="button" data-install-close aria-label="Close">×</button>
-      <div class="install-logo"><img src="../assets/icon-192.png" alt="Our Journey"></div>
-      <span class="section-kicker">OUR LITTLE APP</span>
-      <h2 id="installTitle">Keep Our Journey<br><em>close to you.</em></h2>
-      <p class="install-intro" id="installIntro">Add this little place to your device for one-tap access.</p>
-
-      <div class="install-action" id="nativeInstallBox" hidden>
-        <button id="nativeInstall" type="button">Install Our Journey <span>→</span></button>
-      </div>
-
-      <div class="install-guide" id="installGuide"></div>
-      <p class="install-note">The website stays the same. This simply gives it an app-style icon and opening experience.</p>
-    </section>
-  </div>
-
-  <main class="shell">
-    <section class="hero">
-      <div class="hero-copy">
-        <span class="eyebrow">OUR LITTLE STORY</span>
-        <h2>A quiet place<br><em>for all our memories.</em></h2>
-        <p>From the day our story began, to every birthday, little surprise, and ordinary day that became special.</p>
-        <div class="hero-actions">
-          <a class="primary-btn" href="#memories">Explore our story <span>→</span></a>
-          <a class="soft-btn" href="#places">Our little places</a>
-        </div>
-        <div class="story-counter" id="storyCounter" aria-live="polite">
-          <span>OUR STORY</span>
-          <b>Since 23 Mar 2024</b>
-          <i id="storyDays">— days together</i>
-        </div>
-      </div>
-      <div class="hero-card">
-        <div class="mini-card-top">M <b>♡</b> T</div>
-        <div class="moon">☾</div>
-        <div class="hero-card-title">Still us.</div>
-        <div class="hero-card-sub">Today · Tomorrow · Always</div>
-        <div class="tiny-hearts">♡  ♡  ♡</div>
-      </div>
-    </section>
-
-    <section class="quick-grid" aria-label="Our places">
-      <a class="quick-card" href="../Always-Yours-Chat/">
-        <span class="quick-icon">♡</span>
-        <strong>Chat</strong>
-        <small>Our everyday talks</small>
-        <i>↗</i>
-      </a>
-      <a class="quick-card" href="#memoryVault">
-        <span class="quick-icon">▧</span>
-        <strong>Photos</strong>
-        <small>Moments we keep</small>
-        <i>↗</i>
-      </a>
-      <a class="quick-card" href="#chapters">
-        <span class="quick-icon">⌑</span>
-        <strong>Memories</strong>
-        <small>The special days</small>
-        <i>↗</i>
-      </a>
-      <a class="quick-card active" href="#journey">
-        <span class="quick-icon">♡</span>
-        <strong>Our Journey</strong>
-        <small>Since 23 Mar 2024</small>
-        <i>↓</i>
-      </a>
-    </section>
-
-
-    <section class="memory-vault" id="memoryVault" aria-label="Our private memory cabinet">
-      <div class="vault-head">
-        <div>
-          <span class="section-kicker">OUR PRIVATE MEMORY CABINET</span>
-          <h2>Keep the little moments<br><em>close to our story.</em></h2>
-          <p>Photos and videos stay in the private Google Drive connected to Our Journey. You and your loved one do not need to sign in to Google on this website.</p>
-        </div>
-        <div class="vault-tools">
-          <div class="drive-status" id="driveStatus">
-            <span class="drive-dot"></span>
-            <span id="driveStatusText">Connecting to our private Drive…</span>
-          </div>
-          <div class="vault-buttons">
-            <button class="primary-btn drive-add-btn" id="driveAddBtn" type="button" hidden>＋ Add Memory</button>
-            <button class="soft-btn drive-refresh-btn" id="driveRefreshBtn" type="button" hidden>Refresh</button>
-          </div>
-        </div>
-      </div>
-
-      <div class="vault-note" id="driveSetupNote">
-        <span>♡</span>
-        <div><strong>Private by design</strong><p>The shared cabinet uses the owner’s private Google Drive through the Cloudflare Worker. No visitor Google sign-in is required.</p></div>
-      </div>
-
-      <div class="memory-grid" id="memoryGrid" aria-live="polite">
-        <article class="memory-empty" id="memoryEmpty">
-          <div class="memory-empty-mark">♡</div>
-          <h3>Your memories will live here.</h3>
-          <p>The cabinet connects automatically. Add a photo or video here to keep another little moment.</p>
-        </article>
-      </div>
-    </section>
-
-    <section class="places-section" id="places">
-      <div class="section-head places-head">
-        <div>
-          <span class="section-kicker">OUR LITTLE PLACES</span>
-          <h2>Everything that<br><em>belongs to us.</em></h2>
-        </div>
-        <span class="chapter-count">4 PLACES · 1 STORY</span>
-      </div>
-
-      <div class="places-grid">
-        <a class="place-card place-chat" href="../Always-Yours-Chat/">
-          <div class="place-icon">♡</div>
-          <div class="place-number">01</div>
-          <span>PRIVATE SPACE</span>
-          <h3>Always Yours</h3>
-          <p>Our quiet room for messages, photos, and little everyday moments.</p>
-          <b>Open our chat ↗</b>
-        </a>
-
-        <a class="place-card place-23" href="../2025-For-My-Girlfriend/">
-          <div class="place-icon">23</div>
-          <div class="place-number">02</div>
-          <span>23 AUG 2025</span>
-          <h3>ThinThin · 2025</h3>
-          <p>The little world I made for your 23rd birthday.</p>
-          <b>Open memory ↗</b>
-        </a>
-
-        <a class="place-card place-24" href="../2026-For-My-Girlfriend/">
-          <div class="place-icon">24</div>
-          <div class="place-number">03</div>
-          <span>23 AUG 2026</span>
-          <h3>PuTuTuLay · 2026</h3>
-          <p>Another little surprise, made for your 24th birthday.</p>
-          <b>Open memory ↗</b>
-        </a>
-
-        <a class="place-card place-journey" href="#journey">
-          <div class="place-icon">∞</div>
-          <div class="place-number">04</div>
-          <span>THE STORY</span>
-          <h3>Our Journey</h3>
-          <p>From 23 Mar 2024 to all the days we haven't lived yet.</p>
-          <b>Keep the story ↘</b>
-        </a>
-      </div>
-    </section>
-
-    <section class="memory-feature" id="memories">
-      <div class="feature-image">
-        <div class="landscape">
-          <div class="sun"></div>
-          <div class="hill hill-a"></div>
-          <div class="hill hill-b"></div>
-          <div class="path"></div>
-        </div>
-      </div>
-      <div class="feature-copy">
-        <span class="section-kicker">♡ OUR MEMORIES</span>
-        <h2>The little moments<br>we don't want to lose.</h2>
-        <p>Two birthday surprises, one beginning, and many more chapters waiting to be written.</p>
-        <a href="#memoryVault" class="round-arrow" aria-label="Open our private memory cabinet">→</a>
-      </div>
-    </section>
-
-    <section class="section-head" id="chapters">
-      <div>
-        <span class="section-kicker">THE CHAPTERS OF US</span>
-        <h2>Some days deserve<br>to be remembered.</h2>
-      </div>
-      <span class="chapter-count">03 CHAPTERS</span>
-    </section>
-
-    <section class="chapters">
-      <article class="chapter">
-        <div class="chapter-date">23 MAR 2024</div>
-        <div class="chapter-dot">♡</div>
-        <div class="chapter-body">
-          <span>OUR BEGINNING</span>
-          <h3>The day our story began.</h3>
-          <p>A simple start, but the beginning of something that would become ours.</p>
-          <div class="chapter-tag">Chapter 01 · The Beginning</div>
-        </div>
-      </article>
-
-      <article class="chapter">
-        <div class="chapter-date">23 AUG 2025</div>
-        <div class="chapter-dot">♡</div>
-        <div class="chapter-body birthday-card">
-          <div>
-            <span>HER 23RD BIRTHDAY</span>
-            <h3>Happy 23rd, ThinThin ♡</h3>
-            <p>A little world made just for you.</p>
-            <a href="../2025-For-My-Girlfriend/" target="_blank" rel="noopener">Open ThinThin ↗</a>
-          </div>
-          <div class="birthday-mark">23<br><small>AUG</small></div>
-        </div>
-      </article>
-
-      <article class="chapter">
-        <div class="chapter-date">23 AUG 2026</div>
-        <div class="chapter-dot">♡</div>
-        <div class="chapter-body birthday-card second">
-          <div>
-            <span>HER 24TH BIRTHDAY</span>
-            <h3>Happy 24th, Chit Sone ♡</h3>
-            <p>Another chapter of love, surprises, and memories.</p>
-            <a href="../2026-For-My-Girlfriend/" target="_blank" rel="noopener">Open PuTuTuLay ↗</a>
-          </div>
-          <div class="birthday-mark">24<br><small>AUG</small></div>
-        </div>
-      </article>
-    </section>
-
-    <section class="today-card" id="journey">
-      <div>
-        <span class="section-kicker">TODAY</span>
-        <h2>Different days.<br><em>Same love.</em></h2>
-        <p>And the story is still being written.</p>
-      </div>
-      <div class="today-heart">♡</div>
-    </section>
-
-    <section class="future">
-      <span>MORE CHAPTERS TO COME</span>
-      <div class="future-line"><i></i><b>∞</b><i></i></div>
-      <p>2027 · 2028 · 2029 · ...</p>
-      <small>Let's keep choosing each other.</small>
-    </section>
-  </main>
-
-  <footer>
-    <div class="footer-brand">ALWAYS YOURS</div>
-    <div class="footer-sub">TODAY · TOMORROW · FOREVER</div>
-    <div class="footer-love">A little place for us, made with love ♡</div>
-  </footer>
-
-  <button class="back-top" id="backTop" aria-label="Back to top">↑</button>
-  <script src="app.js"></script>
 </body>
 </html>
