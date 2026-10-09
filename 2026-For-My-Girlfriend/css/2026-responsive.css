@@ -1,0 +1,203 @@
+/* Our Love Hub · Chapter 2026 — independent responsive polish
+   Loaded after the original page styles. Keep the birthday letter, music and decorations intact. */
+:root {
+  --chapter-ink:#593f5b;
+  --chapter-muted:#8e7990;
+  --chapter-rose:#ae719c;
+  --chapter-lilac:#9578bc;
+  --chapter-line:rgba(226,190,218,.65);
+  --chapter-shadow:0 24px 66px rgba(130,85,135,.11);
+}
+html {scroll-padding-top:28px;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body {font-family:"Avenir Next","Segoe UI",system-ui,sans-serif;color:var(--chapter-ink);min-width:0;}
+a,button {touch-action:manipulation}
+:is(a,button):focus-visible{outline:3px solid #b87ca8;outline-offset:4px}
+
+/* Match the 2025 header width while giving the first card breathing room. */
+body>.hub-family-nav {width:min(1120px,calc(100% - 34px));margin:14px auto 0;padding:9px 14px;border-radius:22px;box-shadow:0 11px 30px rgba(132,98,144,.07)}
+body>.hub-family-nav .hub-brand img {width:40px;height:40px;border-radius:13px}
+body>.hub-family-nav .hub-brand strong {font-size:18px}
+body>.hub-family-nav .hub-family-links a {font-size:12px;min-height:36px}
+body>.hub-family-nav .hub-install-button {min-height:36px;padding:8px 12px;font-size:11px;box-shadow:none}
+.hero {min-height:0;padding:24px 18px 0;display:block;text-align:left;}
+.hero-card {
+  isolation:isolate;position:relative;overflow:hidden;
+  display:grid;grid-template-columns:minmax(0,1.09fr) minmax(0,.91fr);align-items:center;
+  gap:clamp(24px,4vw,56px);width:min(1120px,100%);min-height:640px;margin:auto;
+  padding:clamp(32px,5vw,67px);border-radius:38px;
+  background:radial-gradient(circle at 10% 12%,rgba(251,211,233,.5),transparent 35%),linear-gradient(135deg,rgba(255,255,255,.97),rgba(248,238,255,.92));
+  border:1px solid rgba(255,255,255,.91);
+  box-shadow:var(--chapter-shadow),inset 0 1px 0 rgba(255,255,255,.98);
+  backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);
+}
+.hero-card:before {content:"";position:absolute;inset:13px;border:1px solid rgba(244,222,240,.65);border-radius:28px;pointer-events:none;z-index:0}
+.hero-card:after {display:none}
+.birthday-hero-copy {position:relative;z-index:5;min-width:0;text-align:left}
+.hero .eyebrow {font-size:10px;letter-spacing:.18em;color:#a76e99;font-weight:850;margin:0 0 22px;line-height:1.5}
+.birthday-mid-dot {margin-inline:4px;color:#ceb0ca}
+.birthday-chip {display:inline-flex;gap:9px;align-items:center;max-width:100%;padding:9px 14px;border:1px solid var(--chapter-line);border-radius:999px;background:rgba(255,255,255,.84);color:#9d7a95;font-size:10px;letter-spacing:.06em;font-weight:850;line-height:1.5;white-space:nowrap}
+.birthday-chip>span:first-child{font-size:16px;color:#c48caf}
+.birthday-chip-line{width:1px;height:13px;background:#e6c8df;flex:0 0 auto}
+.hero-card h1 {
+  font:500 clamp(42px,5vw,68px)/1.12 Georgia,"Songti SC",serif;
+  letter-spacing:-.05em;color:#533a57;text-shadow:none;
+  margin:24px 0 12px;max-width:625px;overflow-wrap:normal;
+}
+.hero-card h1 em {display:inline-block;font-style:italic;font-weight:400;color:#a878ab;background:linear-gradient(110deg,#aa719c,#8f79b8);background-clip:text;-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.hero .birthday-subtitle {font:600 clamp(16px,1.7vw,20px)/1.4 Georgia,"Songti SC",serif;color:#a66f9d;margin:0 0 18px;max-width:470px}
+.hero .birthday-description {font:400 clamp(14px,1.3vw,16px)/1.95 "Avenir Next","Segoe UI",system-ui,sans-serif;color:#77647d;max-width:475px;margin:0}
+.birthday-hero-actions {display:flex;align-items:center;flex-wrap:wrap;gap:12px;margin:28px 0 24px}
+.hero .btn,.birthday-outline-button {display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:49px;padding:12px 21px;margin:0;border-radius:999px;text-decoration:none;text-align:center;font:750 13px/1.5 "Avenir Next","Segoe UI",system-ui,sans-serif;transition:transform .2s,box-shadow .2s;}
+.hero .btn {color:#fff;border:1px solid transparent;background:linear-gradient(120deg,#b976a5,#9678bd);box-shadow:0 13px 28px rgba(163,110,168,.23)}
+.birthday-outline-button {color:#8b6388;border:1px solid #e8cbdf;background:rgba(255,255,255,.82)}
+@media (hover:hover) and (pointer:fine){.hero .btn:hover,.birthday-outline-button:hover {transform:translateY(-2px);box-shadow:0 12px 26px rgba(155,105,164,.16)}}
+.birthday-first-day {display:inline-flex;align-items:center;gap:17px;padding:14px 18px;border:1px solid var(--chapter-line);border-radius:18px;background:rgba(255,255,255,.63);box-shadow:0 8px 22px rgba(126,89,132,.035);max-width:100%}
+.birthday-first-day>span:first-child {font-size:19px;color:#b980a9;align-self:center}
+.birthday-first-day>span:not(:first-child){display:grid;gap:5px;min-width:0}
+.birthday-first-day small {font:850 9px/1.5 "Avenir Next",system-ui,sans-serif;letter-spacing:.11em;color:#a880a2}
+.birthday-first-day strong {font:700 20px/1.15 Georgia,"Songti SC",serif;color:#72516f;white-space:nowrap}
+.birthday-first-day i {height:36px;width:1px;background:#e5c8de;flex:0 0 auto}
+.birthday-hero-art {position:relative;display:flex;align-items:center;justify-content:center;min-width:0;height:425px;isolation:isolate}
+.birthday-halo {position:absolute;width:min(370px,100%);aspect-ratio:1;border-radius:50%;background:linear-gradient(145deg,rgba(250,218,236,.77),rgba(226,210,253,.7));z-index:0;}
+.birthday-halo-inner {width:min(300px,81%);background:transparent;border:1px solid rgba(255,255,255,.95)}
+.birthday-gift-card {z-index:1;width:min(300px,85%);min-height:365px;padding:26px 16px 25px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;border-radius:33px;background:linear-gradient(145deg,rgba(255,255,255,.90),rgba(251,241,251,.87));border:1px solid rgba(255,255,255,.92);box-shadow:0 18px 60px rgba(141,97,141,.14);transform:rotate(-2deg)}
+.birthday-gift-icon {width:73px;height:73px;display:grid;place-items:center;border-radius:23px;box-shadow:0 7px 18px rgba(181,127,170,.1)}
+.birthday-gift-icon img {width:66px;height:66px;object-fit:contain;border-radius:18px}
+.birthday-gift-kicker {margin-top:21px;font:800 9px/1.5 "Avenir Next",system-ui,sans-serif;letter-spacing:.15em;color:#b589a9}
+.birthday-gift-year {margin:8px 0 3px;font:700 clamp(75px,8vw,105px)/1 Georgia,serif;letter-spacing:-.09em;color:#805b86}
+.birthday-gift-year span{font:700 21px/1 Georgia,serif;vertical-align:top;letter-spacing:normal;padding-left:4px;color:#ac7ca5}
+.birthday-gift-rule {width:68%;height:1px;background:#e4c6dc;position:relative;margin:9px 0 21px}
+.birthday-gift-rule span{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:#fcf5fc;padding:0 8px;color:#ba8cb2}
+.birthday-gift-card strong {font:600 22px/1.3 Georgia,serif;color:#6d4d70}
+.birthday-gift-card small {font:800 9px/1.6 "Avenir Next",system-ui,sans-serif;letter-spacing:.14em;color:#ad85a4;margin-top:9px}
+.birthday-hero-art .hero-heart-wrap {position:absolute;left:calc(50% + 102px);top:43px;z-index:4;transform:scale(.63);margin:0;pointer-events:none}
+.birthday-hero-note {position:absolute;left:50%;bottom:-20px;transform:translateX(-50%);z-index:4;text-align:center;font:600 27px/1.2 Georgia,serif;letter-spacing:.09em;color:#80577e;white-space:nowrap}
+.birthday-hero-note>span {color:#c48eb7;margin-inline:7px}
+.birthday-hero-note small {display:block;margin-top:10px;font:800 9px/1.5 "Avenir Next",system-ui,sans-serif;letter-spacing:.14em;color:#b094ad}
+
+/* Quiet 2025 -> 2026 bridge, not the removed extra surprise panel. */
+.hub-chapter-ribbon {width:min(1030px,calc(100% - 54px));margin:25px auto 0;padding:15px 21px;gap:12px;border-radius:20px;background:rgba(255,255,255,.7);box-shadow:0 10px 25px rgba(132,90,138,.06)}
+.hub-chapter-ribbon .hub-chapter-overline {font-size:9px;letter-spacing:.12em}
+.hub-chapter-ribbon strong {font-size:14px}
+.hub-chapter-ribbon small {font-size:11px}
+.hub-chapter-ribbon .hub-chapter-button {min-height:42px;font-size:12px}
+
+/* Unified inner pages: distinct but continuous with 2025 and Our Journey. */
+.birthday-section {padding:80px 22px 16px;scroll-margin-top:20px}
+.wrap {width:min(980px,100%);max-width:none}
+.section-kicker {display:block;font:850 10px/1.5 "Avenir Next",system-ui,sans-serif;letter-spacing:.18em;color:#ad759f;text-align:center;margin:0 auto 12px}
+.section-title {font:500 clamp(29px,3.6vw,42px)/1.2 Georgia,"Songti SC",serif;letter-spacing:-.023em;color:#57405c;overflow-wrap:anywhere;margin:0 auto 14px}
+.section-sub {font:400 clamp(14px,1.3vw,16px)/1.9 "Avenir Next",system-ui,sans-serif;color:#917b93;margin:0 auto 32px;max-width:700px}
+.letter {padding:clamp(24px,4vw,48px);border-radius:32px;background:linear-gradient(155deg,rgba(255,255,255,.94),rgba(254,247,253,.91));border:1px solid rgba(230,195,218,.7);box-shadow:var(--chapter-shadow);font:400 clamp(15px,1.5vw,17px)/2 "Avenir Next",system-ui,sans-serif;color:#715c77}
+.letter p {margin:0 0 19px}
+.letter p:last-child {margin-bottom:0}
+.quote {font:italic 500 clamp(15px,1.5vw,18px)/1.85 Georgia,serif;border-left:3px solid #c185ad;border-radius:0 17px 17px 0;background:linear-gradient(125deg,#fff7fb,#f6effa);padding:23px 27px;margin:23px 0 25px;color:#936987}
+.grid {grid-template-columns:repeat(2,minmax(0,1fr));gap:17px}
+.card {padding:clamp(22px,3vw,30px);border-radius:27px;background:linear-gradient(145deg,rgba(255,255,255,.95),rgba(249,241,252,.92));border:1px solid rgba(234,205,225,.72);box-shadow:0 12px 35px rgba(141,96,142,.07)}
+.card .icon {display:grid;place-items:center;width:51px;height:51px;border-radius:17px;background:linear-gradient(135deg,#fbe2ed,#efe5ff);font-size:26px}
+.card h3 {font:600 21px/1.35 Georgia,"Songti SC",serif;color:#604663;margin:16px 0 10px}
+.card p {font:400 14px/1.9 "Avenir Next",system-ui,sans-serif;color:#876f8a}
+.birthday-section-timeline .wrap {max-width:890px}
+.timeline {border-left:2px solid #e6c5db;margin:35px 15px 0;padding:0 0 0 29px;max-width:none}
+.moment {margin:0 0 20px;padding:19px 22px;border:1px solid #eed6e7;border-radius:18px;background:rgba(255,255,255,.76);line-height:1.85;color:#866b86;font-size:15px;box-shadow:0 9px 26px rgba(142,101,139,.045)}
+.moment:before {width:11px;height:11px;left:-36px;top:25px;background:#b97eab;box-shadow:0 0 0 5px #faf1fc}
+.moment strong {display:inline-block;color:#8f6490;margin-bottom:5px;font-weight:750}
+.dream {border-radius:35px;max-width:900px;margin:0 auto;padding:clamp(30px,6vw,62px);border:1px solid #e9cde1;background:radial-gradient(circle at 85% 10%,rgba(244,216,234,.5),transparent 42%),linear-gradient(125deg,rgba(255,255,255,.97),rgba(249,241,253,.93));box-shadow:var(--chapter-shadow)}
+.dream h2 {font:600 clamp(29px,4.4vw,43px)/1.25 Georgia,"Songti SC",serif;color:#68496d}
+.dream p {font:400 15px/2 "Avenir Next",system-ui,sans-serif;color:#806984}
+footer {padding:48px 18px calc(85px + env(safe-area-inset-bottom));}
+footer h2 {font:600 clamp(22px,3vw,31px)/1.3 Georgia,"Songti SC",serif;color:#5d4460;margin:16px 0 10px}
+footer .big-heart {font-size:41px;line-height:1}
+footer .signature {font:600 19px/1.5 Georgia,"Songti SC",serif;color:#b275a5}
+.birthday-footer-back {display:inline-flex;align-items:center;justify-content:center;margin:0 auto 30px;padding:11px 20px;border:1px solid #e5c8dd;border-radius:999px;background:#fff;color:#91688d;text-decoration:none;font:750 12px/1.4 "Avenir Next",system-ui,sans-serif;min-height:44px}
+#musicPlayer {width:49px;height:49px;right:max(16px,env(safe-area-inset-right));bottom:max(16px,env(safe-area-inset-bottom));font-size:21px;color:#a770a1;box-shadow:0 14px 29px rgba(143,94,142,.16)}
+#musicPlayer.playing {animation:musicPulse 1.8s ease-in-out infinite}
+body.birthday-background-paused .bg-heart span,body.birthday-background-paused .hero-heart,body.birthday-background-paused .heartbeat-ring {animation-play-state:paused!important}
+
+/* Tablet and narrow notebooks */
+@media(max-width:1000px){
+ .hero-card {min-height:570px;gap:22px;padding:clamp(28px,4.6vw,43px)}
+ .hero-card h1 {font-size:clamp(38px,5.3vw,53px)}
+ .birthday-gift-card {min-height:325px;width:min(265px,86%)}
+ .birthday-halo {width:min(310px,98%)}
+ .birthday-halo-inner {width:min(250px,80%)}
+ .birthday-hero-art {height:365px}
+ .birthday-gift-year {font-size:80px}
+ .birthday-first-day {gap:10px;padding:12px 11px}
+ .birthday-first-day strong {font-size:17px}
+ .birthday-first-day small {font-size:8px}
+}
+@media(max-width:800px){
+ body>.hub-family-nav {width:calc(100% - 22px);padding:10px 12px}
+ .hero {padding:18px 12px 0}
+ .hero-card {grid-template-columns:minmax(0,1fr);min-height:0;padding:clamp(28px,5vw,44px);gap:14px}
+ .birthday-hero-copy {max-width:650px}
+ .hero-card h1 {font-size:clamp(39px,7vw,59px)}
+ .birthday-hero-art {width:100%;height:350px;margin:19px auto 20px}
+ .birthday-gift-card {min-height:290px}
+ .birthday-hero-note {bottom:-10px}
+ .hub-chapter-ribbon {width:calc(100% - 28px);margin:22px auto 0}
+ .birthday-section {padding:64px 18px 8px}
+}
+@media(max-width:600px){
+ body>.hub-family-nav {width:calc(100% - 20px);margin:10px auto 0}
+ .hero {padding:13px 10px 0}
+ .hero-card {padding:31px 22px 38px;border-radius:28px;gap:8px}
+ .hero-card:before {inset:9px;border-radius:23px}
+ .hero .eyebrow {font-size:9px;letter-spacing:.125em;margin-bottom:15px}
+ .birthday-chip {font-size:9px;gap:7px;padding:8px 10px}
+ .hero-card h1 {font-size:clamp(32px,8.3vw,49px);line-height:1.16;margin:20px 0 13px;letter-spacing:-.048em}
+ .hero .birthday-subtitle {font-size:16px;margin-bottom:11px}
+ .hero .birthday-description {font-size:14px;line-height:1.85}
+ .birthday-hero-actions {margin:21px 0 20px;gap:10px}
+ .hero .btn,.birthday-outline-button {min-height:46px;font-size:12px;padding:11px 17px}
+ .birthday-first-day {width:100%;justify-content:center;gap:10px;padding:12px 9px}
+ .birthday-first-day strong {font-size:16px}
+ .birthday-first-day small {font-size:8px;letter-spacing:.06em}
+ .birthday-first-day>span:first-child {font-size:14px}
+ .birthday-hero-art {height:285px;margin:21px auto 17px}
+ .birthday-halo {width:250px;max-width:92%}.birthday-halo-inner {width:203px}
+ .birthday-gift-card {min-height:248px;width:min(226px,82%);padding:13px 14px;border-radius:24px}
+ .birthday-gift-icon {width:52px;height:52px}.birthday-gift-icon img{width:50px;height:50px;border-radius:14px}
+ .birthday-gift-kicker {font-size:8px;margin-top:13px}
+ .birthday-gift-year {font-size:60px;margin-top:5px}
+ .birthday-gift-year span {font-size:14px}
+ .birthday-gift-rule {margin:8px 0 14px}
+ .birthday-gift-card strong {font-size:18px}
+ .birthday-gift-card small {font-size:8px;letter-spacing:.08em}
+ .birthday-hero-art .hero-heart-wrap {left:calc(50% + 71px);top:13px;transform:scale(.46)}
+ .birthday-hero-note {font-size:21px;bottom:-10px}
+ .birthday-hero-note small {font-size:8px}
+ .hub-chapter-ribbon {padding:15px 17px;align-items:center}
+ .hub-chapter-ribbon .hub-chapter-copy {gap:5px}
+ .hub-chapter-ribbon strong {font-size:13px}
+ .hub-chapter-ribbon .hub-chapter-button {width:auto;min-height:40px;padding:9px 15px}
+ .birthday-section {padding:60px 14px 7px}
+ .section-title {font-size:clamp(27px,7.5vw,36px)}
+ .section-sub {font-size:14px;margin-bottom:25px}
+ .letter {font-size:15px;line-height:1.9;padding:24px 21px;border-radius:26px}
+ .quote {font-size:15px;padding:18px 19px;margin:21px 0}
+ .grid {grid-template-columns:minmax(0,1fr);gap:12px}
+ .card {padding:22px 21px}
+ .timeline {margin-left:9px;margin-right:0;padding-left:23px}
+ .moment {font-size:14px;padding:17px 17px;margin-bottom:16px}
+ .moment:before {left:-30px}
+ .dream {padding:36px 22px;border-radius:27px}
+ .dream p {font-size:14px}
+}
+@media(max-width:380px){
+ .hero-card {padding-left:17px;padding-right:17px}
+ .hero-card h1 {font-size:clamp(31px,8.7vw,36px)}
+ .birthday-chip {font-size:8px;padding:7px 8px;gap:5px}
+ .birthday-hero-actions {gap:8px}
+ .hero .btn,.birthday-outline-button {min-height:44px;padding:10px 14px;font-size:11px}
+ .birthday-first-day {gap:7px;padding:10px 7px}
+ .birthday-first-day strong {font-size:14px}
+ .birthday-first-day>span:first-child {display:none}
+}
+@media(prefers-reduced-motion:reduce){
+ html {scroll-behavior:auto}
+ .birthday-gift-card {transform:none}
+ .birthday-background-paused * {animation:none!important}
+ #musicPlayer.playing {animation:none!important}
+}

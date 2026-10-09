@@ -1,7 +1,12 @@
-const CACHE_NAME = 'pututulay-v8-family-20261009';
+const CACHE_NAME = 'pututulay-v9-responsive-20261009';
 const APP_SHELL = [
   './',
   './index.html',
+  './css/2026-responsive.css',
+  '../assets/love-hub-family.css',
+  '../assets/love-hub-family.js',
+  '../assets/icon-192.png',
+  '../assets/icon-512.png',
   './site.webmanifest',
   './heart-icon.png',
   './heart-icon-192.png',

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Always Yours · 2026</title>
 <style>
   *{box-sizing:border-box}
@@ -256,226 +256,10 @@ footer{padding-top:55px}
 </style>
 
 
-<style id="add-to-home-css">
-/* ===== Add to Home / Install App ===== */
-#addToHomeBtn{
-  position:fixed;
-  top:max(16px, env(safe-area-inset-top));
-  right:max(18px, env(safe-area-inset-right));
-  z-index:10000;
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  gap:9px;
-  min-height:54px;
-  padding:14px 22px;
-  border:1px solid rgba(255,255,255,.82);
-  border-radius:999px;
-  background:rgba(255,255,255,.88);
-  color:#765c80;
-  font:700 15px/1 "Avenir Next","Segoe UI",sans-serif;
-  box-shadow:0 10px 30px rgba(80,30,50,.14), inset 0 0 0 1px rgba(237,63,124,.05);
-  backdrop-filter:blur(14px);
-  -webkit-backdrop-filter:blur(14px);
-  cursor:pointer;
-  -webkit-tap-highlight-color:transparent;
-  user-select:none;
-  -webkit-user-select:none;
-  touch-action:manipulation;
-  transition:transform .22s ease,box-shadow .22s ease,background .22s ease;
-}
-#addToHomeBtn:hover{
-  transform:translateY(-2px);
-  background:rgba(255,255,255,.96);
-  box-shadow:0 14px 34px rgba(80,30,50,.18);
-}
-#addToHomeBtn:active{transform:translateY(0) scale(.98)}
-#addToHomeBtn:focus-visible{
-  outline:3px solid rgba(237,63,124,.28);
-  outline-offset:4px;
-}
-#addToHomeBtn .home-icon{
-  width:22px;height:22px;display:grid;place-items:center;
-  color:#cf79a4;font-size:21px;line-height:1;
-}
-#addToHomeBtn .home-label{white-space:nowrap}
-#addToHomeBtn.is-hidden{display:none}
-@media(max-width:650px){
-  #addToHomeBtn{
-    top:max(12px, env(safe-area-inset-top));
-    right:max(12px, env(safe-area-inset-right));
-    min-height:48px;
-    padding:12px 16px;
-    gap:7px;
-    font-size:13px;
-  }
-  #addToHomeBtn .home-icon{font-size:19px;width:20px;height:20px}
-}
-@media(max-width:380px){
-  #addToHomeBtn{padding:11px 14px;font-size:12px}
-}
-@media(prefers-reduced-motion:reduce){
-  #addToHomeBtn{transition:none}
-}
 
 
-/* ===== 2026 continuity polish ===== */
-:root{
-  --hub-bg-a:#fff8fb;
-  --hub-bg-b:#f4efff;
-  --hub-card:rgba(255,255,255,.84);
-  --hub-line:rgba(237,63,124,.15);
-  --hub-text:#5b3847;
-  --hub-muted:#876b78;
-  --hub-accent:#d76999;
-  --hub-accent-strong:#ed4f93;
-  --hub-shadow:0 26px 70px rgba(155,79,111,.12);
-}
-body{
-  color:var(--hub-text);
-  background:
-    radial-gradient(circle at 10% 20%, rgba(255,208,225,.36), transparent 18%),
-    radial-gradient(circle at 90% 10%, rgba(226,214,255,.34), transparent 16%),
-    radial-gradient(circle at 88% 85%, rgba(244,198,219,.24), transparent 20%),
-    linear-gradient(135deg, var(--hub-bg-a) 0%, #fffdfd 38%, var(--hub-bg-b) 100%);
-}
-.hero-card,.letter,.card,.dream{
-  background:linear-gradient(145deg, rgba(255,255,255,.9), rgba(251,243,249,.92));
-  border-color:rgba(233,191,211,.55);
-  box-shadow:var(--hub-shadow), inset 0 1px 0 rgba(255,255,255,.95);
-}
-.hero-card{border-radius:40px}
-.section-title,.dream h2{color:#513140}
-.section-sub,.card p,.dream p,.date,footer p,.letter{color:var(--hub-muted)}
-.eyebrow,.window-label{color:var(--hub-accent-strong)}
-.btn{
-  background:linear-gradient(135deg,#ee5d9a,#d0689c 58%,#b884cf);
-  box-shadow:0 16px 34px rgba(217,105,153,.28);
-}
-.btn:hover{box-shadow:0 18px 36px rgba(217,105,153,.34)}
-.timeline{border-left-color:rgba(230,171,198,.7)}
-.moment:before{background:var(--hub-accent);box-shadow:0 0 0 6px rgba(255,241,247,.95)}
-.quote{
-  border-left-color:var(--hub-accent-strong);
-  background:linear-gradient(135deg, rgba(255,245,249,.96), rgba(252,243,248,.92));
-}
-#addToHomeBtn{
-  background:rgba(255,255,255,.86);
-  box-shadow:0 18px 34px rgba(163,110,140,.14);
-  border:1px solid rgba(231,198,216,.8);
-}
-#musicPlayer{box-shadow:0 18px 34px rgba(163,110,140,.14)}
-footer{padding-top:55px}
-@media(max-width:650px){
-  .hero-card,.letter,.card,.dream{border-radius:28px}
-}
-
-</style>
 
 
-<style id="install-guide-css">
-/* ===== OS-aware Add to Home guide ===== */
-#installGuideOverlay{
-  position:fixed;inset:0;z-index:11000;display:none;align-items:center;justify-content:center;
-  padding:24px;background:rgba(44,29,43,.30);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
-}
-#installGuideOverlay.show{display:flex;animation:installFadeIn .22s ease both}
-#installGuideCard{
-  width:min(580px,calc(100vw - 32px));max-height:min(760px,calc(100vh - 32px));overflow:auto;
-  padding:30px 30px 26px;border:1px solid rgba(237,63,124,.12);border-radius:30px;
-  background:linear-gradient(180deg,rgba(255,255,255,.98),rgba(255,248,252,.98));
-  box-shadow:0 28px 90px rgba(71,35,57,.24),0 0 0 1px rgba(255,255,255,.7) inset;
-  color:#6f5876;text-align:center;position:relative;
-}
-.install-guide-heart{font-size:42px;line-height:1;color:#d27dad;margin:0 0 10px;filter:drop-shadow(0 5px 10px rgba(210,125,173,.18))}
-.install-guide-title{margin:0;font-family:Georgia,"Times New Roman",serif;font-size:clamp(24px,4vw,34px);line-height:1.2;color:#6c5573;font-weight:700}
-.install-guide-subtitle{margin:12px auto 20px;max-width:480px;font-size:15px;line-height:1.7;color:#8a728f}
-.install-guide-steps{
-  margin:0 auto;padding:18px 20px;border-radius:20px;text-align:left;
-  background:rgba(255,249,252,.92);border:1px solid rgba(237,63,124,.10);
-  box-shadow:0 8px 22px rgba(237,63,124,.05) inset;
-}
-.install-guide-step{display:flex;gap:10px;align-items:flex-start;font-size:14px;line-height:1.65;font-weight:600;color:#7b647f}
-.install-guide-step+.install-guide-step{margin-top:9px}
-.install-guide-num{flex:0 0 auto;font-weight:800;color:#765c80}
-.install-guide-note{margin:15px 0 0;font-size:12px;line-height:1.55;color:#9b859f}
-.install-guide-actions{display:flex;justify-content:center;gap:10px;margin-top:22px}
-#installGuideClose{
-  min-width:130px;padding:12px 24px;border-radius:999px;border:1px solid rgba(237,63,124,.18);
-  background:rgba(255,255,255,.75);color:#8a6a89;font:700 14px/1 "Avenir Next","Segoe UI",sans-serif;
-  cursor:pointer;box-shadow:0 8px 18px rgba(237,63,124,.06);touch-action:manipulation;
-}
-#installGuideNative{
-  display:none;min-width:130px;padding:12px 24px;border:0;border-radius:999px;
-  background:#ed3f7c;color:#fff;font:700 14px/1 "Avenir Next","Segoe UI",sans-serif;
-  cursor:pointer;box-shadow:0 10px 22px rgba(237,63,124,.22);touch-action:manipulation;
-}
-#installGuideOverlay.android-native #installGuideNative{display:inline-block}
-@keyframes installFadeIn{from{opacity:0}to{opacity:1}}
-@media(max-width:650px){
-  #installGuideOverlay{padding:16px}
-  #installGuideCard{width:100%;padding:26px 20px 22px;border-radius:26px;max-height:calc(100vh - 24px)}
-  .install-guide-heart{font-size:38px}
-  .install-guide-subtitle{font-size:14px;margin-bottom:17px}
-  .install-guide-steps{padding:16px}
-  .install-guide-step{font-size:13px}
-  .install-guide-actions{margin-top:18px}
-}
-@media(prefers-reduced-motion:reduce){#installGuideOverlay.show{animation:none}}
-
-
-/* ===== 2026 continuity polish ===== */
-:root{
-  --hub-bg-a:#fff8fb;
-  --hub-bg-b:#f4efff;
-  --hub-card:rgba(255,255,255,.84);
-  --hub-line:rgba(237,63,124,.15);
-  --hub-text:#5b3847;
-  --hub-muted:#876b78;
-  --hub-accent:#d76999;
-  --hub-accent-strong:#ed4f93;
-  --hub-shadow:0 26px 70px rgba(155,79,111,.12);
-}
-body{
-  color:var(--hub-text);
-  background:
-    radial-gradient(circle at 10% 20%, rgba(255,208,225,.36), transparent 18%),
-    radial-gradient(circle at 90% 10%, rgba(226,214,255,.34), transparent 16%),
-    radial-gradient(circle at 88% 85%, rgba(244,198,219,.24), transparent 20%),
-    linear-gradient(135deg, var(--hub-bg-a) 0%, #fffdfd 38%, var(--hub-bg-b) 100%);
-}
-.hero-card,.letter,.card,.dream{
-  background:linear-gradient(145deg, rgba(255,255,255,.9), rgba(251,243,249,.92));
-  border-color:rgba(233,191,211,.55);
-  box-shadow:var(--hub-shadow), inset 0 1px 0 rgba(255,255,255,.95);
-}
-.hero-card{border-radius:40px}
-.section-title,.dream h2{color:#513140}
-.section-sub,.card p,.dream p,.date,footer p,.letter{color:var(--hub-muted)}
-.eyebrow,.window-label{color:var(--hub-accent-strong)}
-.btn{
-  background:linear-gradient(135deg,#ee5d9a,#d0689c 58%,#b884cf);
-  box-shadow:0 16px 34px rgba(217,105,153,.28);
-}
-.btn:hover{box-shadow:0 18px 36px rgba(217,105,153,.34)}
-.timeline{border-left-color:rgba(230,171,198,.7)}
-.moment:before{background:var(--hub-accent);box-shadow:0 0 0 6px rgba(255,241,247,.95)}
-.quote{
-  border-left-color:var(--hub-accent-strong);
-  background:linear-gradient(135deg, rgba(255,245,249,.96), rgba(252,243,248,.92));
-}
-#addToHomeBtn{
-  background:rgba(255,255,255,.86);
-  box-shadow:0 18px 34px rgba(163,110,140,.14);
-  border:1px solid rgba(231,198,216,.8);
-}
-#musicPlayer{box-shadow:0 18px 34px rgba(163,110,140,.14)}
-footer{padding-top:55px}
-@media(max-width:650px){
-  .hero-card,.letter,.card,.dream{border-radius:28px}
-}
-
-</style>
 
 <style id="music-css">
 #musicPlayer{
@@ -635,12 +419,13 @@ footer{padding-top:55px}
   // Register the local service worker so supported browsers can install this page as an app.
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./sw.js?v=6", { scope: "./" }).catch(() => {});
+      navigator.serviceWorker.register("./sw.js?v=9", { scope: "./", updateViaCache: "none" }).catch(() => {});
     });
   }
 </script>
 <link rel="stylesheet" href="../assets/love-hub-family.css?v=20261009">
 <script defer src="../assets/love-hub-family.js?v=20261009"></script>
+<link rel="stylesheet" href="css/2026-responsive.css?v=20261009b">
 </head>
 <body>
 <!-- Unified Our Love Hub navigation -->
@@ -672,20 +457,40 @@ footer{padding-top:55px}
   <span style="left:92%;animation-delay:8s">♡</span>
 </div>
 
-<header class="hero">
+<header class="hero" aria-labelledby="birthday-title">
   <div class="hero-card">
-    <div class="eyebrow">Always Yours · 2026 chapter</div>
-    <h1>Happy Birthday,<br>My Chit Chit</h1>
-    <div class="hero-heart-wrap" aria-hidden="true">
-      <div class="heartbeat-ring"></div>
-      <div class="hero-heart"><span class="hero-heart-shine"></span></div>
-      <span class="heart-spark s1">♥</span>
-      <span class="heart-spark s2">✦</span>
-      <span class="heart-spark s3">♥</span>
+    <div class="birthday-hero-copy">
+      <p class="eyebrow"><span aria-hidden="true">✦</span> OUR LOVE STORY <span class="birthday-mid-dot" aria-hidden="true">·</span> CHAPTER 2026</p>
+      <div class="birthday-chip"><span aria-hidden="true">♡</span> 23 AUGUST 2026 <span class="birthday-chip-line" aria-hidden="true"></span> HER 24TH BIRTHDAY</div>
+      <h1 id="birthday-title">For another year,<br><em>still choosing you.</em></h1>
+      <p class="birthday-subtitle">Happy 24th Birthday, my Chit Chit ♡</p>
+      <p class="birthday-description">Another year, another little page for us. This one keeps the same soft heart as our love tab — gentle, warm, and made just for you.</p>
+      <div class="birthday-hero-actions">
+        <a class="btn" href="#message">读写给你的信 <span aria-hidden="true">↗</span></a>
+        <a class="birthday-outline-button" href="#our-story">回看我们的故事 <span aria-hidden="true">↓</span></a>
+      </div>
+      <div class="birthday-first-day"><span aria-hidden="true">♡</span><span><small>OUR FIRST DAY</small><strong><time datetime="2024-03-23">2024.03.23</time></strong></span><i aria-hidden="true"></i><span><small>THIS LITTLE GIFT</small><strong><time datetime="2026-08-23">2026.08.23</time></strong></span></div>
     </div>
-    <p>Another year, another little page for us. This one keeps the same soft heart as our love tab — gentle, warm, and made just for you.</p>
-    <div class="date">23 · AUGUST · 2026 &nbsp; • &nbsp; STILL CHOOSING YOU</div>
-    <a class="btn" href="#message">Open Your Letter ↓</a>
+    <div class="birthday-hero-art" aria-label="一张写着 2026 和 24 岁生日的纪念卡片">
+      <div class="birthday-halo" aria-hidden="true"></div>
+      <div class="birthday-halo birthday-halo-inner" aria-hidden="true"></div>
+      <div class="birthday-gift-card">
+        <div class="birthday-gift-icon"><img src="../assets/icon-192.png" alt="Our Love Hub" width="66" height="66"></div>
+        <span class="birthday-gift-kicker">A LITTLE LOVE LETTER · 2026</span>
+        <span class="birthday-gift-year">24<span>th</span></span>
+        <div class="birthday-gift-rule" aria-hidden="true"><span>♡</span></div>
+        <strong>Happy Birthday</strong>
+        <small>THIN THIN YU HLAING</small>
+      </div>
+      <div class="hero-heart-wrap" aria-hidden="true">
+        <div class="heartbeat-ring"></div>
+        <div class="hero-heart"><span class="hero-heart-shine"></span></div>
+        <span class="heart-spark s1">♥</span>
+        <span class="heart-spark s2">✦</span>
+        <span class="heart-spark s3">♥</span>
+      </div>
+      <div class="birthday-hero-note">M <span>♡</span> T <small>TODAY · TOMORROW · ALWAYS</small></div>
+    </div>
   </div>
 </header>
 
@@ -697,8 +502,9 @@ footer{padding-top:55px}
   <a class="hub-chapter-button" href="../2025-For-My-Girlfriend/">回看 2025 ↗</a>
 </aside>
 
-<section id="message">
+<section id="message" class="birthday-section birthday-section-letter">
   <div class="wrap">
+    <span class="section-kicker">01 · WORDS I KEPT FOR YOU</span>
     <h2 class="section-title">A Yan Chit Ya Thu Lay ATwak 💌</h2>
     <p class="section-sub">Distance may separate two places, but it doesn't have to separate two hearts.</p>
     <div class="letter">
@@ -713,8 +519,9 @@ footer{padding-top:55px}
   </div>
 </section>
 
-<section>
+<section class="birthday-section birthday-section-reasons">
   <div class="wrap">
+    <span class="section-kicker">02 · IN ALL THE LITTLE WAYS</span>
     <h2 class="section-title">What I Love Most About You</h2>
     <p class="section-sub">Not just one thing. There are too many little things that make you, you.</p>
     <div class="grid">
@@ -726,8 +533,9 @@ footer{padding-top:55px}
   </div>
 </section>
 
-<section>
+<section id="our-story" class="birthday-section birthday-section-timeline">
   <div class="wrap">
+    <span class="section-kicker">03 · FROM THEN TO FOREVER</span>
     <h2 class="section-title">Our Story, Still Ongoing 📖</h2>
     <p class="section-sub">From the little world made in 2025 to this 2026 birthday letter, our story keeps unfolding softly.</p>
     <div class="timeline">
@@ -739,7 +547,7 @@ footer{padding-top:55px}
   </div>
 </section>
 
-<section>
+<section class="birthday-section birthday-section-dreams">
   <div class="wrap">
     <div class="dream">
       <h2>Dreams Together 👩‍❤️‍👨</h2>
@@ -755,6 +563,7 @@ footer{padding-top:55px}
 
 
 <footer>
+  <a class="birthday-footer-back" href="../Our-Journey/">♡ 返回 Our Journey</a>
   <div class="big-heart">💝</div>
   <h2>Happy Birthday, Chit Sone Pu Tuu</h2>
   <p>Made with love, and kept in the same gentle style as our little love home.</p>
@@ -764,7 +573,8 @@ footer{padding-top:55px}
 <script>
   // Small surprise: tap the page several times to release hearts.
   let taps = 0;
-  document.addEventListener("click", () => {
+  document.addEventListener("click", (event) => {
+    if (event.target.closest('a,button') || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     taps++;
     if (taps >= 5) {
       for(let i=0;i<18;i++){
@@ -787,6 +597,11 @@ footer{padding-top:55px}
   });
 </script>
 
+<script>
+  document.addEventListener("visibilitychange", function(){
+    document.body.classList.toggle("birthday-background-paused", document.hidden);
+  });
+</script>
 <!-- MUSIC PLAYER START -->
 <button id="musicPlayer" type="button" aria-label="Play music" title="Play music">🎵</button>
 <div id="youtubeAudioFrame" aria-hidden="true"></div>
@@ -812,7 +627,7 @@ function onYouTubeIframeAPIReady(){
       rel: 0
     },
     events: {
-      onReady: function(){ musicReady = true; },
+      onReady: function(){ musicReady = true; musicButton.title = "播放音乐"; },
       onStateChange: function(e){
         if(e.data === YT.PlayerState.PLAYING){
           musicPlaying = true;
@@ -832,7 +647,10 @@ function onYouTubeIframeAPIReady(){
 
 function toggleMusic(ev){
   if(ev) ev.preventDefault();
-  if(!musicReady || !musicYT) return;
+  if(!musicReady || !musicYT){
+    musicButton.title = "音乐仍在加载，请稍后再试";
+    return;
+  }
   try{
     if(musicPlaying){
       musicYT.pauseVideo();
@@ -844,17 +662,13 @@ function toggleMusic(ev){
   }
 }
 
-/* pointerup is especially useful on mobile Chrome; click is the fallback. */
-musicButton.addEventListener("pointerup", toggleMusic, {passive:false});
+/* A single click handles touch, keyboard and mouse without double-toggling playback. */
 musicButton.addEventListener("click", toggleMusic);
 
 /* Also start music from the existing "Open Your Letter" button.
    This is a genuine user gesture on Android Chrome. */
 const openLetter = document.querySelector('a[href="#message"]');
 if(openLetter){
-  openLetter.addEventListener("pointerup", function(){
-    if(musicReady && musicYT && !musicPlaying) musicYT.playVideo();
-  }, {passive:true});
   openLetter.addEventListener("click", function(){
     if(musicReady && musicYT && !musicPlaying) musicYT.playVideo();
   });
