@@ -2,7 +2,7 @@
 <html lang="en">
 
 <head>
-    <link rel="manifest" href="./manifest.webmanifest?v=20261009f">
+    <link rel="manifest" href="../manifest.webmanifest?v=20261009g">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="application-name" content="Our Love Hub">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -20,6 +20,9 @@
       #love-intro { position: fixed !important; inset: 0 !important; z-index: 99999 !important; display: flex !important; align-items: center !important; justify-content: center !important; }
       #love-intro.is-hidden { opacity: 0 !important; visibility: hidden !important; pointer-events: none !important; }
       #content { position: relative; z-index: 1; }
+      .year2025-footer-home{display:inline-flex;align-items:center;justify-content:center;min-height:38px;margin:6px 0 0 14px;padding:6px 13px;border:1px solid #e9cfe4;border-radius:999px;background:rgba(255,255,255,.82);color:#956a91!important;text-decoration:none;font:700 12px/1.4 system-ui,sans-serif}
+      .year2025-footer-home:focus-visible{outline:3px solid #b577a8;outline-offset:3px}
+      @media(max-width:480px){.year2025-footer-home{display:flex;width:max-content;margin:12px auto 0}}
     </style>
 
     <!-- 图标 -->
@@ -185,7 +188,9 @@
         <span class="year2025-chapter-arrow" aria-hidden="true">↗</span>
       </a>
     </section>
-    <footer class="year2025-footer"><span aria-hidden="true">♡</span> Made in 2025 for Chit Chit · From Ko Ko, with love. <span aria-hidden="true">♡</span></footer>
+    <footer class="year2025-footer"><span aria-hidden="true">♡</span> Made in 2025 for Chit Chit · From Ko Ko, with love. <span aria-hidden="true">♡</span>
+      <a class="year2025-footer-home" href="../Our-Journey/" aria-label="返回 Our Journey">返回 Our Journey ↗</a>
+    </footer>
   </main>
 </body>
 

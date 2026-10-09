@@ -409,10 +409,10 @@ footer{padding-top:55px}
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Our Love Hub">
-  <link rel="icon" type="image/png" sizes="192x192" href="../assets/icon-192.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="../assets/favicon-32.png?v=20261009g">
   <link rel="icon" type="image/png" sizes="512x512" href="../assets/icon-512.png">
-  <link rel="apple-touch-icon" sizes="180x180" href="../assets/icon-192.png">
-  <link rel="manifest" href="../manifest.webmanifest">
+  <link rel="apple-touch-icon" sizes="180x180" href="../assets/apple-touch-icon.png?v=20261009g">
+  <link rel="manifest" href="../manifest.webmanifest?v=20261009g">
   <!-- ===== Home Screen / Shortcut Icon END ===== -->
 
 <script>
@@ -426,6 +426,28 @@ footer{padding-top:55px}
 <link rel="stylesheet" href="../assets/love-hub-family.css?v=20261009">
 <script defer src="../assets/love-hub-family.js?v=20261009"></script>
 <link rel="stylesheet" href="css/2026-responsive.css?v=20261009b">
+
+<style id="birthday-music-polish">
+/* A visible player is more reliable on iPhone, Android, tablets and computers than a hidden 2px iframe. */
+#musicPlayer{z-index:100;right:max(15px,env(safe-area-inset-right));bottom:max(16px,env(safe-area-inset-bottom));}
+#musicPlayer.playing{animation:musicPulse 1.5s ease-in-out infinite}
+.birthday-music-panel[hidden]{display:none!important}
+.birthday-music-panel{box-sizing:border-box;position:fixed;z-index:100;right:max(15px,env(safe-area-inset-right));bottom:calc(max(16px,env(safe-area-inset-bottom)) + 66px);width:min(360px,calc(100vw - 30px));padding:16px;border-radius:26px;background:linear-gradient(145deg,rgba(255,255,255,.98),rgba(252,242,250,.98));border:1px solid rgba(224,188,216,.78);box-shadow:0 22px 60px rgba(101,61,103,.20);backdrop-filter:blur(14px);color:#654663;}
+.birthday-music-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}
+.birthday-music-head div{display:grid;gap:5px}
+.birthday-music-head span{font:800 9px/1.4 system-ui,sans-serif;letter-spacing:.14em;color:#b379a0}
+.birthday-music-head strong{font:600 18px/1.3 Georgia,'Songti SC',serif;color:#614363}
+.birthday-music-close{border:1px solid #ecd7e6;border-radius:50%;background:#fff;color:#95688c;font:500 23px/1 system-ui;min-width:38px;min-height:38px;cursor:pointer}
+#youtubeAudioFrame{position:relative;left:auto;bottom:auto;width:100%;height:200px;opacity:1;overflow:hidden;pointer-events:auto;background:linear-gradient(125deg,#f7e6f0,#eee3fc);border-radius:16px}
+#youtubeAudioFrame iframe{display:block;position:static!important;width:100%!important;height:200px!important;max-width:none;opacity:1!important;border:0;border-radius:16px}
+.birthday-music-status{font-size:12px;line-height:1.6;color:#906e85;margin:12px 2px 8px}
+.birthday-music-external{font-size:12px;font-weight:700;color:#a46a99;text-decoration:underline;text-underline-offset:3px}
+.birthday-music-close:focus-visible,.birthday-music-external:focus-visible{outline:3px solid #bd7dad;outline-offset:3px}
+.birthday-elapsed{margin:12px 0 0;color:#a07b99;font-size:12px;line-height:1.7;font-weight:650;}
+.birthday-elapsed strong{font-variant-numeric:tabular-nums;color:#865b84}
+@media(max-width:430px){.birthday-music-panel{right:12px;bottom:calc(max(12px,env(safe-area-inset-bottom)) + 65px);padding:13px;border-radius:21px}.birthday-music-head strong{font-size:16px}.birthday-elapsed{font-size:11px}}
+@media(prefers-reduced-motion:reduce){#musicPlayer.playing{animation:none}}
+</style>
 </head>
 <body>
 <!-- Unified Our Love Hub navigation -->
@@ -470,6 +492,7 @@ footer{padding-top:55px}
         <a class="birthday-outline-button" href="#our-story">回看我们的故事 <span aria-hidden="true">↓</span></a>
       </div>
       <div class="birthday-first-day"><span aria-hidden="true">♡</span><span><small>OUR FIRST DAY</small><strong><time datetime="2024-03-23">2024.03.23</time></strong></span><i aria-hidden="true"></i><span><small>THIS LITTLE GIFT</small><strong><time datetime="2026-08-23">2026.08.23</time></strong></span></div>
+      <p class="birthday-elapsed" aria-live="off">♡ 我们已经相爱 <strong id="birthdayDaysTogether">—</strong> 天</p>
     </div>
     <div class="birthday-hero-art" aria-label="一张写着 2026 和 24 岁生日的纪念卡片">
       <div class="birthday-halo" aria-hidden="true"></div>
@@ -602,79 +625,100 @@ footer{padding-top:55px}
     document.body.classList.toggle("birthday-background-paused", document.hidden);
   });
 </script>
-<!-- MUSIC PLAYER START -->
-<button id="musicPlayer" type="button" aria-label="Play music" title="Play music">🎵</button>
-<div id="youtubeAudioFrame" aria-hidden="true"></div>
-<script src="https://www.youtube.com/iframe_api"></script>
+<!-- MUSIC PLAYER START · explicit, visible, user controlled -->
+<button id="musicPlayer" type="button" aria-label="打开生日音乐播放器" aria-controls="birthdayMusicPanel" aria-expanded="false" title="听一首送给你的歌">♫</button>
+<div class="birthday-music-panel" id="birthdayMusicPanel" hidden>
+  <div class="birthday-music-head">
+    <div><span>2026 · OUR LITTLE SONG</span><strong>一首送给你的歌 ♡</strong></div>
+    <button class="birthday-music-close" id="closeBirthdayMusic" type="button" aria-label="关闭并暂停音乐">×</button>
+  </div>
+  <div id="youtubeAudioFrame" aria-label="生日音乐视频播放器"></div>
+  <p class="birthday-music-status" id="birthdayMusicStatus" role="status" aria-live="polite">打开播放器后，点击视频中的播放按钮 ♡</p>
+  <a class="birthday-music-external" href="https://www.youtube.com/watch?v=acgqcvERIBg" target="_blank" rel="noopener noreferrer">在 YouTube 打开原曲 ↗</a>
+</div>
 <script>
-let musicYT = null;
-let musicReady = false;
-let musicPlaying = false;
-const MUSIC_ID = "acgqcvERIBg";
-const musicButton = document.getElementById("musicPlayer");
+(function(){
+  'use strict';
+  const START_UTC=Date.UTC(2024,2,23);
+  const daysNode=document.getElementById('birthdayDaysTogether');
+  const refreshDays=()=>{
+    if(!daysNode)return;
+    const today=new Date();
+    const todayUTC=Date.UTC(today.getFullYear(),today.getMonth(),today.getDate());
+    daysNode.textContent=String(Math.max(0,Math.floor((todayUTC-START_UTC)/86400000)));
+  };
+  refreshDays();
+  window.setInterval(refreshDays,60*60*1000);
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshDays();});
+})();
 
-function onYouTubeIframeAPIReady(){
-  musicYT = new YT.Player("youtubeAudioFrame", {
-    width: "2",
-    height: "2",
-    videoId: MUSIC_ID,
-    playerVars: {
-      autoplay: 0,
-      controls: 0,
-      loop: 1,
-      playlist: MUSIC_ID,
-      playsinline: 1,
-      rel: 0
-    },
-    events: {
-      onReady: function(){ musicReady = true; musicButton.title = "播放音乐"; },
-      onStateChange: function(e){
-        if(e.data === YT.PlayerState.PLAYING){
-          musicPlaying = true;
-          musicButton.textContent = "🔊";
-          musicButton.classList.add("playing");
-          musicButton.setAttribute("aria-label","Pause music");
-        } else if(e.data === YT.PlayerState.PAUSED || e.data === YT.PlayerState.ENDED){
-          musicPlaying = false;
-          musicButton.textContent = "🎵";
-          musicButton.classList.remove("playing");
-          musicButton.setAttribute("aria-label","Play music");
-        }
-      }
-    }
-  });
-}
-
-function toggleMusic(ev){
-  if(ev) ev.preventDefault();
-  if(!musicReady || !musicYT){
-    musicButton.title = "音乐仍在加载，请稍后再试";
-    return;
+let birthdayMusicYT=null;
+let birthdayMusicReady=false;
+let birthdayMusicPlaying=false;
+const BIRTHDAY_MUSIC_ID='acgqcvERIBg';
+const birthdayMusicButton=document.getElementById('musicPlayer');
+const birthdayMusicPanel=document.getElementById('birthdayMusicPanel');
+const birthdayMusicStatus=document.getElementById('birthdayMusicStatus');
+const birthdayMusicClose=document.getElementById('closeBirthdayMusic');
+const birthdayMusicOpen=()=>!birthdayMusicPanel.hidden;
+function birthdayMusicSetStatus(message){ birthdayMusicStatus.textContent=message; }
+function birthdayMusicStop(){
+  if(birthdayMusicYT && birthdayMusicReady){
+    try {birthdayMusicYT.pauseVideo();} catch(_){}
   }
+  birthdayMusicPlaying=false;
+  birthdayMusicButton.classList.remove('playing');
+}
+function birthdayMusicToggle(force){
+  const willOpen=typeof force==='boolean'?force:!birthdayMusicOpen();
+  birthdayMusicPanel.hidden=!willOpen;
+  birthdayMusicButton.setAttribute('aria-expanded',String(willOpen));
+  birthdayMusicButton.setAttribute('aria-label',willOpen?'关闭生日音乐播放器':'打开生日音乐播放器');
+  if(willOpen){
+    if(birthdayMusicReady){ birthdayMusicSetStatus('点击视频上的播放按钮，开始聆听 ♡'); }
+    birthdayMusicClose.focus({preventScroll:true});
+  }else{
+    birthdayMusicStop();
+    birthdayMusicButton.focus({preventScroll:true});
+  }
+}
+birthdayMusicButton.addEventListener('click',()=>birthdayMusicToggle());
+birthdayMusicClose.addEventListener('click',()=>birthdayMusicToggle(false));
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape' && birthdayMusicOpen()) birthdayMusicToggle(false);
+});
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden)birthdayMusicStop();
+});
+window.onYouTubeIframeAPIReady=function(){
+  if(!window.YT || !YT.Player){birthdayMusicSetStatus('音乐加载失败，可在 YouTube 打开原曲。');return;}
   try{
-    if(musicPlaying){
-      musicYT.pauseVideo();
-    }else{
-      musicYT.playVideo();
-    }
-  }catch(err){
-    console.log("Music playback was blocked:", err);
-  }
-}
-
-/* A single click handles touch, keyboard and mouse without double-toggling playback. */
-musicButton.addEventListener("click", toggleMusic);
-
-/* Also start music from the existing "Open Your Letter" button.
-   This is a genuine user gesture on Android Chrome. */
-const openLetter = document.querySelector('a[href="#message"]');
-if(openLetter){
-  openLetter.addEventListener("click", function(){
-    if(musicReady && musicYT && !musicPlaying) musicYT.playVideo();
-  });
-}
+    birthdayMusicYT=new YT.Player('youtubeAudioFrame',{
+      width:'320',height:'200',videoId:BIRTHDAY_MUSIC_ID,
+      playerVars:{autoplay:0,controls:1,playsinline:1,loop:1,playlist:BIRTHDAY_MUSIC_ID,rel:0},
+      events:{
+        onReady:()=>{ birthdayMusicReady=true;birthdayMusicSetStatus('音乐准备好啦，点击播放 ♡'); },
+        onStateChange:(event)=>{
+          if(!window.YT || !YT.PlayerState)return;
+          birthdayMusicPlaying=event.data===YT.PlayerState.PLAYING;
+          birthdayMusicButton.classList.toggle('playing',birthdayMusicPlaying);
+          if(birthdayMusicPlaying)birthdayMusicSetStatus('正在播放 ♡');
+          else if(event.data===YT.PlayerState.PAUSED)birthdayMusicSetStatus('已暂停 ♡');
+          else if(event.data===YT.PlayerState.ENDED)birthdayMusicSetStatus('歌曲播放结束 ♡');
+        },
+        onError:()=>{birthdayMusicReady=false;birthdayMusicSetStatus('这首歌暂时不能在网页内播放，可点击下方链接在 YouTube 收听。');}
+      }
+    });
+  }catch(err){birthdayMusicSetStatus('音乐未能加载，可在 YouTube 收听原曲。');}
+};
+window.addEventListener('load',()=>{
+  window.setTimeout(()=>{
+    if(!birthdayMusicReady && !birthdayMusicYT){ birthdayMusicSetStatus('若音乐一直加载，请检查网络，或在 YouTube 打开原曲。'); }
+  },12000);
+});
 </script>
 <!-- MUSIC PLAYER END -->
+<script async src="https://www.youtube.com/iframe_api"></script>
 
 
 

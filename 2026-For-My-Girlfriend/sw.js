@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pututulay-v9-responsive-20261009';
+const CACHE_NAME = 'pututulay-v10-music-chapters-20261009';
 const APP_SHELL = [
   './',
   './index.html',
