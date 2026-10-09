@@ -271,10 +271,6 @@ footer{padding-top:55px}
   -webkit-tap-highlight-color:transparent;
 }
 #musicPlayer.playing{animation:musicPulse 1.5s infinite}
-#youtubeAudioFrame{
-  position:fixed;width:2px;height:2px;left:-10px;bottom:-10px;
-  opacity:0;pointer-events:none;border:0;
-}
 @keyframes musicPulse{
   0%,100%{transform:scale(1)}
   50%{transform:scale(1.08)}
@@ -427,26 +423,50 @@ footer{padding-top:55px}
 <script defer src="../assets/love-hub-family.js?v=20261009"></script>
 <link rel="stylesheet" href="css/2026-responsive.css?v=20261009b">
 
-<style id="birthday-music-polish">
-/* A visible player is more reliable on iPhone, Android, tablets and computers than a hidden 2px iframe. */
-#musicPlayer{z-index:100;right:max(15px,env(safe-area-inset-right));bottom:max(16px,env(safe-area-inset-bottom));}
-#musicPlayer.playing{animation:musicPulse 1.5s ease-in-out infinite}
-.birthday-music-panel[hidden]{display:none!important}
-.birthday-music-panel{box-sizing:border-box;position:fixed;z-index:100;right:max(15px,env(safe-area-inset-right));bottom:calc(max(16px,env(safe-area-inset-bottom)) + 66px);width:min(360px,calc(100vw - 30px));padding:16px;border-radius:26px;background:linear-gradient(145deg,rgba(255,255,255,.98),rgba(252,242,250,.98));border:1px solid rgba(224,188,216,.78);box-shadow:0 22px 60px rgba(101,61,103,.20);backdrop-filter:blur(14px);color:#654663;}
-.birthday-music-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}
-.birthday-music-head div{display:grid;gap:5px}
-.birthday-music-head span{font:800 9px/1.4 system-ui,sans-serif;letter-spacing:.14em;color:#b379a0}
-.birthday-music-head strong{font:600 18px/1.3 Georgia,'Songti SC',serif;color:#614363}
-.birthday-music-close{border:1px solid #ecd7e6;border-radius:50%;background:#fff;color:#95688c;font:500 23px/1 system-ui;min-width:38px;min-height:38px;cursor:pointer}
-#youtubeAudioFrame{position:relative;left:auto;bottom:auto;width:100%;height:200px;opacity:1;overflow:hidden;pointer-events:auto;background:linear-gradient(125deg,#f7e6f0,#eee3fc);border-radius:16px}
-#youtubeAudioFrame iframe{display:block;position:static!important;width:100%!important;height:200px!important;max-width:none;opacity:1!important;border:0;border-radius:16px}
-.birthday-music-status{font-size:12px;line-height:1.6;color:#906e85;margin:12px 2px 8px}
-.birthday-music-external{font-size:12px;font-weight:700;color:#a46a99;text-decoration:underline;text-underline-offset:3px}
-.birthday-music-close:focus-visible,.birthday-music-external:focus-visible{outline:3px solid #bd7dad;outline-offset:3px}
-.birthday-elapsed{margin:12px 0 0;color:#a07b99;font-size:12px;line-height:1.7;font-weight:650;}
-.birthday-elapsed strong{font-variant-numeric:tabular-nums;color:#865b84}
-@media(max-width:430px){.birthday-music-panel{right:12px;bottom:calc(max(12px,env(safe-area-inset-bottom)) + 65px);padding:13px;border-radius:21px}.birthday-music-head strong{font-size:16px}.birthday-elapsed{font-size:11px}}
-@media(prefers-reduced-motion:reduce){#musicPlayer.playing{animation:none}}
+<style id="birthday-music-minimal">
+/* Our Love Hub · native birthday music. One button, no external video service. */
+#musicPlayer {
+  z-index:100;
+  right:max(15px, env(safe-area-inset-right));
+  bottom:max(16px, env(safe-area-inset-bottom));
+  background:rgba(255,255,255,.96);
+  color:#ad6f9d;
+  border:1px solid rgba(226,193,220,.76);
+  box-shadow:0 14px 34px rgba(120,69,117,.14),inset 0 1px 0 #fff;
+  display:grid;
+  place-items:center;
+  transition:background-color .18s ease,box-shadow .18s ease,color .18s ease;
+}
+#musicPlayer.playing {
+  background:linear-gradient(135deg,#ae74a7,#9278bf);
+  color:#fff;
+  box-shadow:0 16px 35px rgba(145,103,167,.28);
+  animation:none;
+}
+#musicPlayer:focus-visible {
+  outline:3px solid rgba(173,111,157,.42);
+  outline-offset:4px;
+}
+.music-control-icon {line-height:1;font-size:23px;transform:translateY(-1px)}
+#musicPlayer.playing .music-control-icon{font-size:20px;font-weight:800;transform:none;letter-spacing:-2px}
+.birthday-music-toast[hidden]{display:none!important}
+.birthday-music-toast{
+  box-sizing:border-box;position:fixed;z-index:99;
+  right:max(78px,calc(env(safe-area-inset-right) + 78px));
+  bottom:max(25px,calc(env(safe-area-inset-bottom) + 25px));
+  max-width:min(280px,calc(100vw - 110px));
+  padding:10px 14px;border-radius:999px;
+  background:rgba(255,251,255,.96);
+  border:1px solid rgba(232,193,217,.7);
+  color:#825b7c;font:600 12px/1.5 "Avenir Next","Segoe UI",system-ui,sans-serif;
+  box-shadow:0 12px 30px rgba(121,76,127,.12);
+  pointer-events:none;
+}
+@media(max-width:430px){
+  #musicPlayer{right:max(12px,env(safe-area-inset-right));bottom:max(12px,env(safe-area-inset-bottom))}
+  .birthday-music-toast{right:max(74px,calc(env(safe-area-inset-right) + 74px));bottom:max(21px,calc(env(safe-area-inset-bottom) + 21px));font-size:11px}
+}
+@media(prefers-reduced-motion:reduce){#musicPlayer{transition:none}}
 </style>
 </head>
 <body>
@@ -625,112 +645,127 @@ footer{padding-top:55px}
     document.body.classList.toggle("birthday-background-paused", document.hidden);
   });
 </script>
-<!-- MUSIC PLAYER START · explicit, visible, user controlled -->
-<button id="musicPlayer" type="button" aria-label="打开生日音乐播放器" aria-controls="birthdayMusicPanel" aria-expanded="false" title="听一首送给你的歌">♫</button>
-<div class="birthday-music-panel" id="birthdayMusicPanel" hidden>
-  <div class="birthday-music-head">
-    <div><span>2026 · OUR LITTLE SONG</span><strong>一首送给你的歌 ♡</strong></div>
-    <button class="birthday-music-close" id="closeBirthdayMusic" type="button" aria-label="关闭并暂停音乐">×</button>
-  </div>
-  <div id="youtubeAudioFrame" aria-label="生日音乐视频播放器"></div>
-  <p class="birthday-music-status" id="birthdayMusicStatus" role="status" aria-live="polite">打开播放器后，点击视频中的播放按钮 ♡</p>
-  <a class="birthday-music-external" href="https://www.youtube.com/watch?v=acgqcvERIBg" target="_blank" rel="noopener noreferrer">在 YouTube 打开原曲 ↗</a>
-</div>
+<!-- MUSIC PLAYER START · supplied MP3 only -->
+<audio id="birthdaySong" preload="none" playsinline src="./audio/birthday-song.mp3"></audio>
+<button id="musicPlayer" type="button" aria-label="播放生日歌曲" aria-pressed="false" title="播放生日歌曲">
+  <span class="music-control-icon" aria-hidden="true">♫</span>
+</button>
+<div class="birthday-music-toast" id="birthdayMusicToast" role="status" aria-live="polite" hidden></div>
 <script>
 (function(){
   'use strict';
   const START_UTC=Date.UTC(2024,2,23);
   const daysNode=document.getElementById('birthdayDaysTogether');
-  const refreshDays=()=>{
+  function refreshDays(){
     if(!daysNode)return;
     const today=new Date();
     const todayUTC=Date.UTC(today.getFullYear(),today.getMonth(),today.getDate());
     daysNode.textContent=String(Math.max(0,Math.floor((todayUTC-START_UTC)/86400000)));
-  };
+  }
   refreshDays();
   window.setInterval(refreshDays,60*60*1000);
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshDays();});
-})();
 
-let birthdayMusicYT=null;
-let birthdayMusicReady=false;
-let birthdayMusicPlaying=false;
-const BIRTHDAY_MUSIC_ID='acgqcvERIBg';
-const birthdayMusicButton=document.getElementById('musicPlayer');
-const birthdayMusicPanel=document.getElementById('birthdayMusicPanel');
-const birthdayMusicStatus=document.getElementById('birthdayMusicStatus');
-const birthdayMusicClose=document.getElementById('closeBirthdayMusic');
-const birthdayMusicOpen=()=>!birthdayMusicPanel.hidden;
-// Load YouTube only when the visitor opens the music panel: less data and no
-// early connection to an external service on the birthday landing page.
-let birthdayMusicScriptLoading=false;
-function birthdayMusicLoadOnDemand(){
-  if(birthdayMusicReady || birthdayMusicYT || birthdayMusicScriptLoading)return;
-  birthdayMusicScriptLoading=true;
-  birthdayMusicSetStatus('正在加载播放器…');
-  const script=document.createElement('script');
-  script.src='https://www.youtube.com/iframe_api';
-  script.async=true;
-  script.onerror=()=>{
-    birthdayMusicScriptLoading=false;
-    birthdayMusicSetStatus('音乐播放器暂时无法加载，您仍可点击下方链接打开原曲。');
-  };
-  document.head.appendChild(script);
-}
-function birthdayMusicSetStatus(message){ birthdayMusicStatus.textContent=message; }
-function birthdayMusicStop(){
-  if(birthdayMusicYT && birthdayMusicReady){
-    try {birthdayMusicYT.pauseVideo();} catch(_){}
+  const song=document.getElementById('birthdaySong');
+  const button=document.getElementById('musicPlayer');
+  const icon=button.querySelector('.music-control-icon');
+  const toast=document.getElementById('birthdayMusicToast');
+  let pendingPlay=false;
+  let requestSequence=0;
+  let toastTimer=0;
+  const audioLabel='The Birthday of My Love';
+
+  function notify(message,delay=2600){
+    toast.textContent=message;
+    toast.hidden=false;
+    window.clearTimeout(toastTimer);
+    if(delay>0)toastTimer=window.setTimeout(()=>{toast.hidden=true;},delay);
   }
-  birthdayMusicPlaying=false;
-  birthdayMusicButton.classList.remove('playing');
-}
-function birthdayMusicToggle(force){
-  const willOpen=typeof force==='boolean'?force:!birthdayMusicOpen();
-  birthdayMusicPanel.hidden=!willOpen;
-  birthdayMusicButton.setAttribute('aria-expanded',String(willOpen));
-  birthdayMusicButton.setAttribute('aria-label',willOpen?'关闭生日音乐播放器':'打开生日音乐播放器');
-  if(willOpen){
-    if(birthdayMusicReady){ birthdayMusicSetStatus('点击视频上的播放按钮，开始聆听 ♡'); }
-    else birthdayMusicLoadOnDemand();
-    birthdayMusicClose.focus({preventScroll:true});
-  }else{
-    birthdayMusicStop();
-    birthdayMusicButton.focus({preventScroll:true});
+  function updateButton(){
+    const isPlaying=!song.paused&&!song.ended;
+    button.classList.toggle('playing',isPlaying);
+    button.setAttribute('aria-pressed',String(isPlaying));
+    const label=isPlaying?'暂停生日歌曲':'播放生日歌曲';
+    button.setAttribute('aria-label',label);
+    button.title=label;
+    icon.textContent=isPlaying?'Ⅱ':'♫';
+    if('mediaSession' in navigator){
+      try{navigator.mediaSession.playbackState=isPlaying?'playing':'paused';}catch(_){ }
+    }
   }
-}
-birthdayMusicButton.addEventListener('click',()=>birthdayMusicToggle());
-birthdayMusicClose.addEventListener('click',()=>birthdayMusicToggle(false));
-document.addEventListener('keydown',e=>{
-  if(e.key==='Escape' && birthdayMusicOpen()) birthdayMusicToggle(false);
-});
-document.addEventListener('visibilitychange',()=>{
-  if(document.hidden)birthdayMusicStop();
-});
-window.onYouTubeIframeAPIReady=function(){
-  if(!window.YT || !YT.Player){birthdayMusicSetStatus('音乐加载失败，可在 YouTube 打开原曲。');return;}
-  try{
-    birthdayMusicYT=new YT.Player('youtubeAudioFrame',{
-      width:'320',height:'200',videoId:BIRTHDAY_MUSIC_ID,
-      playerVars:{autoplay:0,controls:1,playsinline:1,loop:1,playlist:BIRTHDAY_MUSIC_ID,rel:0},
-      events:{
-        onReady:()=>{ birthdayMusicReady=true;birthdayMusicSetStatus('音乐准备好啦，点击播放 ♡'); },
-        onStateChange:(event)=>{
-          if(!window.YT || !YT.PlayerState)return;
-          birthdayMusicPlaying=event.data===YT.PlayerState.PLAYING;
-          birthdayMusicButton.classList.toggle('playing',birthdayMusicPlaying);
-          if(birthdayMusicPlaying)birthdayMusicSetStatus('正在播放 ♡');
-          else if(event.data===YT.PlayerState.PAUSED)birthdayMusicSetStatus('已暂停 ♡');
-          else if(event.data===YT.PlayerState.ENDED)birthdayMusicSetStatus('歌曲播放结束 ♡');
-        },
-        onError:()=>{birthdayMusicReady=false;birthdayMusicSetStatus('这首歌暂时不能在网页内播放，可点击下方链接在 YouTube 收听。');}
+  function humanError(){
+    const err=song.error;
+    if(err && err.code===MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED){
+      return '音乐格式暂时无法播放，请稍后重试 ♡';
+    }
+    return '歌曲暂时无法播放，请检查网络后重试 ♡';
+  }
+  async function playSong(){
+    if(pendingPlay || !song.paused)return;
+    const current=++requestSequence;
+    pendingPlay=true;
+    try{
+      // HTMLAudioElement.play() is called directly from the visitor's click.
+      const attempt=song.play();
+      updateButton();
+      if(attempt&&typeof attempt.then==='function')await attempt;
+      if(current===requestSequence)notify('♫ 送给你的生日歌，正在播放 ♡');
+    }catch(error){
+      if(current===requestSequence){
+        updateButton();
+        notify(error && error.name==='NotAllowedError'
+          ? '请点击音乐按钮，再试一次 ♡' : humanError(),6000);
       }
-    });
-  }catch(err){birthdayMusicSetStatus('音乐未能加载，可在 YouTube 收听原曲。');}
-};
+    }finally{pendingPlay=false;}
+  }
+  function pauseSong(){
+    requestSequence++;
+    song.pause();
+    updateButton();
+    notify('已暂停 ♡');
+  }
+  button.addEventListener('click',()=>{
+    if(!song.paused || pendingPlay){
+      pauseSong();
+    }else{
+      if(song.ended)song.currentTime=0;
+      void playSong();
+    }
+  });
+  song.addEventListener('play',updateButton);
+  song.addEventListener('pause',updateButton);
+  song.addEventListener('ended',()=>{updateButton();notify('歌曲播放完啦 ♡');});
+  song.addEventListener('error',()=>{updateButton();notify(humanError(),6500);});
+  song.addEventListener('waiting',()=>{
+    if(!song.paused)notify('正在缓冲音乐…',4500);
+  });
+  // Controls on a lock screen / headset are offered on browsers that support Media Session.
+  if('mediaSession' in navigator){
+    try{
+      if('MediaMetadata' in window){
+        navigator.mediaSession.metadata=new MediaMetadata({
+          title:audioLabel,
+          artist:'Bunny Phyo · Ki Ki',
+          album:'Our Love Hub · 2026',
+          artwork:[{src:new URL('../assets/icon-192.png',location.href).href,sizes:'192x192',type:'image/png'}]
+        });
+      }
+      navigator.mediaSession.setActionHandler('play',()=>{void playSong();});
+      navigator.mediaSession.setActionHandler('pause',pauseSong);
+      navigator.mediaSession.setActionHandler('stop',()=>{pauseSong();song.currentTime=0;});
+      navigator.mediaSession.setActionHandler('seekbackward',details=>{
+        song.currentTime=Math.max(0,song.currentTime-(details.seekOffset||10));
+      });
+      navigator.mediaSession.setActionHandler('seekforward',details=>{
+        song.currentTime=Math.min(song.duration||Infinity,song.currentTime+(details.seekOffset||10));
+      });
+    }catch(_){}
+  }
+  updateButton();
+})();
 </script>
 <!-- MUSIC PLAYER END -->
-<!-- YouTube is requested only after the music panel is opened. -->
+
 
 
 

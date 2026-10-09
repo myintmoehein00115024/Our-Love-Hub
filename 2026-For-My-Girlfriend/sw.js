@@ -1,5 +1,5 @@
 // 2026 chapter — scoped cache; never handles Chat push or Supabase data.
-const CACHE_NAME='pututulay-v12-lazy-yt-20261009';
+const CACHE_NAME='pututulay-v13-local-birthday-audio-20261009';
 const CORE=['./','./index.html'];
 const OPTIONAL=[
   './css/2026-responsive.css','../assets/love-hub-family.css',
