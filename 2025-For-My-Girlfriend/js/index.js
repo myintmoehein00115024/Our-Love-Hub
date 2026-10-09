@@ -6,9 +6,10 @@
   const UNLOCK_KEY = "thinthin_story_unlocked_at";
   const SEEN_KEY = "thinthin_story_seen";
   const counter = document.getElementById("runtime_span");
+  const totalDays = document.getElementById("runtime_days");
 
   function updateRuntime() {
-    if (!counter) return;
+    if (!counter && !totalDays) return;
 
     const now = new Date();
     const current = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -34,11 +35,13 @@
       Date.UTC(monthAnchor.getFullYear(), monthAnchor.getMonth(), monthAnchor.getDate())
     ) / 86400000);
 
-    const yearLabel = years === 1 ? "Year" : "Years";
-    const monthLabel = months === 1 ? "Month" : "Months";
-    const dayLabel = days === 1 ? "Day" : "Days";
-
-    counter.textContent = `We're In Love · ${years} ${yearLabel} · ${months} ${monthLabel} · ${days} ${dayLabel}`;
+    if (counter) counter.textContent = `我们已经一起走过 ${years} 年 ${months} 个月 ${days} 天，故事还在继续 ♡`;
+    if (totalDays) {
+      const elapsed = Math.max(0, Math.floor((
+        Date.UTC(current.getFullYear(),current.getMonth(),current.getDate()) -
+        Date.UTC(2024,2,23)) / 86400000));
+      totalDays.textContent = (elapsed + 1).toLocaleString("zh-CN");
+    }
   }
 
   function rememberStory() {
