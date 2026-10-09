@@ -1159,3 +1159,8 @@ body::before,body::after{opacity:.62;filter:blur(.1px)}
 .device-pair-sheet .device-pair-tip{font-size:11px;color:#a18aa4;margin-bottom:0}
 @media(max-width:440px){.device-pair-panel{padding:10px}.device-pair-sheet{padding:18px 16px;border-radius:20px;max-height:calc(100dvh - 20px)}
 .device-pair-actions{grid-template-columns:1fr}.device-pair-actions button{min-height:44px}}
+
+/* Stage A+: compact three-action device pairing controls. Status is read-only. */
+.device-pair-actions{grid-template-columns:repeat(3,minmax(0,1fr))}
+.device-pair-actions button{min-width:0;overflow-wrap:anywhere}
+@media(max-width:440px){.device-pair-actions{grid-template-columns:1fr 1fr}.device-pair-actions button:first-child{grid-column:span 2}}

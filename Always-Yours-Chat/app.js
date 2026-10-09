@@ -1586,6 +1586,7 @@ const devicePairStatus=$('devicePairStatus');
 const devicePairRole=$('devicePairRole');
 const devicePairCreate=$('prepareDeviceKey');
 const devicePairCopy=$('copyDeviceFingerprint');
+const devicePairCheck=$('checkDeviceStatus');
 let devicePairFingerprint='';
 let pairingBusy=false;
 function pairB64Url(bytes){
@@ -1680,6 +1681,39 @@ devicePairCreate?.addEventListener('click',async()=>{
      '\n现有聊天仍可正常使用；这不是独立身份验证已经生效的证明。');
  }catch(err){pairStatus('未完成设备登记：'+(err.message||String(err))+'\n原有聊天不受影响。');}
  finally{pairingBusy=false;devicePairCreate.disabled=false;}
+});
+// This is a read-only diagnostic proof. The user-generated nonce is NOT a future
+// authorization challenge; enabling real access control will require a server-issued,
+// expiring, single-use challenge and an explicit two-device enrollment decision.
+devicePairCheck?.addEventListener('click',async()=>{
+ if(pairingBusy||!roomId||!cryptoKey||!validRole(selectedName))return;
+ pairingBusy=true;devicePairCheck.disabled=true;devicePairCreate.disabled=true;
+ const role=selectedName,expectedRoom=roomId;
+ try{
+   const current=await currentDeviceFingerprint();
+   if(!current){pairStatus('本机尚未生成独立签名密钥。请先点击「申请本机设备授权」。');return;}
+   const nonce=pairB64Url(crypto.getRandomValues(new Uint8Array(16)));
+   const message=new TextEncoder().encode(['AY-DEVICE-STATUS-V1',expectedRoom,role,nonce].join('\n'));
+   const signature=await crypto.subtle.sign({name:'ECDSA',hash:'SHA-256'},current.entry.pair.privateKey,message);
+   if(selectedName!==role||roomId!==expectedRoom)throw new Error('检查期间身份已改变，请重新操作');
+   pairStatus('正在检查本机签名与服务器登记状态…');
+   const reply=await fetch(`${API_BASE}/api/devices/status`,{
+     method:'POST',cache:'no-store',
+     headers:{'Content-Type':'application/json','X-Room-Key':expectedRoom,'X-User':role},
+     body:JSON.stringify({publicKey:{kty:'EC',crv:'P-256',x:current.publicKey.x,y:current.publicKey.y},nonce,signature:pairB64Url(signature)})
+   });
+   const result=await reply.json().catch(()=>({}));
+   if(!reply.ok)throw new Error(result.error||'检查失败，请稍后再试');
+   if(selectedName!==role||roomId!==expectedRoom)throw new Error('身份已切换，请重新进行设备验证');
+   if(!result.signatureValid||result.fingerprint!==current.fp)throw new Error('服务器的签名或指纹核对失败，请停止操作');
+   const messages={pending:'待审核，尚未取得授权',approved:'管理员已批准，但尚未启用强制认证',revoked:'已撤销，不能作为将来的授权设备',not_registered:'尚未向服务器提交设备登记'};
+   devicePairFingerprint=current.fp;devicePairCopy.disabled=false;
+   pairStatus('本机签名校验：通过\n当前身份：'+(role==='Ko Ko'?'HE · Ko Ko':'SHE · Chit Chit')+
+     '\n设备指纹：'+pairFingerprintLabel(current.fp)+
+     '\n服务器状态：'+(messages[result.deviceState]||'未知状态')+
+     '\n强制设备认证：未开启（现有聊天不受限制）');
+ }catch(error){pairStatus('设备状态检查失败：'+(error.message||String(error))+'\n不会影响现有聊天和通知。');}
+ finally{pairingBusy=false;devicePairCheck.disabled=false;devicePairCreate.disabled=false;}
 });
 devicePairCopy?.addEventListener('click',async()=>{
  if(!devicePairFingerprint)return;

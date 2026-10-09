@@ -11,7 +11,7 @@
   <link rel="manifest" href="../manifest.webmanifest">
   <link rel="icon" type="image/png" sizes="32x32" href="../assets/favicon-32.png">
   <link rel="apple-touch-icon" sizes="180x180" href="../assets/apple-touch-icon.png">
-  <link rel="stylesheet" href="styles.css?v=20261010-device-pairing-v34">
+  <link rel="stylesheet" href="styles.css?v=20261010-device-status-v35">
   <title>Always Yours ♡ · Our Love Hub</title>
 </head>
 <body>
@@ -148,6 +148,7 @@
       <div id="devicePairStatus" class="device-pair-status" role="status" aria-live="polite">尚未准备。</div>
       <div class="device-pair-actions">
         <button id="prepareDeviceKey" type="button">♡ 申请本机设备授权</button>
+        <button id="checkDeviceStatus" type="button">检查本机状态</button>
         <button id="copyDeviceFingerprint" type="button" disabled>复制设备指纹</button>
       </div>
       <p class="device-pair-tip">本阶段只登记待审核公钥，不会自动批准，也不会限制现有 HE/SHE 聊天。以后需要两台设备分别确认，再开启强制设备验证。</p>
@@ -187,7 +188,7 @@
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <script src="routes.js"></script>
-  <script type="module" src="app.js?v=20261010-device-pairing-v34"></script>
+  <script type="module" src="app.js?v=20261010-device-status-v35"></script>
   <script>
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('./sw.js').catch(() => {});
