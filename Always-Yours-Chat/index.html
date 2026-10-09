@@ -11,7 +11,7 @@
   <link rel="manifest" href="../manifest.webmanifest">
   <link rel="icon" type="image/png" sizes="32x32" href="../assets/favicon-32.png">
   <link rel="apple-touch-icon" sizes="180x180" href="../assets/apple-touch-icon.png">
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=20261009-back-clean">
   <title>Always Yours ♡ · Our Love Hub</title>
 </head>
 <body>
@@ -54,6 +54,10 @@
     <section id="chat" class="card chat-card hidden" aria-label="Private chat">
       <header class="chat-header" aria-label="聊天导航">
         <div class="chat-brand-row">
+          <a class="chat-home-back" href="../Our-Journey/" aria-label="返回 Our Love Hub 主页（Our Journey）" title="返回 Our Love Hub 主页">
+            <svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true" focusable="false"><path d="M19 12H5m0 0 6.5-6.5M5 12l6.5 6.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span>主页</span>
+          </a>
           <img src="../assets/icon-192.png" alt="Our Love Hub" class="chat-brand-logo" width="42" height="42">
           <div class="chat-brand-copy">
             <h2>Always Yours <span>♡</span></h2>
@@ -164,7 +168,7 @@
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <script src="routes.js"></script>
-  <script type="module" src="app.js"></script>
+  <script type="module" src="app.js?v=20261009-back-clean"></script>
   <script>
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('./sw.js').catch(() => {});

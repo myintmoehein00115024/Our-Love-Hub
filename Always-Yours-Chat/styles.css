@@ -1052,3 +1052,31 @@ body::before,body::after{opacity:.62;filter:blur(.1px)}
 .history-older-control button[hidden]{display:none!important}
 .history-older-control button:disabled{opacity:.7;cursor:wait}
 @media(max-width:640px){.history-older-control button{padding:8px 12px}}
+
+
+/* Our Love Hub · compact back navigation + cleaner message bubbles (2026-10-09). */
+.chat-home-back{
+  display:inline-flex;align-items:center;justify-content:center;gap:5px;flex:0 0 auto;
+  min-width:40px;min-height:40px;padding:6px 9px;border:1px solid rgba(216,176,207,.66);
+  border-radius:999px;background:rgba(255,255,255,.8);color:#956c90;
+  font-size:11px;font-weight:800;line-height:1;text-decoration:none;
+  box-shadow:0 4px 12px rgba(145,93,142,.07);transition:background .15s,border-color .15s;
+}
+.chat-home-back svg{display:block;flex:none}
+.chat-home-back:hover{background:#fff4fa;border-color:#c99abb;color:#754c76}
+.chat-home-back:focus-visible{outline:3px solid #b778a9;outline-offset:3px}
+.message-row .sender{display:none!important} /* safeguards stale page script during SW transition */
+@media(max-width:760px){
+  .chat-home-back{min-width:34px;min-height:34px;padding:5px 7px}
+  .chat-home-back span{display:none}
+  .chat-home-back svg{width:18px;height:18px}
+}
+@media(max-width:640px){
+  .chat-header,.chat-header:where(:not(.anything)){flex-wrap:wrap!important;row-gap:7px!important}
+  .chat-brand-row{flex:1 1 100%!important;min-width:0}
+  .header-actions{flex:1 1 auto;justify-content:flex-end!important;width:100%}
+}
+@media(max-width:370px){
+  .chat-home-back{min-width:32px;min-height:32px}
+  .chat-brand-row{gap:6px!important}
+}

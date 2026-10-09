@@ -319,8 +319,10 @@ function renderMessages(items){
     const bubble=document.createElement("div"); bubble.className="message-bubble";
     if(item.kind==="image") bubble.classList.add("photo-bubble");
     if(item.kind==="sticker") bubble.classList.add("sticker-bubble");
-    const sender=document.createElement("div"); sender.className="sender"; sender.textContent=mine?"我 · "+(selectedName==="Ko Ko"?"HE":"SHE"):(item.sender==="Ko Ko"?"HE":"SHE");
-    bubble.appendChild(sender);
+    // Left/right alignment identifies each side visually; no repeated HE/SHE label in the bubble.
+    // Keep an accessible description for assistive technologies.
+    row.setAttribute("role","group");
+    row.setAttribute("aria-label",mine?"我发送的消息":"对方发送的消息");
     if(item.reply){
       const quote=document.createElement("button");
       quote.type="button"; quote.className="message-reply-quote";
