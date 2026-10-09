@@ -40,7 +40,7 @@
       const elapsed = Math.max(0, Math.floor((
         Date.UTC(current.getFullYear(),current.getMonth(),current.getDate()) -
         Date.UTC(2024,2,23)) / 86400000));
-      totalDays.textContent = (elapsed + 1).toLocaleString("zh-CN");
+      totalDays.textContent = elapsed.toLocaleString("zh-CN");
     }
   }
 

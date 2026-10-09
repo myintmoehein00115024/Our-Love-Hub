@@ -1,7 +1,7 @@
 {
-  "name": "Always yours · M 💞 T",
-  "short_name": "Always yours",
-  "description": "A private little love story made for Thin Thin Yu Hlaing.",
+  "name": "Our Love Hub · 2025",
+  "short_name": "Our Love Hub",
+  "description": "Our Love Hub · 2025 chapter for Thin Thin Yu Hlaing.",
   "lang": "en",
   "dir": "ltr",
   "id": "./",
@@ -19,19 +19,19 @@
   "prefer_related_applications": false,
   "icons": [
     {
-      "src": "./icons/icon-192.png",
+      "src": "../assets/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "./icons/icon-512.png",
+      "src": "../assets/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "./icons/icon-512-maskable.png",
+      "src": "../assets/icon-512-maskable.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
