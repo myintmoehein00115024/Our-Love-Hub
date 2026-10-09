@@ -288,14 +288,6 @@ async function loadCache(){
 
 function dayKey(value){ const d=new Date(Number(value)||Date.now()); return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`; }
 function dayLabel(value){ const d=new Date(Number(value)||Date.now()); const now=new Date(); if(dayKey(d.getTime())===dayKey(now.getTime())) return "Today"; const y=new Date(now); y.setDate(now.getDate()-1); if(dayKey(d.getTime())===dayKey(y.getTime())) return "Yesterday"; return new Intl.DateTimeFormat(undefined,{month:"short",day:"numeric"}).format(d); }
-function expiryLabel(ts){
-  const remain=Math.max(0,Number(ts||0)-Date.now());
-  if(!remain) return "30 天保存期已结束";
-  const days=Math.ceil(remain/(24*60*60*1000));
-  if(days>1) return `剩余 ${days} 天`;
-  const h=Math.ceil(remain/(60*60*1000));
-  return h>1?`剩余 ${h} 小时`:`将在 1 小时内清理`;
-}
 function showNewHint(){ if(!newMessageHint) return; newMessageHint.classList.remove("hidden"); clearTimeout(showNewHint._t); showNewHint._t=setTimeout(()=>newMessageHint.classList.add("hidden"),2200); }
 function renderMessages(items){
   const shouldStickToBottom=messagesEl.scrollHeight-messagesEl.clientHeight-messagesEl.scrollTop<100;
@@ -349,7 +341,7 @@ function renderMessages(items){
     const meta=document.createElement("div"); meta.className="message-meta-row";
     const tm=document.createElement("div"); tm.className="message-time"; tm.textContent=formatTime(item.created_at); meta.appendChild(tm);
     if(item.edited_at){ const ed=document.createElement("span"); ed.className="message-edited"; ed.textContent="edited"; meta.appendChild(ed); }
-    const age=document.createElement("span"); age.className="message-age"; age.textContent=expiryLabel(item.expires_at); meta.appendChild(age);
+    // Keep the retention timestamp for local filtering; omit per-message countdown UI.
     bubble.appendChild(meta);
     const actions=document.createElement("div");
     actions.className="message-side-actions";
