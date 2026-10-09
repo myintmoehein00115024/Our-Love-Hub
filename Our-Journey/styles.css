@@ -164,17 +164,6 @@ a:focus-visible, button:focus-visible { outline: 3px solid #987dbe; outline-offs
 .back-to-top { position: fixed; z-index: 15; bottom: 24px; right: 24px; width: 47px; height: 47px; border: 0; border-radius: 50%; color: #fff; font-size: 23px; background: linear-gradient(135deg,#c981ae,#9c78bb); box-shadow: 0 12px 26px rgba(152,87,158,.24); opacity: 0; pointer-events: none; transform: translateY(15px); transition: opacity .2s, transform .2s; }
 .back-to-top.visible { opacity: 1; pointer-events: auto; transform: translateY(0); }
 
-/* Install modal */
-.dialog-layer { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 18px; }
-.dialog-backdrop { position: absolute; inset: 0; background: rgba(59,35,60,.38); backdrop-filter: blur(8px); }
-.dialog-card { width: min(435px,100%); position: relative; padding: 34px; text-align: center; border-radius: 30px; border: 1px solid #fff; background: linear-gradient(140deg,#fffaff,#f4eafd); box-shadow: 0 25px 80px rgba(59,35,60,.26); }
-.dialog-card>img { display: block; margin: 0 auto 19px; }
-.dialog-card h2 { font: 700 30px/1.35 Georgia,serif; letter-spacing: -.035em; margin: 12px 0; }
-.dialog-card #installInstructions { color: #90758d; font-size: 14px; line-height: 1.9; }
-.dialog-card .button { margin: 18px auto 0; }
-.dialog-close { position: absolute; top: 12px; right: 18px; width: 34px; height: 34px; border: none; background: #fff8fd; border-radius: 50%; color: #936c89; font-size: 25px; }
-.dialog-secondary { display: block; margin: 18px auto 0; border: 0; background: none; color: #9b819a; font-size: 13px; text-decoration: underline; }
-
 @media (max-width: 1080px) {
   .topbar { flex-wrap: wrap; gap: 12px 20px; }
   .topnav { order: 3; flex-basis: 100%; justify-content: flex-start; gap: 20px; padding: 5px 0 8px; }
@@ -259,3 +248,140 @@ a:focus-visible, button:focus-visible { outline: 3px solid #987dbe; outline-offs
 @media(max-width:1080px){.chat-bell{margin-left:auto}.install-button{margin-left:0}}
 @media(max-width:440px){.chat-bell{width:39px;height:39px}.bell-emoji{font-size:17px}}
 @media(prefers-reduced-motion:reduce){.chat-bell.has-unread{animation:none}}
+
+
+/* ======================== Our Journey · Home Edition 2 ======================== */
+:root { --home-line:rgba(217,179,209,.53); --home-soft:rgba(255,255,255,.83); }
+html { scroll-padding-top: 100px; }
+body { background:
+    radial-gradient(ellipse 60% 45% at 6% 4%,rgba(255,214,229,.64),transparent 70%),
+    radial-gradient(ellipse 58% 43% at 93% 18%,rgba(229,211,255,.58),transparent 74%),
+    linear-gradient(145deg,#fff8fc 0%,#fcf7ff 44%,#f6eefe 100%);
+}
+.site-wrap { width:min(1190px,calc(100% - 46px)); }
+.topbar { position:sticky; top:12px; z-index:55; min-height:0;
+  display:flex; flex-wrap:nowrap; gap:clamp(10px,2.4vw,28px); align-items:center;
+  margin:18px 0 22px; padding:11px 16px;
+  border:1px solid rgba(255,255,255,.94); border-radius:25px;
+  background:linear-gradient(112deg,rgba(255,253,254,.92),rgba(246,237,253,.9));
+  box-shadow:0 16px 37px rgba(136,96,139,.09),inset 0 1px rgba(255,255,255,.98);
+  backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px);
+}
+.brand { min-width:0; gap:11px; }
+.brand img { width:43px; height:43px; flex:none; border-radius:14px; box-shadow:0 7px 18px rgba(146,86,125,.16); }
+.brand-type strong { font-size:21px; letter-spacing:-.035em; }
+.brand-type small { font-size:9px; letter-spacing:.12em; }
+.topnav { gap:clamp(11px,1.55vw,24px); margin-left:auto; }
+.topnav a { position:relative; min-height:38px; display:inline-flex; align-items:center; padding:5px 2px; font-weight:700; color:#795c79; }
+.topnav a:hover,.topnav a:focus-visible { color:#9e598d; }
+.topnav .nav-chat { color:#a36898; }
+.install-button { min-height:40px; padding:9px 14px; border-color:var(--home-line); white-space:nowrap; background:rgba(255,255,255,.85); }
+.chat-bell { width:41px; height:41px; flex:none; }
+.chat-bell.has-unread { animation:none; }
+.chat-bell.has-unread .bell-emoji { display:inline-block; animation:bell-tap 1s ease-in-out 2; }
+@keyframes bell-tap { 0%,100%{transform:rotate(0)} 30%{transform:rotate(13deg)} 60%{transform:rotate(-8deg)} }
+.hero-panel { border-radius:38px; padding:clamp(26px,4.6vw,60px); gap:clamp(20px,3.8vw,48px);
+  background: radial-gradient(ellipse at 6% 25%,rgba(255,220,236,.48),transparent 44%),linear-gradient(130deg,rgba(255,255,255,.88),rgba(248,240,255,.92));
+  box-shadow:0 25px 70px rgba(116,72,124,.10),inset 0 1px 0 #fff;
+}
+.chapter-badge { display:inline-flex; gap:10px; align-items:center; color:#a37199; font-weight:850; letter-spacing:.17em; font-size:10px; margin-bottom:19px; }
+.chapter-badge span { font-size:17px; color:#ca8aaf; }
+.hero-copy { padding:8px 0; }
+.hero-copy .eyebrow { letter-spacing:.15em; font-size:10px; }
+.hero-copy h1 { font-size:clamp(42px,4.6vw,65px); line-height:1.22; margin:20px 0 22px; }
+.hero-lead { max-width:530px; line-height:1.97; font-size:clamp(14px,1.25vw,16px); }
+.hero-actions { margin:26px 0 28px; }
+.button { min-height:48px; }
+.anniversary-card { min-height:395px; border-radius:31px; padding:27px 18px; }
+.anniversary-logo { width:76px; height:76px; margin-bottom:13px; }
+.day-figure b { font-size:clamp(57px,6vw,81px); }
+.date-ribbon { width:max-content; max-width:100%; margin:18px auto 0; padding:12px 22px;
+  border-radius:999px; border:1px solid var(--home-line); background:rgba(255,255,255,.55);
+  box-shadow:0 7px 24px rgba(133,93,130,.035); font-size:12px; gap:10px; }
+.date-ribbon-heart { font-size:17px; }
+.next-anniversary { color:#9b6b95; font-weight:700; }
+.section { margin-top:clamp(58px,7vw,88px); }
+.section-heading { margin-bottom:24px; }
+.place-grid { gap:16px; }
+.place-card { min-height:285px; padding:26px; border-color:rgba(239,220,235,.74);
+  border-radius:28px; box-shadow:0 13px 39px rgba(119,79,129,.07);
+}
+.card-symbol { display:grid;place-items:center;width:51px;height:51px;border-radius:17px;
+  font:500 26px Georgia,serif; color:#ab6699; background:linear-gradient(135deg,#fae1ed,#eee0fb); }
+.card-2025 .card-symbol { background:linear-gradient(135deg,#fbe3ee,#efe0fb); }
+.card-2026 .card-symbol { background:linear-gradient(135deg,#f5e0fa,#e6defe); }
+.card-chat .card-symbol { background:linear-gradient(135deg,#f7dfe9,#f2e9ff); }
+.card-kicker { margin:24px 0 10px; letter-spacing:.13em; }
+.place-card h3 { font-size:clamp(20px,2vw,25px); margin:0 0 11px; }
+.card-description { font-size:13px; line-height:1.86; margin:0 0 25px; }
+.card-foot { display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:auto;padding-top:14px;border-top:1px solid rgba(209,164,197,.22); }
+.card-year { font:800 9px/1.4 system-ui;letter-spacing:.12em;color:#b494ae; }
+.card-action { font-size:12px;margin:0;white-space:nowrap; }
+.timeline-section { margin-top:clamp(60px,7vw,95px); }
+.timeline-item { border-color:rgba(239,220,235,.74); }
+.closing-card { margin-top:clamp(66px,7vw,91px); }
+.back-to-top { bottom:calc(18px + env(safe-area-inset-bottom,0px)); right:calc(18px + env(safe-area-inset-right,0px)); }
+@media (max-width:1050px) {
+  .topbar { flex-wrap:wrap; gap:9px 13px; }
+  .topnav { order:4; flex:1 1 100%; display:flex; justify-content:space-around; margin:0; padding:0 0 2px; gap:10px; }
+  .topnav a { min-height:39px; padding:6px 10px; border-radius:14px; }
+  .brand { margin-right:auto; }
+  .hero-panel { grid-template-columns:minmax(0,1fr) minmax(270px,.85fr); }
+}
+@media (max-width:780px) {
+  .site-wrap { width:min(100% - 30px,630px); }
+  .topbar { top:8px; margin:11px 0 15px; padding:11px 13px; border-radius:22px; }
+  .hero-panel { grid-template-columns:minmax(0,1fr); gap:17px; padding:31px; border-radius:30px; }
+  .hero-copy h1 { font-size:clamp(40px,7vw,53px); }
+  .anniversary-card { min-height:315px; }
+  .section { margin-top:66px; }
+  .place-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:13px; }
+  .place-card { min-height:275px; padding:20px; }
+  .place-card:last-child { grid-column:1/-1; min-height:215px; }
+  .place-card:last-child .card-kicker { margin-top:17px; }
+  .date-ribbon { width:100%; border-radius:21px; }
+}
+@media (max-width:570px) {
+  .site-wrap { width:calc(100% - 22px); }
+  .brand img { width:39px;height:39px; }
+  .brand-type strong { font-size:19px; }
+  .brand-type small { font-size:8px; }
+  .topbar { gap:7px 11px; padding:10px 11px; }
+  .topnav { justify-content:space-between; gap:2px; }
+  .topnav a { padding:8px 6px; font-size:12px; }
+  .install-button { width:41px; height:41px; padding:0; font-size:18px; }
+  .install-button span { display:none; }
+  .chat-bell { width:41px;height:41px;margin-left:0; }
+  .hero-panel { padding:27px 22px; }
+  .chapter-badge { font-size:9px;letter-spacing:.12em;margin-bottom:15px; }
+  .hero-copy h1 { font-size:clamp(36px,8.8vw,45px); line-height:1.24; margin:15px 0 20px; }
+  .hero-lead { font-size:14px; }
+  .hero-actions { gap:9px; margin:23px 0; }
+  .hero-actions .button { padding:12px 14px; }
+  .hero-quiet { font-size:9px; }
+  .anniversary-card { min-height:300px; }
+  .day-figure b { font-size:66px; }
+  .date-ribbon { padding:11px 14px; gap:6px; font-size:11px; text-align:center; }
+  .date-ribbon-heart { display:none; }
+  .date-ribbon i { display:none; }
+  .place-grid { grid-template-columns:1fr; gap:13px; }
+  .place-card, .place-card:last-child { min-height:225px; grid-column:auto; padding:21px; }
+  .card-kicker { margin-top:19px; }
+  .card-foot { gap:12px; }
+  .section { margin-top:57px; }
+  .section-heading h2 { font-size:clamp(27px,7.4vw,35px); }
+  .closing-card { margin:65px 0 42px; }
+}
+@media (max-width:360px) {
+  .topnav a { padding:7px 4px; font-size:11px; }
+  .brand-type strong { font-size:18px; }
+  .hero-panel { padding:24px 17px; }
+  .hero-copy h1 { font-size:34px; }
+  .hero-actions .button { flex:1 1 100%; }
+  .date-ribbon { display:flex; flex-direction:column; }
+  .anniversary-date { font-size:27px; }
+  .card-year { font-size:8px; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .chat-bell.has-unread .bell-emoji { animation:none; }
+}

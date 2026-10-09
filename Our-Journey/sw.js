@@ -1,31 +1,44 @@
-// Our Journey: refreshed UI and removal of the unused Google Drive cabinet.
-const CACHE = 'our-journey-v17-bell-live-20261009';
-const CORE = [
-  './', './index.html', './styles.css', './routes.js', './app.js',
-  '../manifest.webmanifest', '../assets/icon-192.png',
-  '../assets/icon-512.png', '../assets/apple-touch-icon.png',
-  '../assets/favicon-32.png'
-];
+// Our Journey · stable offline shell with network-first updates.
+const CACHE = 'our-journey-v18-home-unified-20261009';
+const ESSENTIAL = ['./', './index.html', './styles.css', './routes.js', './app.js'];
+const OPTIONAL = ['../manifest.webmanifest','../assets/icon-192.png','../assets/icon-512.png',
+  '../assets/apple-touch-icon.png','../assets/favicon-32.png'];
 
 self.addEventListener('install', event => {
-  event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(CORE)).then(() => self.skipWaiting()));
+  event.waitUntil((async () => {
+    const cache = await caches.open(CACHE);
+    await cache.addAll(ESSENTIAL);
+    await Promise.allSettled(OPTIONAL.map(url => cache.add(url)));
+    await self.skipWaiting();
+  })());
 });
 self.addEventListener('activate', event => {
-  event.waitUntil(caches.keys().then(keys => Promise.all(
-    keys.filter(key => key.startsWith('our-journey-') && key !== CACHE).map(key => caches.delete(key))
-  )).then(() => self.clients.claim()));
+  event.waitUntil((async () => {
+    const names = await caches.keys();
+    await Promise.all(names.filter(name => name.startsWith('our-journey-') && name !== CACHE)
+      .map(name => caches.delete(name)));
+    await self.clients.claim();
+  })());
 });
 self.addEventListener('fetch', event => {
-  const req = event.request;
-  if (req.method !== 'GET') return;
-  const url = new URL(req.url);
-  if (url.origin !== self.location.origin) return;
-  // Network-first prevents old HTML/CSS/JS from lingering after GitHub Pages updates.
-  event.respondWith(fetch(req).then(response => {
-    if (response.ok) {
-      const copy = response.clone();
-      event.waitUntil(caches.open(CACHE).then(cache => cache.put(req, copy)));
+  const request = event.request;
+  if (request.method !== 'GET' || new URL(request.url).origin !== self.location.origin) return;
+  // Do not intercept cross-page chat or Supabase requests.
+  const url = new URL(request.url);
+  if (!url.pathname.startsWith(new URL('./',self.registration.scope).pathname)) return;
+  event.respondWith((async () => {
+    try {
+      const fresh = await fetch(request);
+      if (fresh.ok) {
+        const copy = fresh.clone();
+        event.waitUntil(caches.open(CACHE).then(cache => cache.put(request,copy)));
+      }
+      return fresh;
+    } catch {
+      const match = await caches.match(request, {ignoreSearch:true});
+      if (match) return match;
+      if (request.mode === 'navigate') return await caches.match('./index.html') || Response.error();
+      return Response.error();
     }
-    return response;
-  }).catch(() => caches.match(req)));
+  })());
 });

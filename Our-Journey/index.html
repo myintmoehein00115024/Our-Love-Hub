@@ -12,9 +12,9 @@
   <link rel="apple-touch-icon" sizes="180x180" href="../assets/apple-touch-icon.png">
   <link rel="manifest" href="../manifest.webmanifest">
   <title>Our Journey · 只属于我们的故事 ♡</title>
-  <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./styles.css?v=20261009-j2">
   <script src="./routes.js" defer></script>
-  <script src="./app.js" defer></script>
+  <script src="./app.js?v=20261009-j2" defer></script>
 </head>
 <body>
   <div class="ambient-hearts" aria-hidden="true"><span>♡</span><span>♡</span><span>♡</span></div>
@@ -30,12 +30,13 @@
         <a class="nav-chat" data-site-route="chat" href="../Always-Yours-Chat/">悄悄话 <span aria-hidden="true">↗</span></a>
       </nav>
       <a id="chatBell" class="chat-bell" href="../Always-Yours-Chat/" data-site-route="chat" aria-label="打开悄悄话，检查新消息" title="查看 HE / SHE 消息"><span class="bell-glyph" aria-hidden="true">♢</span><span class="bell-emoji" aria-hidden="true">🔔</span><span id="chatBellCount" class="chat-bell-count" hidden>0</span></a>
-      <button class="install-button" id="installOpen" type="button" aria-haspopup="dialog">♡ <span>添加到桌面</span></button>
+      <button class="install-button" id="installOpen" type="button" aria-label="前往 Our Love Hub 安装主应用" title="统一安装 Our Love Hub">♡ <span>添加到桌面</span></button>
     </header>
 
     <main id="top">
       <section class="hero-panel" aria-labelledby="heroTitle">
         <div class="hero-copy">
+          <span class="chapter-badge"><span aria-hidden="true">✦</span> OUR LOVE HUB · OUR HOME</span>
           <p class="eyebrow"><span class="eyebrow-dot">♥</span> M ♡ T · EST. 23 MAR 2024</p>
           <h1 id="heroTitle">我们的故事，<br><em>一直在继续。</em></h1>
           <p class="hero-lead">从 2024 年 3 月 23 日开始，<br class="only-wide">每一次相遇、每一份礼物、每一个平凡的今天，<br class="only-wide">都成了我们独一无二的回忆。</p>
@@ -57,47 +58,47 @@
         </aside>
       </section>
 
-      <div class="date-ribbon" aria-label="相恋纪念日">
+      <div class="date-ribbon" aria-label="相恋纪念日与下一次周年日期">
         <span class="date-ribbon-heart" aria-hidden="true">♡</span>
         <span>从 <strong>2024 年 3 月 23 日</strong> 开始</span>
         <i aria-hidden="true"></i>
-        <span>我们的故事，没有终点</span>
+        <span id="nextAnniversary" class="next-anniversary" aria-live="off">我们的故事，没有终点</span>
         <span class="date-ribbon-heart" aria-hidden="true">♡</span>
       </div>
 
       <section class="section places" id="our-places" aria-labelledby="placesTitle">
         <div class="section-heading">
-          <div><p class="eyebrow">THREE LITTLE WORLDS · ONE BIG LOVE</p><h2 id="placesTitle">藏着我们的<span>小小宇宙</span></h2><p class="section-description">每个角落，都是专门为你留下的一份心意。</p></div>
+          <div><p class="eyebrow">TWO BIRTHDAYS · ONE LITTLE CHAT · ONE BIG LOVE</p><h2 id="placesTitle">把爱藏进<span>每一章</span></h2><p class="section-description">2025 的心动、2026 的延续，还有我们每天的悄悄话。</p></div>
           <span class="section-aside">MADE WITH LOVE ♡</span>
         </div>
-        <div class="place-grid">
-          <a class="place-card card-chat" data-site-route="chat" href="../Always-Yours-Chat/">
-            <div class="card-top"><img src="../assets/icon-192.png" alt="" width="58" height="58"><span class="card-arrow" aria-hidden="true">↗</span></div>
-            <p class="card-kicker">01 / OUR PRIVATE SPACE</p>
-            <h3>Always Yours Chat</h3>
-            <p class="card-description">给每一句悄悄话、每一次想念，留一个只属于我们的地方。</p>
-            <span class="card-action">进入聊天空间 <span aria-hidden="true">→</span></span>
-          </a>
+        <div class="place-grid" aria-label="2025、2026 和日常聊天入口">
           <a class="place-card card-2025" data-site-route="gift2025" href="../2025-For-My-Girlfriend/">
-            <div class="card-top"><img src="../assets/icon-192.png" alt="" width="58" height="58"><span class="card-arrow" aria-hidden="true">↗</span></div>
-            <p class="card-kicker">02 / 23 AUG 2025</p>
-            <h3>2025 年给女朋友做的</h3>
-            <p class="card-description">ThinThin · 为你 23 岁生日准备的第一份小小惊喜。</p>
-            <span class="card-action">打开 2025 的礼物 <span aria-hidden="true">→</span></span>
+            <div class="card-top"><span class="card-symbol" aria-hidden="true">✉</span><span class="card-arrow" aria-hidden="true">↗</span></div>
+            <p class="card-kicker">CHAPTER 01 · 23 AUG 2025</p>
+            <h3>2025 年 · 初次为你写下</h3>
+            <p class="card-description">ThinThin · 在你 23 岁生日，把想说的话做成一座小小的世界。</p>
+            <span class="card-foot"><span class="card-year">THE FIRST GIFT</span><span class="card-action">重温这份礼物 <span aria-hidden="true">→</span></span></span>
           </a>
           <a class="place-card card-2026" data-site-route="gift2026" href="../2026-For-My-Girlfriend/">
-            <div class="card-top"><img src="../assets/icon-192.png" alt="" width="58" height="58"><span class="card-arrow" aria-hidden="true">↗</span></div>
-            <p class="card-kicker">03 / 23 AUG 2026</p>
-            <h3>2026 年给女朋友做的</h3>
-            <p class="card-description">PuTuTuLay · 在你 24 岁生日，把新的爱写进故事里。</p>
-            <span class="card-action">打开 2026 的礼物 <span aria-hidden="true">→</span></span>
+            <div class="card-top"><span class="card-symbol" aria-hidden="true">♡</span><span class="card-arrow" aria-hidden="true">↗</span></div>
+            <p class="card-kicker">CHAPTER 02 · 23 AUG 2026</p>
+            <h3>2026 年 · 爱还在继续</h3>
+            <p class="card-description">PuTuTuLay · 24 岁的生日，把去年的心意写成新的篇章。</p>
+            <span class="card-foot"><span class="card-year">THE NEXT CHAPTER</span><span class="card-action">翻开新的一页 <span aria-hidden="true">→</span></span></span>
+          </a>
+          <a class="place-card card-chat" data-site-route="chat" href="../Always-Yours-Chat/">
+            <div class="card-top"><span class="card-symbol" aria-hidden="true">♡</span><span class="card-arrow" aria-hidden="true">↗</span></div>
+            <p class="card-kicker">ALWAYS · JUST THE TWO OF US</p>
+            <h3>Always Yours · 悄悄话</h3>
+            <p class="card-description">把今天的想念也收藏下来。这里是 HE 和 SHE 的小小聊天空间。</p>
+            <span class="card-foot"><span class="card-year">TODAY & ALWAYS</span><span class="card-action">打开聊天 <span aria-hidden="true">→</span></span></span>
           </a>
         </div>
       </section>
 
       <section class="section timeline-section" id="our-timeline" aria-labelledby="timelineTitle">
         <div class="section-heading">
-          <div><p class="eyebrow">THE CHAPTERS OF US</p><h2 id="timelineTitle">属于我们的<span>每一页</span></h2><p class="section-description">从第一次牵起手，到一年又一年的心动。</p></div>
+          <div><p class="eyebrow">THE CHAPTERS OF US</p><h2 id="timelineTitle">属于我们的<span>每一页</span></h2><p class="section-description">从 2024 年 3 月 23 日开始，故事一页一页延续。</p></div>
           <span class="section-aside">OUR JOURNEY · 2024—FOREVER</span>
         </div>
         <div class="timeline-list">
@@ -140,17 +141,6 @@
   </div>
 
   <button class="back-to-top" id="backTop" type="button" aria-label="回到页面顶部">↑</button>
-  <div class="dialog-layer" id="installDialog" hidden>
-    <div class="dialog-backdrop" data-close-install></div>
-    <section class="dialog-card" role="dialog" aria-modal="true" aria-labelledby="installTitle">
-      <button class="dialog-close" type="button" data-close-install aria-label="关闭">×</button>
-      <img src="../assets/icon-192.png" alt="Our Love Hub" width="72" height="72">
-      <p class="eyebrow">OUR LITTLE APP</p>
-      <h2 id="installTitle">把我们的故事<br>留在桌面 ♡</h2>
-      <p id="installInstructions">可在浏览器的菜单中选择“添加到主屏幕”或“安装应用”。</p>
-      <button id="nativeInstall" class="button button-main" type="button" hidden>安装 Our Love Hub →</button>
-      <button type="button" class="dialog-secondary" data-close-install>下次再说</button>
-    </section>
-  </div>
+
 </body>
 </html>

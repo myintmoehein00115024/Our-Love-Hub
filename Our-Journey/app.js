@@ -14,6 +14,16 @@ function updateDaysTogether() {
   const count = Math.max(0, Math.round((day - start) / 86400000));
   output.textContent = count.toLocaleString('zh-CN');
   output.setAttribute('aria-label', `已经相恋 ${count} 天`);
+  const next = $('nextAnniversary');
+  if (next) {
+    const thisYear = now.getFullYear();
+    const anniversaryThisYear = Date.UTC(thisYear, 2, 23);
+    const nextYear = day > anniversaryThisYear ? thisYear + 1 : thisYear;
+    const daysRemaining = Math.round((Date.UTC(nextYear, 2, 23) - day) / 86400000);
+    next.textContent = daysRemaining === 0
+      ? '今天是我们的相恋纪念日 ♡'
+      : `下一次 3 月 23 日纪念日，还有 ${daysRemaining} 天 ♡`;
+  }
 }
 updateDaysTogether();
 window.addEventListener('pageshow', updateDaysTogether);
@@ -34,52 +44,11 @@ $('lockJourney')?.addEventListener('click', () => {
   window.location.assign(window.OurLoveRoutes?.hub || new URL('../', window.location.href).href);
 });
 
-let pendingInstall = null;
-const dialog = $('installDialog');
-const installOpen = $('installOpen');
-const nativeInstall = $('nativeInstall');
-const instructions = $('installInstructions');
+// Install only the unified root application; subpages never create separate apps.
+$('installOpen')?.addEventListener('click', () => {
+  window.location.assign(window.OurLoveRoutes?.hub || new URL('../', location.href).href);
+});
 
-function platformInstructions() {
-  const ua = navigator.userAgent || '';
-  const ios = /iPad|iPhone|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-  if (ios) return '在 Safari 中打开网站，点击“分享”→“添加到主屏幕”，即可从桌面打开我们的世界。';
-  if (/Android/i.test(ua)) return '在 Chrome 中打开菜单，选择“安装应用”或“添加到主屏幕”。';
-  if (/Macintosh|Mac OS X/i.test(ua)) return 'Safari 可以选择“分享”→“添加到程序坞”；Chrome 则可以在浏览器菜单中选择“安装”。';
-  return '在 Chrome 或 Edge 的地址栏或菜单中，选择“安装应用”，即可添加统一的 Our Love Hub 图标。';
-}
-function openDialog() {
-  if (!dialog) return;
-  instructions.textContent = platformInstructions();
-  nativeInstall.hidden = !pendingInstall;
-  dialog.hidden = false;
-  document.body.classList.add('dialog-open');
-  dialog.querySelector('.dialog-close')?.focus();
-}
-function closeDialog() {
-  if (!dialog) return;
-  dialog.hidden = true;
-  document.body.classList.remove('dialog-open');
-  installOpen?.focus();
-}
-installOpen?.addEventListener('click', () => { window.location.assign(window.OurLoveRoutes?.hub || new URL('../', location.href).href); });
-document.querySelectorAll('[data-close-install]').forEach(node => node.addEventListener('click', closeDialog));
-document.addEventListener('keydown', event => {
-  if (event.key === 'Escape' && !dialog?.hidden) closeDialog();
-});
-window.addEventListener('beforeinstallprompt', event => {
-  event.preventDefault();
-  pendingInstall = event;
-});
-nativeInstall?.addEventListener('click', async () => {
-  if (!pendingInstall) return;
-  const event = pendingInstall;
-  pendingInstall = null;
-  await event.prompt();
-  await event.userChoice;
-  closeDialog();
-});
-window.addEventListener('appinstalled', () => { pendingInstall = null; closeDialog(); });
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('./sw.js', {scope:'./'}).catch(() => {});
@@ -96,6 +65,7 @@ if ('serviceWorker' in navigator) {
   const CHAT_API = 'https://zegjegutcigbydtzggur.supabase.co/functions/v1/always-yours-chat';
   const chatDbName = 'always-yours-private-device-v1';
   let activeFetch = false;
+  let roomPromise = null;
   let previousUnread = null;
   let soundEnabled = false;
   let audioContext = null;
@@ -132,7 +102,8 @@ if ('serviceWorker' in navigator) {
     if (event.data?.type === 'messages-updated') updateBell();
   };
   function getRoomFromDevice() {
-    return new Promise(resolve => {
+    if (roomPromise) return roomPromise;
+    roomPromise = new Promise(resolve => {
       let request;
       try { request = indexedDB.open(chatDbName); } catch { resolve(null); return; }
       request.onerror = () => resolve(null);
@@ -147,6 +118,7 @@ if ('serviceWorker' in navigator) {
         tx.oncomplete = () => db.close();
       };
     });
+    return roomPromise;
   }
   async function updateBell() {
     if (activeFetch || document.hidden || !navigator.onLine) return;
@@ -154,7 +126,12 @@ if ('serviceWorker' in navigator) {
     try {
       const roomId = await getRoomFromDevice();
       const role = localStorage.getItem('alwaysYoursName');
-      if (!roomId || !['Ko Ko','Chit Chit'].includes(role)) return;
+      if (!roomId || !['Ko Ko','Chit Chit'].includes(role)) {
+        counter.hidden = true;
+        bell.classList.remove('has-unread');
+        previousUnread = null;
+        return;
+      }
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 7000);
       let response;
@@ -169,11 +146,13 @@ if ('serviceWorker' in navigator) {
       counter.hidden = unread === 0;
       bell.classList.toggle('has-unread', unread > 0);
       bell.setAttribute('aria-label', unread ? `打开悄悄话，${unread} 条未读消息` : '打开悄悄话，没有未读消息');
+      document.title = unread ? `（${unread > 99 ? '99+' : unread}）Our Journey · 悄悄话 ♡` : 'Our Journey · 只属于我们的故事 ♡';
     } catch { /* Network/authorization failure: never pretend to have read messages. */ }
     finally {activeFetch = false;}
   }
   updateBell();
   window.setInterval(updateBell, 4000);
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) updateBell(); });
-  window.addEventListener('pageshow', updateBell);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) { roomPromise = null; updateBell(); } });
+  window.addEventListener('pageshow', () => { roomPromise = null; updateBell(); });
+  window.addEventListener('storage', event => { if (event.key === 'alwaysYoursName') { roomPromise = null; previousUnread = null; updateBell(); } });
 })();
