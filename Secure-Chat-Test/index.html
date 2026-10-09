@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#f8eafa"><meta name="robots" content="noindex,nofollow"><title>Always Yours ♡ 安全聊天测试</title><link rel="icon" href="../assets/favicon-32.png"><link rel="stylesheet" href="styles.css?v=2"></head><body>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#f8eafa"><meta name="robots" content="noindex,nofollow"><title>Always Yours ♡ 安全聊天测试</title><link rel="icon" href="../assets/favicon-32.png"><link rel="stylesheet" href="styles.css?v=3"></head><body>
 <main class="page">
 <header class="top"><a href="../Our-Journey/" class="back">← Our Journey</a><span class="testbadge">独立测试版 · 不影响旧 Chat</span></header>
 <section id="gate" class="shell gate">
@@ -28,7 +28,8 @@
     </div>
     <p id="approvalMessage" class="approvalMessage" role="status" aria-live="polite">正在检查设备授权，请稍候…</p>
     <div class="approvalActions">
-      <button id="approvalRetry" class="approvalPrimary" type="button">重新检查授权 ♡</button>
+      <button id="approvalApply" class="approvalPrimary approvalApply hidden" type="button">申请本机设备授权 ♡</button>
+      <button id="approvalRetry" class="approvalSecondary" type="button">重新检查授权 ♡</button>
       <button id="approvalCopy" class="approvalSecondary" type="button" disabled>复制设备指纹</button>
     </div>
     <button id="approvalSwitch" class="approvalSwitch" type="button">← 返回 HE / SHE 选择</button>
@@ -42,4 +43,4 @@
  <form id="composer" class="composer"><label for="message">写给 TA 的悄悄话 ♡</label><div class="write"><textarea id="message" rows="2" maxlength="3200" placeholder="想和 TA 说些什么…" required></textarea><button type="submit" id="send">发送 ♡</button></div><div class="hint">只有已经登记加密公钥的授权设备可读取新消息 · 最多保留30天 · 不保存共同密码</div></form>
 </section>
 <footer>2024.03.23 ♡ M + T · 测试通道不会访问旧消息</footer>
-</main><script src="app.js?v=2" defer></script></body></html>
+</main><script src="app.js?v=3" defer></script></body></html>

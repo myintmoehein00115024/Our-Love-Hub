@@ -35,12 +35,12 @@ async function findSigningIdentity(role){
  const fp=await digest('AY-DEVICE-FP-V1|'+pub.x+'|'+pub.y);
  return {pair:stored.pair,fp,pub};
 }
-async function enrollIfNeeded(identity){
+async function checkOrApplyDevice(identity,apply=false){
  const role=state.role;
  const nonce=b64(crypto.getRandomValues(new Uint8Array(16)));
  const signature=b64(await crypto.subtle.sign({name:'ECDSA',hash:'SHA-256'},identity.pair.privateKey,
      te.encode(['AY-DEVICE-ENROLL-V2',role,nonce].join('\n'))));
- const x=await jsonFetch(API_BASE+'/enroll',{user_name:role,publicKey:{kty:'EC',crv:'P-256',x:identity.pub.x,y:identity.pub.y},nonce,signature});
+ const x=await jsonFetch(API_BASE+(apply?'/enroll':'/enroll/status'),{user_name:role,publicKey:{kty:'EC',crv:'P-256',x:identity.pub.x,y:identity.pub.y},nonce,signature});
  if(x.fingerprint!==identity.fp)throw new Error('设备指纹校验失败');
  return x.deviceState;
 }
@@ -64,7 +64,7 @@ async function request(path,method='GET',payload=null){
  const time=String(Date.now()),nonce=b64(crypto.getRandomValues(new Uint8Array(16)));
  const sessionHash=await digest('AY-DEVICE-SESSION-V1|'+state.session);
  const contentHash=await digest(body);
- const pathname=new URL(url).pathname+new URL(url).search;
+ const pathname=path; // Server authenticates function-relative route, never proxy-specific URL.
  const canonical=['AY-SECURE-V2-REQUEST',state.role,state.fp,sessionHash,method,pathname,time,nonce,contentHash];
  const signature=b64(await crypto.subtle.sign({name:'ECDSA',hash:'SHA-256'},state.identity.privateKey,te.encode(canonical.join('\n'))));
  const r=await fetch(url,{method,cache:'no-store',headers:{'Authorization':'Bearer '+state.session,'X-Device-Time':time,'X-Device-Nonce':nonce,'X-Device-Proof':signature,...(method==='GET'?{}:{'Content-Type':'application/json'})},...(method==='GET'?{}:{body})});
@@ -150,6 +150,8 @@ function openApproval(role){
  $('approvalRole').textContent=role==='Ko Ko'?'HE · Ko Ko':'SHE · Chit Chit';
  $('approvalFingerprint').textContent='正在生成安全设备指纹…';
  $('approvalCopy').disabled=true;
+ $('approvalApply').classList.add('hidden');
+ $('approvalApply').disabled=true;
  $('deviceApproval').classList.remove('hidden');
  $('approvalRetry').disabled=true;
  approvalText('正在检查本机设备是否已经获得授权…','检查中…');
@@ -162,30 +164,38 @@ function closeApproval(){
  $('gateStatus').textContent='选择身份后，将自动检查本机授权状态。';
  (lastApprovalFocus?.isConnected?lastApprovalFocus:document.querySelector('[data-role]'))?.focus({preventScroll:true});
 }
-async function chooseRole(role){
+async function chooseRole(role,apply=false){
  if(state.busy)return;
  const isSamePending=state.role===role&&!$('deviceApproval').classList.contains('hidden');
  state.busy=true;clearInterval(state.timer);state.session=null;state.encryption=null;state.role=role;lastPaint='';
  if(!isSamePending)openApproval(role);
  $('approvalRetry').disabled=true;
+ $('approvalApply').classList.add('hidden');
+ $('approvalApply').disabled=true;
+ let approvalVerified=false;
  try{
   approvalText('正在验证本机身份，请稍候…','检查中…');
   const data=await findSigningIdentity(role);
   state.identity=data.pair;state.fp=data.fp;
   $('approvalFingerprint').textContent=data.fp;
   $('approvalCopy').disabled=false;
-  const deviceState=await enrollIfNeeded(data);
+  const deviceState=await checkOrApplyDevice(data,apply);
   if(deviceState!=='approved'){
    if(deviceState==='pending'){
-    approvalText('申请已提交，正在等待管理员确认。\n您可以复制设备指纹发给管理员，批准后点击「重新检查授权」。','待管理员审批');
+    approvalText('申请已提交，正在等待管理员确认。\n请将设备指纹交给管理员核对，批准后点击「重新检查授权」。','待管理员审批');
    }else if(deviceState==='revoked'){
     approvalText('这台设备的授权已被撤销，无法进入聊天。请联系管理员处理。','已撤销');
+   }else if(deviceState==='unregistered'){
+    approvalText('本机尚未提交授权申请。点击「申请本机设备授权」，由管理员在独立页面批准后，再返回检查。','未申请');
+    $('approvalApply').classList.remove('hidden');
+    $('approvalApply').disabled=false;
    }else{
-    approvalText('此设备当前没有有效授权，无法进入聊天。请联系管理员检查申请状态。','尚未授权');
+    approvalText('此设备没有有效授权。可以先刷新检查；仍有问题请联系管理员。','尚未授权');
    }
    $('gateStatus').textContent='本机授权待确认 · 请在授权窗口查看状态。';
    return;
   }
+  approvalVerified=true;
   approvalText('设备已获批准，正在完成服务器私钥验证和加密准备…','已批准');
   await login();await setupEncryption();
   try{localStorage.setItem('ay-secure-role-v1',role);}catch{}
@@ -196,7 +206,11 @@ async function chooseRole(role){
  }catch(e){
   $('chat').classList.add('hidden');$('gate').classList.remove('hidden');
   const message=e?.message||'未知错误';
-  approvalText('无法完成本机授权检查：'+message+'\n请确认网络正常，然后点击「重新检查授权」。','检查失败');
+  if(approvalVerified){
+   approvalText('服务器确认已批准本机，但安全登录尚未完成：'+message+'\n请刷新测试页后点击「重新检查授权」。不需要重复申请或修改管理员审批。','登录验证失败');
+  }else{
+   approvalText('无法完成本机授权检查：'+message+'\n请确认网络正常，然后点击「重新检查授权」。','检查失败');
+  }
  }finally{
   state.busy=false;$('approvalRetry').disabled=false;
   if(state.role&& !$('chat').classList.contains('hidden'))refresh();
@@ -204,6 +218,7 @@ async function chooseRole(role){
 }
 document.querySelectorAll('[data-role]').forEach(b=>b.addEventListener('click',()=>chooseRole(b.dataset.role)));
 $('approvalRetry').addEventListener('click',()=>{if(state.role)chooseRole(state.role);});
+$('approvalApply').addEventListener('click',()=>{if(state.role)chooseRole(state.role,true);});
 $('approvalCopy').addEventListener('click',async()=>{
  if(!state.fp)return;
  try{await navigator.clipboard.writeText(state.fp);$('approvalCopy').textContent='✓ 已复制';}

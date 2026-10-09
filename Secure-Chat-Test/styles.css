@@ -14,3 +14,7 @@
 .approvalSwitch{display:block;margin:13px auto 0;background:transparent;border:0;color:#926f92;font-size:12px;padding:8px 10px;text-decoration:underline;text-underline-offset:4px}.approvalFootnote{border-top:1px solid #edd9ea;margin:13px 0 0;padding-top:12px;color:#a587a0;font-size:11px;line-height:1.8}
 @media(max-width:400px){.approvalOverlay{padding:9px}.approvalDialog{border-radius:24px;padding:22px 16px 17px}.approvalEmblem{width:45px;height:45px;margin-bottom:10px}.approvalDescription{margin-bottom:12px}.approvalMessage{margin:12px 0}.approvalActions{grid-template-columns:1fr;gap:7px}.approvalActions button{min-height:42px}.approvalSummaryRow{padding:8px 0}}
 @media(max-height:640px){.approvalOverlay{align-items:flex-start}.approvalDialog{margin:auto 0}}
+
+/* V2.3: explicit owner-reviewed request; status check never writes a new enrollment. */
+.approvalApply{grid-column:1 / -1;min-height:52px!important;letter-spacing:.015em}.approvalActions .approvalSecondary{border:1px solid var(--edge);background:#fff;color:#94608e}
+@media(max-width:400px){.approvalApply{grid-column:1}}
