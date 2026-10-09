@@ -1,11 +1,11 @@
-const CACHE_NAME = 'pututulay-v8-unified-icon';
+const CACHE_NAME = 'pututulay-v7';
 const APP_SHELL = [
   './',
   './index.html',
-  '../manifest.webmanifest',
-  '../assets/icon-192.png',
-  '../assets/icon-512.png',
-  '../assets/apple-touch-icon.png',
+  './site.webmanifest',
+  './heart-icon.png',
+  './heart-icon-192.png',
+  './heart-icon-512.png',
 ];
 
 self.addEventListener('install', event => {
