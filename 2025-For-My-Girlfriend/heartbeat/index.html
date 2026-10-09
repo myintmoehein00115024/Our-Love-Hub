@@ -13,7 +13,7 @@
   <link rel="stylesheet" href="./css/style.css">
 
 <link rel="stylesheet" href="../css/2025-responsive.css?v=20261009f">
-<link rel="stylesheet" href="../css/2025-inner.css?v=20261009a">
+<link rel="stylesheet" href="../css/2025-inner.css?v=20261009h">
 </head>
 
 <body class="page-2025-heartbeat">
@@ -31,7 +31,11 @@
     <span aria-hidden="true">♡</span>
     <p>心跳动画暂时无法载入，但这份心意一直都在。</p>
   </div>
-  <button id="heartbeat-motion-toggle" class="heartbeat-motion-toggle" type="button" aria-pressed="false" aria-label="暂停心跳动画">Ⅱ <span>暂停动画</span></button>
+  <div class="heartbeat-experience-controls" role="group" aria-label="心跳体验控制">
+    <p id="heartbeat-experience-status" class="heartbeat-experience-status" role="status" aria-live="polite">轻触开启双拍心跳 ♡</p>
+    <button id="heartbeat-experience-toggle" class="heartbeat-experience-toggle" type="button" aria-pressed="false" aria-describedby="heartbeat-experience-status">♡ <span>感受心跳</span></button>
+    <button id="heartbeat-motion-toggle" class="heartbeat-motion-toggle" type="button" aria-pressed="false" aria-label="暂停心跳动画">Ⅱ <span>暂停动画</span></button>
+  </div>
 
   <script>
     // Display a graceful message on browsers without WebGL support.
@@ -48,7 +52,7 @@
   <script src='./js/simplex-noise.js'></script>
   <script src='./js/OBJLoader.js'></script>
   <script src='./js/gsap.min.js'></script>
-  <script src="./js/script.js"></script>
+  <script src="./js/script.js?v=20261009h"></script>
 
 
   <script>

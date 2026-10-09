@@ -1,4 +1,4 @@
-const CACHE_NAME = "thinthin-shell-v14-2025-inner-polish-20261009";
+const CACHE_NAME = "thinthin-shell-v15-2025-heartbeat-haptics-20261009";
 const SHELL = [
   "./",
   "./index.html",

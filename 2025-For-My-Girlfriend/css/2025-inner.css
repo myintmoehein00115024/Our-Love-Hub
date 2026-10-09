@@ -71,3 +71,83 @@ body.page-2025-heartbeat .year2025-subnav{position:fixed;top:max(8px,env(safe-ar
 @media(prefers-reduced-motion:reduce){
   body:is(.page-2025-letter,.page-2025-love,.page-2025-heartbeat) *,body:is(.page-2025-letter,.page-2025-love,.page-2025-heartbeat) *::before,body:is(.page-2025-letter,.page-2025-love,.page-2025-heartbeat) *::after{scroll-behavior:auto!important;transition-duration:0s!important}
 }
+
+
+/* 2025 Heartbeat · opt-in synchronized double-beat haptics and sound */
+.page-2025-heartbeat .heartbeat-experience-controls{
+  position:fixed;
+  z-index:55;
+  right:max(15px,env(safe-area-inset-right,0px));
+  bottom:max(15px,env(safe-area-inset-bottom,0px));
+  display:grid;
+  justify-items:end;
+  align-items:center;
+  gap:9px;
+  max-width:min(310px,calc(100vw - 28px));
+  pointer-events:none;
+}
+.page-2025-heartbeat .heartbeat-experience-controls > *{pointer-events:auto}
+.page-2025-heartbeat .heartbeat-experience-status{
+  max-width:min(278px,calc(100vw - 35px));
+  padding:8px 12px;
+  margin:0;
+  border:1px solid rgba(239,205,226,.74);
+  border-radius:14px;
+  background:rgba(255,250,255,.90);
+  box-shadow:0 9px 26px rgba(113,73,125,.07);
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+  color:#97718e;
+  font:600 11px/1.5 "Avenir Next","Segoe UI",system-ui,sans-serif;
+  text-align:right;
+}
+.page-2025-heartbeat .heartbeat-experience-toggle,
+.page-2025-heartbeat .heartbeat-motion-toggle{
+  position:static;
+  box-sizing:border-box;
+  display:inline-flex;
+  justify-content:center;
+  align-items:center;
+  gap:8px;
+  min-height:44px;
+  padding:10px 15px;
+  margin:0;
+  border-radius:999px;
+  border:1px solid rgba(227,190,217,.77);
+  background:rgba(255,250,255,.94);
+  color:#8c6790;
+  font:750 12px/1.35 "Avenir Next","Segoe UI",system-ui,sans-serif;
+  box-shadow:0 11px 25px rgba(144,97,151,.1);
+  cursor:pointer;
+  white-space:nowrap;
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+}
+.page-2025-heartbeat .heartbeat-experience-toggle{
+  color:#fff;
+  border-color:transparent;
+  background:linear-gradient(116deg,#b66fa4,#9980ca);
+  box-shadow:0 10px 27px rgba(159,103,171,.26);
+}
+.page-2025-heartbeat .heartbeat-experience-toggle[aria-pressed="true"]{background:linear-gradient(116deg,#ab6696,#806cc2)}
+.page-2025-heartbeat .heartbeat-experience-toggle:disabled{opacity:.58;cursor:not-allowed}
+.page-2025-heartbeat .heartbeat-experience-controls button:focus-visible{outline:3px solid #8d60a4;outline-offset:3px}
+@media(max-width:600px){
+  .page-2025-heartbeat .heartbeat-experience-controls{
+    right:max(13px,env(safe-area-inset-right,0px));
+    bottom:calc(17px + env(safe-area-inset-bottom,0px));
+    gap:7px;
+  }
+  .page-2025-heartbeat .heartbeat-experience-status{max-width:min(220px,calc(100vw - 25px));font-size:10px;padding:7px 10px}
+  .page-2025-heartbeat .heartbeat-experience-toggle{min-height:44px;padding:10px 13px;font-size:11px}
+  .page-2025-heartbeat .heartbeat-motion-toggle{min-height:38px;padding:8px 12px;font-size:11px}
+  .page-2025-heartbeat .heartbeat-motion-toggle span{display:inline}
+}
+@media(max-width:360px){
+  .page-2025-heartbeat .heartbeat-experience-controls{bottom:calc(72px + env(safe-area-inset-bottom,0px))}
+  .page-2025-heartbeat .heartbeat-experience-status{max-width:165px}
+  .page-2025-heartbeat .heartbeat-experience-toggle span{font-size:11px}
+}
+@media(prefers-reduced-motion:reduce){
+  .page-2025-heartbeat .heartbeat-experience-controls *{transition:none!important;animation:none!important}
+}
