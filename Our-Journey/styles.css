@@ -247,3 +247,15 @@ a:focus-visible, button:focus-visible { outline: 3px solid #987dbe; outline-offs
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; animation: none !important; }
 }
+
+/* A discreet, responsive unread-message bell; never expose message plaintext. */
+.chat-bell{order:0;flex:none;display:inline-flex;align-items:center;justify-content:center;position:relative;width:44px;height:44px;border:1px solid rgba(219,172,205,.55);background:rgba(255,255,255,.85);color:#9c648e;border-radius:50%;box-shadow:0 9px 25px rgba(155,103,142,.11);transition:transform .2s ease,background .2s ease}
+.chat-bell:hover{background:#fff;transform:translateY(-2px)}
+.bell-glyph{display:none}.bell-emoji{font-size:19px;line-height:1}
+.chat-bell-count{position:absolute;right:-7px;top:-6px;min-width:19px;height:19px;padding:0 4px;background:#c36ca6;border:2px solid #fff;border-radius:999px;color:white;font:700 10px/15px ui-sans-serif,system-ui;text-align:center}
+.chat-bell-count[hidden]{display:none}
+.chat-bell.has-unread{animation:softBell 2.8s ease-in-out infinite}
+@keyframes softBell{0%,85%,100%{box-shadow:0 9px 25px rgba(155,103,142,.11)}45%{box-shadow:0 0 0 7px rgba(213,144,190,.12)}}
+@media(max-width:1080px){.chat-bell{margin-left:auto}.install-button{margin-left:0}}
+@media(max-width:440px){.chat-bell{width:39px;height:39px}.bell-emoji{font-size:17px}}
+@media(prefers-reduced-motion:reduce){.chat-bell.has-unread{animation:none}}

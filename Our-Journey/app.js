@@ -85,3 +85,58 @@ if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js', {scope:'./'}).catch(() => {});
   });
 }
+
+
+// Only metadata is read for the bell, and only after this browser has previously
+// configured the HE / SHE chat with its private room ID. No secret in page source.
+(() => {
+  const bell = document.getElementById('chatBell');
+  const counter = document.getElementById('chatBellCount');
+  if (!bell || !counter || !('indexedDB' in window)) return;
+  const CHAT_API = 'https://zegjegutcigbydtzggur.supabase.co/functions/v1/always-yours-chat';
+  const chatDbName = 'always-yours-private-device-v1';
+  let activeFetch = false;
+  function getRoomFromDevice() {
+    return new Promise(resolve => {
+      let request;
+      try { request = indexedDB.open(chatDbName); } catch { resolve(null); return; }
+      request.onerror = () => resolve(null);
+      request.onupgradeneeded = () => { request.transaction?.abort(); resolve(null); };
+      request.onsuccess = () => {
+        const db = request.result;
+        if (!db.objectStoreNames.contains('secrets')) { db.close(); resolve(null); return; }
+        const tx = db.transaction('secrets','readonly');
+        const read = tx.objectStore('secrets').get('room');
+        read.onsuccess = () => { const value = read.result?.room; resolve(typeof value === 'string' && /^[0-9a-f]{40}$/.test(value) ? value : null); };
+        read.onerror = () => resolve(null);
+        tx.oncomplete = () => db.close();
+      };
+    });
+  }
+  async function updateBell() {
+    if (activeFetch || document.hidden || !navigator.onLine) return;
+    activeFetch = true;
+    try {
+      const roomId = await getRoomFromDevice();
+      const role = localStorage.getItem('alwaysYoursName');
+      if (!roomId || !['Ko Ko','Chit Chit'].includes(role)) return;
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 7000);
+      let response;
+      try { response = await fetch(CHAT_API + '/api/messages', {headers:{'X-Room-Key':roomId},cache:'no-store',signal:controller.signal}); }
+      finally {clearTimeout(timeout);}
+      if (!response.ok) return;
+      const payload = await response.json();
+      const unread = (Array.isArray(payload.messages) ? payload.messages : []).filter(m => m.sender !== role && !m.seen_at && Number(m.expires_at)>Date.now()).length;
+      counter.textContent = unread > 99 ? '99+' : String(unread);
+      counter.hidden = unread === 0;
+      bell.classList.toggle('has-unread', unread > 0);
+      bell.setAttribute('aria-label', unread ? `打开悄悄话，${unread} 条未读消息` : '打开悄悄话，没有未读消息');
+    } catch { /* Network/authorization failure: never pretend to have read messages. */ }
+    finally {activeFetch = false;}
+  }
+  updateBell();
+  window.setInterval(updateBell, 20000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) updateBell(); });
+  window.addEventListener('pageshow', updateBell);
+})();
