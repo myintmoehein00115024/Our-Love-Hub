@@ -1,11 +1,11 @@
 // 2026 chapter — scoped cache; never handles Chat push or Supabase data.
-const CACHE_NAME='pututulay-v11-pwa-audit-20261009';
+const CACHE_NAME='pututulay-v12-lazy-yt-20261009';
 const CORE=['./','./index.html'];
 const OPTIONAL=[
   './css/2026-responsive.css','../assets/love-hub-family.css',
   '../assets/love-hub-family.js','../assets/icon-192.png',
   '../assets/icon-512.png','../manifest.webmanifest',
-  './site.webmanifest','./heart-icon.png','./heart-icon-192.png','./heart-icon-512.png'
+  './site.webmanifest'
 ];
 self.addEventListener('install',event=>event.waitUntil((async()=>{
   const cache=await caches.open(CACHE_NAME);

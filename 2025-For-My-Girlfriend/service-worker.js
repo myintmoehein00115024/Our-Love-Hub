@@ -1,4 +1,4 @@
-const CACHE_NAME = "thinthin-shell-v17-pwa-audit-20261009";
+const CACHE_NAME = "thinthin-shell-v18-on-demand-audio-20261009";
 const SHELL = [
   "./",
   "./index.html",
@@ -23,8 +23,6 @@ const SHELL = [
   "./heartbeat/css/style.css",
   "./heartbeat/js/script.js",
   "./icons/icon-192.png",
-  "./icons/icon-512.png",
-  "./icons/icon-512-maskable.png",
   "./icons/apple-touch-icon.png"
 ];
 

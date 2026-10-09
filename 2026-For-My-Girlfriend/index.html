@@ -661,6 +661,22 @@ const birthdayMusicPanel=document.getElementById('birthdayMusicPanel');
 const birthdayMusicStatus=document.getElementById('birthdayMusicStatus');
 const birthdayMusicClose=document.getElementById('closeBirthdayMusic');
 const birthdayMusicOpen=()=>!birthdayMusicPanel.hidden;
+// Load YouTube only when the visitor opens the music panel: less data and no
+// early connection to an external service on the birthday landing page.
+let birthdayMusicScriptLoading=false;
+function birthdayMusicLoadOnDemand(){
+  if(birthdayMusicReady || birthdayMusicYT || birthdayMusicScriptLoading)return;
+  birthdayMusicScriptLoading=true;
+  birthdayMusicSetStatus('正在加载播放器…');
+  const script=document.createElement('script');
+  script.src='https://www.youtube.com/iframe_api';
+  script.async=true;
+  script.onerror=()=>{
+    birthdayMusicScriptLoading=false;
+    birthdayMusicSetStatus('音乐播放器暂时无法加载，您仍可点击下方链接打开原曲。');
+  };
+  document.head.appendChild(script);
+}
 function birthdayMusicSetStatus(message){ birthdayMusicStatus.textContent=message; }
 function birthdayMusicStop(){
   if(birthdayMusicYT && birthdayMusicReady){
@@ -676,6 +692,7 @@ function birthdayMusicToggle(force){
   birthdayMusicButton.setAttribute('aria-label',willOpen?'关闭生日音乐播放器':'打开生日音乐播放器');
   if(willOpen){
     if(birthdayMusicReady){ birthdayMusicSetStatus('点击视频上的播放按钮，开始聆听 ♡'); }
+    else birthdayMusicLoadOnDemand();
     birthdayMusicClose.focus({preventScroll:true});
   }else{
     birthdayMusicStop();
@@ -711,14 +728,9 @@ window.onYouTubeIframeAPIReady=function(){
     });
   }catch(err){birthdayMusicSetStatus('音乐未能加载，可在 YouTube 收听原曲。');}
 };
-window.addEventListener('load',()=>{
-  window.setTimeout(()=>{
-    if(!birthdayMusicReady && !birthdayMusicYT){ birthdayMusicSetStatus('若音乐一直加载，请检查网络，或在 YouTube 打开原曲。'); }
-  },12000);
-});
 </script>
 <!-- MUSIC PLAYER END -->
-<script async src="https://www.youtube.com/iframe_api"></script>
+<!-- YouTube is requested only after the music panel is opened. -->
 
 
 

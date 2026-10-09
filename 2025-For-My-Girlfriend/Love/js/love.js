@@ -4,7 +4,6 @@
 (function($){
   "use strict";
 
-  var secretWord = "koko";
   var loveIndex = 0;
   var finaleStarted = false;
   var bgIndex = 1;
