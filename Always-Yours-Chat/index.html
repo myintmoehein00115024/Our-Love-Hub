@@ -8,7 +8,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Always Yours">
-  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="manifest" href="../manifest.webmanifest">
   <link rel="icon" type="image/png" sizes="32x32" href="../assets/favicon-32.png">
   <link rel="apple-touch-icon" sizes="180x180" href="../assets/apple-touch-icon.png">
   <link rel="stylesheet" href="styles.css">
@@ -44,18 +44,8 @@
         <button id="enterBtn" class="primary-button" type="button">保存本设备并进入 ♡</button>
       </div>
       <div id="status" class="status" role="status" aria-live="polite"></div>
-      <details class="connection-settings" id="connectionSettings">
-        <summary>连接诊断 / 设置 Supabase 地址 <span aria-hidden="true">⌄</span></summary>
-        <div class="connection-settings-inner">
-          <label for="workerUrlInput">您的 Supabase Chat Edge Function 地址</label>
-          <input type="url" id="workerUrlInput" inputmode="url" spellcheck="false" autocomplete="off" placeholder="https://项目ID.supabase.co/functions/v1/always-yours-chat" />
-          <button type="button" id="testWorkerBtn" class="worker-test-button">检测连接并保存地址</button>
-          <p id="workerTestResult" class="worker-test-result" role="status" aria-live="polite"></p>
-          <p class="worker-guide">请先在独立 Supabase 项目执行私有数据库 SQL，并部署 always-yours-chat Edge Function，再粘贴函数 URL。聊天密钥只存放在您本机。</p>
-        </div>
-      </details>
       <div class="gate-bottom">
-        <button id="gateInstallBtn" class="install-pill" type="button"><span class="install-pill-icon">♡</span><span><strong>添加到主屏幕</strong><small>下次一键找到我们的聊天室</small></span></button>
+        <button id="gateInstallBtn" class="install-pill" type="button"><span class="install-pill-icon">♡</span><span><strong>添加到主屏幕</strong><small>统一安装 Our Love Hub</small></span></button>
         <button id="resetDeviceBtn" class="quiet-link" type="button">重新配置此设备</button>
       </div>
       <div class="tiny-note">对话由共同密钥加密 · 消息保留 48 小时</div>
@@ -124,10 +114,10 @@
       <button id="closeInstall" class="modal-close" type="button" aria-label="Close">×</button>
       <div class="install-icon-wrap"><img src="../assets/icon-192.png" alt="Always Yours app icon"></div>
       <div class="eyebrow">KEEP OUR LITTLE ROOM CLOSE</div>
-      <h3 id="installTitle">Add Always Yours ♡</h3>
+      <h3 id="installTitle">添加 Our Love Hub ♡</h3>
       <p id="installLead" class="install-lead">Put our private room on your device so it opens like an app.</p>
       <div id="installSteps" class="install-steps"></div>
-      <button id="installAction" class="primary-button install-action" type="button">Install Always Yours ♡</button>
+      <button id="installAction" class="primary-button install-action" type="button">前往 Our Love Hub ♡</button>
     </div>
   </div>
 

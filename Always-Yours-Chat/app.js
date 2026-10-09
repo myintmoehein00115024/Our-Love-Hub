@@ -90,7 +90,14 @@ ensureEditBar();
 
 let selectedName = "Ko Ko";
 let roleChosen = false;
-try{selectedName=localStorage.getItem("alwaysYoursName") || "Ko Ko";}catch{}
+let rememberedRole = null;
+try {
+  const remembered = localStorage.getItem("alwaysYoursName");
+  if(remembered === "Ko Ko" || remembered === "Chit Chit") {
+    selectedName = remembered;
+    rememberedRole = remembered;
+  }
+} catch {}
 const DEVICE_DB = "always-yours-private-device-v1";
 function openDeviceDb(){
   return new Promise((resolve,reject)=>{
@@ -126,7 +133,11 @@ async function openPreparedRoom(){
 function validRole(name){return name==="Ko Ko"||name==="Chit Chit";}
 async function chooseRole(name){
   if(!validRole(name))return;
+  const previousRole = roleChosen ? selectedName : null;
   selectedName=name;roleChosen=true;
+  if (previousRole && previousRole!==name) {
+    try { localStorage.removeItem("alwaysYoursPushRegistration"); } catch {}
+  }
   try{localStorage.setItem("alwaysYoursName",selectedName);}catch{}
   document.querySelectorAll(".name-option").forEach(b=>b.classList.toggle("selected-role",b.dataset.name===name));
   syncNameChoice();setStatus("");
@@ -347,9 +358,8 @@ $("testWorkerBtn")?.addEventListener("click",async()=>{
 });
 $("networkSettingsBtn")?.addEventListener("click",()=>{
   showGate();roomId=null;cryptoKey=null;
-  $("connectionSettings").open=true;
-  $("workerUrlInput").focus();
-  setStatus("本地加密内容不会被删除。保存正确的 Supabase Function 地址后重新选择身份。");
+  // Connection is preconfigured in routes.js. No user-visible URL form.
+  setStatus("连接已预设。如果无法连接，请稍后重试。");
 });
 async function apiGetMessages(){
   if(!API_BASE)throw new Error("尚未配置 Supabase 服务地址，请在入口的连接设置中填写 Edge Function URL。");
@@ -984,52 +994,12 @@ function deviceType(){
   return /Macintosh/i.test(ua) ? "mac" : "desktop";
 }
 function openInstallModal(){
-  if(!installModal) return;
-  const type=deviceType();
-  let title="Add Always Yours ♡";
-  let lead="Keep our little room one tap away.";
-  let steps=[];
-  let actionText="Install Always Yours ♡";
-  let actionVisible=true;
-  if(type==="android"){
-    title="Add to your home screen ♡";
-    lead="On Android, Always Yours can live beside your other apps.";
-    steps=[
-      ["1","Chrome","Tap the ⋮ menu in the top-right."],
-      ["2","Install","Choose “Install app” or “Add to Home screen”."],
-      ["3","Keep us close","Confirm the install, then open Always Yours from your home screen."]
-    ];
-  }else if(type==="ios" || type==="ipad"){
-    title="Add Always Yours to Home ♡";
-    lead="Safari saves us to your home screen like a little app.";
-    steps=[
-      ["1","Safari","Open this page in Safari if you are using another browser."],
-      ["2","Share","Tap the Share button ⎋ at the bottom or top of Safari."],
-      ["3","Add to Home Screen","Choose “Add to Home Screen”, then tap “Add”."]
-    ];
-    actionVisible=false;
-  }else if(type==="mac"){
-    title="Keep Always Yours on your Mac ♡";
-    lead="You can install the private room as an app-style shortcut.";
-    steps=[
-      ["1","Chrome / Edge","Use the install icon near the address bar, or open the browser menu."],
-      ["2","Install","Choose “Install Always Yours” or “Install app”."],
-      ["3","Done","Open it later from your Applications / app launcher."]
-    ];
-  }else{
-    title="Keep Always Yours on your computer ♡";
-    lead="Install the page as an app so the private room has its own window.";
-    steps=[
-      ["1","Chrome / Edge","Look for the install icon in the address bar, or open the browser menu."],
-      ["2","Install","Choose “Install Always Yours” or “Install app”."],
-      ["3","Done","Open it later from your app list or desktop shortcut."]
-    ];
-  }
-  installLead.textContent=lead;
-  installSteps.innerHTML=steps.map(x=>`<div class="install-step"><span class="install-step-num">${x[0]}</span><div class="install-step-text"><strong>${x[1]}</strong><span>${x[2]}</span></div></div>`).join("");
-  installAction.textContent=deferredInstallPrompt && actionVisible ? actionText : "Got it ♡";
-  installAction.classList.toggle("hidden", !actionVisible && !(type==="ios"||type==="ipad"));
-  installModal.querySelector("h3").textContent=title;
+  if (!installModal) return;
+  installModal.querySelector("h3").textContent = "安装 Our Love Hub ♡";
+  installLead.textContent = "整个网站只有一个桌面入口。请从 Our Love Hub 总首页添加到主屏幕，避免单独安装 Chat。";
+  installSteps.innerHTML = '<div class="install-step"><span class="install-step-num">1</span><div class="install-step-text"><strong>打开总首页</strong><span>点击下方按钮进入 Our Love Hub。</span></div></div><div class="install-step"><span class="install-step-num">2</span><div class="install-step-text"><strong>添加到主屏幕</strong><span>iPhone：在 Safari 点分享 → 添加到主屏幕。其他浏览器选择安装应用。</span></div></div>';
+  installAction.textContent = "前往 Our Love Hub 总首页 ↗";
+  installAction.classList.remove("hidden");
   installModal.classList.remove("hidden");
   document.body.classList.add("install-open");
 }
@@ -1041,31 +1011,13 @@ function refreshInstallButtons(){
   const installed=isStandalone();
   for(const b of installButtons) b?.classList.toggle("hidden", installed);
 }
-window.addEventListener("beforeinstallprompt",e=>{
-  e.preventDefault();
-  deferredInstallPrompt=e;
-  refreshInstallButtons();
-});
-window.addEventListener("appinstalled",()=>{ deferredInstallPrompt=null; refreshInstallButtons(); closeInstallModal(); toast("Always Yours is on your home screen ♡"); });
-for(const b of installButtons) b?.addEventListener("click",async()=>{
-  if(deferredInstallPrompt){
-    try{
-      deferredInstallPrompt.prompt();
-      const choice=await deferredInstallPrompt.userChoice;
-      if(choice.outcome!=="accepted") openInstallModal();
-    }catch{ openInstallModal(); }
-    deferredInstallPrompt=null;
-    refreshInstallButtons();
-  }else openInstallModal();
-});
-closeInstall?.addEventListener("click",closeInstallModal);
-installModal?.addEventListener("click",e=>{ if(e.target.dataset.closeInstall!==undefined) closeInstallModal(); });
-installAction?.addEventListener("click",async()=>{
-  if(deferredInstallPrompt){
-    try{ deferredInstallPrompt.prompt(); await deferredInstallPrompt.userChoice; }catch{}
-    deferredInstallPrompt=null; refreshInstallButtons(); closeInstallModal();
-  }else closeInstallModal();
-});
+// All install actions use the root hub, not a separate chat PWA.
+window.addEventListener("beforeinstallprompt",e=>{ e.preventDefault(); deferredInstallPrompt=null; });
+function hubInstallUrl(){ return new URL('../', location.href).href; }
+for(const button of installButtons) button?.addEventListener('click',openInstallModal);
+closeInstall?.addEventListener('click',closeInstallModal);
+installModal?.addEventListener('click',e=>{ if(e.target.dataset.closeInstall!==undefined) closeInstallModal(); });
+installAction?.addEventListener('click',()=>{ window.location.assign(hubInstallUrl()); });
 window.addEventListener("load",refreshInstallButtons);
 
 window.addEventListener("online",()=>{ updateConnection("Back online · syncing…"); syncMessages({silent:true}); });
@@ -1116,3 +1068,12 @@ notifyBtn?.addEventListener("click",async()=>{
   }catch(error){toast(error.message||"无法开启通知");console.warn("Push subscribe:",error.message);}
   finally{notifyBtn.disabled=false;refreshNotifyButton().catch(()=>{});}
 });
+
+// Restore identity automatically on this browser when its encrypted room key exists.
+// Switching HE/SHE remains available in the chat header.
+(async function restoreChatIdentity(){
+  if(!rememberedRole || !validRole(rememberedRole))return;
+  const stored=await deviceCredentials();
+  if(!stored || roleChosen)return;
+  await chooseRole(rememberedRole);
+})().catch(err=>console.warn('Unable to restore previous chat identity',err));

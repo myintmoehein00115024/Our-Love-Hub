@@ -62,7 +62,7 @@ function closeDialog() {
   document.body.classList.remove('dialog-open');
   installOpen?.focus();
 }
-installOpen?.addEventListener('click', openDialog);
+installOpen?.addEventListener('click', () => { window.location.assign(window.OurLoveRoutes?.hub || new URL('../', location.href).href); });
 document.querySelectorAll('[data-close-install]').forEach(node => node.addEventListener('click', closeDialog));
 document.addEventListener('keydown', event => {
   if (event.key === 'Escape' && !dialog?.hidden) closeDialog();
