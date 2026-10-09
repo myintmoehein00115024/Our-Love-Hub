@@ -196,128 +196,7 @@
 }
 
 
-/* ===== Little Love Space ===== */
-.little-love-space{
-  position:relative;
-  z-index:1;
-  padding:20px 20px 70px;
-}
-.little-love-window{
-  position:relative;
-  overflow:hidden;
-  width:min(760px,100%);
-  margin:0 auto;
-  padding:42px 28px 46px;
-  text-align:center;
-  border-radius:32px;
-  background:linear-gradient(145deg,rgba(255,255,255,.96),rgba(255,239,246,.94));
-  border:1px solid rgba(237,63,124,.16);
-  box-shadow:0 22px 65px rgba(80,30,50,.10);
-}
-.window-glow{
-  position:absolute;
-  width:280px;
-  height:280px;
-  right:-95px;
-  top:-120px;
-  border-radius:50%;
-  background:radial-gradient(circle,rgba(255,83,142,.18),transparent 70%);
-  pointer-events:none;
-}
-.little-love-window:before{
-  content:"♡";
-  position:absolute;
-  left:-12px;
-  bottom:-52px;
-  color:rgba(237,63,124,.07);
-  font-size:130px;
-  line-height:1;
-  pointer-events:none;
-}
-.window-label{
-  position:relative;
-  font-family:"Avenir Next","Segoe UI",sans-serif;
-  font-size:11px;
-  font-weight:800;
-  letter-spacing:3px;
-  color:#e83d7d;
-}
-.little-love-window h2{
-  position:relative;
-  margin:12px 0 12px;
-  font-family:"Arial Rounded MT Bold","Avenir Next Rounded","Trebuchet MS",sans-serif;
-  font-size:clamp(27px,5vw,39px);
-  line-height:1.13;
-  color:#4a2935;
-}
-.little-love-window p{
-  position:relative;
-  max-width:570px;
-  margin:0 auto 25px;
-  color:#765c67;
-  font-family:"Avenir Next","Segoe UI",sans-serif;
-  font-size:15px;
-  line-height:1.8;
-}
-.little-love-button{
-  position:relative;
-  display:inline-flex !important;
-  visibility:visible !important;
-  opacity:1 !important;
-  align-items:center;
-  justify-content:center;
-  gap:12px;
-  min-height:52px;
-  padding:15px 25px;
-  border-radius:999px;
-  background:#ed3f7c;
-  color:#fff;
-  text-decoration:none;
-  font-family:"Avenir Next","Segoe UI",sans-serif;
-  font-size:14px;
-  font-weight:700;
-  box-shadow:0 12px 30px rgba(237,63,124,.24);
-  transition:transform .25s ease,box-shadow .25s ease;
-  animation:littleLovePulse 2.2s ease-in-out infinite;
-}
-.little-love-button:after{
-  content:"";
-  position:absolute;
-  inset:-7px;
-  border:1px solid rgba(237,63,124,.25);
-  border-radius:999px;
-  animation:littleLoveRing 2.2s ease-out infinite;
-}
-.little-love-button:hover{
-  transform:translateY(-4px);
-  box-shadow:0 17px 38px rgba(237,63,124,.30);
-}
-.little-arrow{
-  font-size:20px;
-  line-height:1;
-  animation:littleArrowMove 1.15s ease-in-out infinite;
-}
-@keyframes littleLovePulse{
-  0%,100%{transform:translateY(0);box-shadow:0 12px 30px rgba(237,63,124,.22)}
-  50%{transform:translateY(-3px);box-shadow:0 17px 36px rgba(237,63,124,.30)}
-}
-@keyframes littleLoveRing{
-  0%{transform:scale(.96);opacity:.75}
-  100%{transform:scale(1.12);opacity:0}
-}
-@keyframes littleArrowMove{
-  0%,100%{transform:translateX(0)}
-  50%{transform:translateX(5px)}
-}
-@media(max-width:650px){
-  .little-love-space{padding:5px 16px 55px}
-  .little-love-window{padding:34px 18px 38px;border-radius:26px}
-  .little-love-button{width:100%;max-width:330px}
-}
-@media(prefers-reduced-motion:reduce){
-  .little-love-button,.little-love-button:after,.little-arrow{animation:none}
-}
-/* ===== Little Love Space END ===== */
+
 
 
 
@@ -742,14 +621,14 @@ footer{padding-top:55px}
 
 
   <!-- ===== Home Screen / Shortcut Icon ===== -->
-  <meta name="theme-color" content="#f58aa8">
+  <meta name="theme-color" content="#f7eef9">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="Always Yours">
-  <link rel="icon" type="image/png" sizes="192x192" href="heart-icon-192.png">
-  <link rel="icon" type="image/png" sizes="512x512" href="heart-icon-512.png">
-  <link rel="apple-touch-icon" sizes="180x180" href="heart-icon-192.png">
-  <link rel="manifest" href="site.webmanifest">
+  <meta name="apple-mobile-web-app-title" content="Our Love Hub">
+  <link rel="icon" type="image/png" sizes="192x192" href="../assets/icon-192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="../assets/icon-512.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="../assets/icon-192.png">
+  <link rel="manifest" href="../manifest.webmanifest">
   <!-- ===== Home Screen / Shortcut Icon END ===== -->
 
 <script>
@@ -760,31 +639,27 @@ footer{padding-top:55px}
     });
   }
 </script>
+<link rel="stylesheet" href="../assets/love-hub-family.css?v=20261009">
+<script defer src="../assets/love-hub-family.js?v=20261009"></script>
 </head>
 <body>
+<!-- Unified Our Love Hub navigation -->
+<header class="hub-family-nav" aria-label="Our Love Hub 网站导航">
+  <a class="hub-brand" href="../Our-Journey/" aria-label="返回 Our Journey">
+    <img src="../assets/icon-192.png" width="44" height="44" alt="Our Love Hub" loading="eager">
+    <span><strong>Our Love Hub</strong><small>2024.03.23 · M ♡ T</small></span>
+  </a>
+  <nav class="hub-family-links" aria-label="爱的章节">
+    <a href="../Our-Journey/" data-hub-page="journey">我们的世界</a>
+    <a href="../2025-For-My-Girlfriend/" data-hub-page="2025">2025</a>
+    <a href="../2026-For-My-Girlfriend/" data-hub-page="2026">2026</a>
+    <a href="../Always-Yours-Chat/" data-hub-page="chat">悄悄话 ↗</a>
+  </nav>
+  <button class="hub-install-button" type="button" data-hub-install>♡ <span>添加到桌面</span></button>
+</header>
 
-<!-- ===== Add to Home / Install App ===== -->
-<button id="addToHomeBtn" type="button" aria-label="Add this website to your home screen">
-  <span class="home-icon" aria-hidden="true">♡</span>
-  <span class="home-label">Add to Home</span>
-</button>
-<!-- ===== Add to Home / Install App END ===== -->
 
-<!-- ===== OS-aware Add to Home Guide ===== -->
-<div id="installGuideOverlay" role="dialog" aria-modal="true" aria-labelledby="installGuideTitle" aria-describedby="installGuideSubtitle">
-  <div id="installGuideCard">
-    <div class="install-guide-heart" aria-hidden="true">♡</div>
-    <h2 id="installGuideTitle" class="install-guide-title">Keep our little world close</h2>
-    <p id="installGuideSubtitle" class="install-guide-subtitle">Add this little page to your home screen and open it like a private app. ♡</p>
-    <div id="installGuideSteps" class="install-guide-steps"></div>
-    <p id="installGuideNote" class="install-guide-note"></p>
-    <div class="install-guide-actions">
-      <button id="installGuideClose" type="button">Maybe later</button>
-      <button id="installGuideNative" type="button">Install now</button>
-    </div>
-  </div>
-</div>
-<!-- ===== OS-aware Add to Home Guide END ===== -->
+
 
 
 <div class="bg-heart" aria-hidden="true">
@@ -813,6 +688,14 @@ footer{padding-top:55px}
     <a class="btn" href="#message">Open Your Letter ↓</a>
   </div>
 </header>
+
+<aside class="hub-chapter-ribbon" aria-label="章节衔接">
+  <div class="hub-chapter-copy"><span class="hub-chapter-overline">PREVIOUSLY, IN OUR LITTLE WORLD · 2025</span>
+    <strong>一份 2025 的小小礼物，接着 2026 的生日告白 ♡</strong>
+    <small>从 2024.03.23 到现在，每一年都有属于我们的心动。</small>
+  </div>
+  <a class="hub-chapter-button" href="../2025-For-My-Girlfriend/">回看 2025 ↗</a>
+</aside>
 
 <section id="message">
   <div class="wrap">
@@ -980,124 +863,7 @@ if(openLetter){
 <!-- MUSIC PLAYER END -->
 
 
-<script id="add-to-home-script">
-/* ===== OS-aware Add to Home / Install App ===== */
-(() => {
-  const installButton = document.getElementById("addToHomeBtn");
-  const overlay = document.getElementById("installGuideOverlay");
-  const steps = document.getElementById("installGuideSteps");
-  const note = document.getElementById("installGuideNote");
-  const close = document.getElementById("installGuideClose");
-  const nativeBtn = document.getElementById("installGuideNative");
-  if (!installButton || !overlay || !steps) return;
 
-  let deferredInstallPrompt = null;
-  const ua = navigator.userAgent || "";
-  const platform = navigator.platform || "";
-  const isStandalone = () =>
-    window.matchMedia("(display-mode: standalone)").matches ||
-    window.matchMedia("(display-mode: fullscreen)").matches ||
-    window.navigator.standalone === true;
-  const isIOS = /iphone|ipad|ipod/i.test(ua) || (platform === "MacIntel" && navigator.maxTouchPoints > 1);
-  const isAndroid = /android/i.test(ua);
-  const isSamsung = /samsungbrowser/i.test(ua);
-  const isChromeAndroid = isAndroid && /chrome/i.test(ua) && !isSamsung && !/edg/i.test(ua);
-  const isFirefoxAndroid = isAndroid && /firefox/i.test(ua);
-  const isEdgeAndroid = isAndroid && /edg/i.test(ua);
-  const isIOSChrome = isIOS && /crios/i.test(ua);
-  const isIOSSafari = isIOS && !isIOSChrome && !/fxios|edgios/i.test(ua);
-
-  const show = () => overlay.classList.add("show");
-  const hide = () => overlay.classList.remove("show");
-  const step = (n, text) => `<div class="install-guide-step"><span class="install-guide-num">${n}</span><span>${text}</span></div>`;
-
-  function setGuide() {
-    overlay.classList.remove("android-native");
-    if (isIOSSafari || isIOSChrome) {
-      steps.innerHTML =
-        step("①", "Tap the <strong>Share</strong> button in your browser.") +
-        step("②", "Choose <strong>Add to Home Screen</strong> from the share sheet.") +
-        step("③", "Tap <strong>Add</strong> to keep our little world on your home screen. ♡");
-      note.textContent = isIOSChrome
-        ? "For the best iPhone experience, Safari is recommended for adding this page to the Home Screen."
-        : "This is the standard iPhone / iPad Home Screen method.";
-      return;
-    }
-    if (isSamsung) {
-      steps.innerHTML =
-        step("①", "Tap the <strong>Menu (☰)</strong> button in Samsung Internet.") +
-        step("②", "Choose <strong>Add page to</strong> → <strong>Home screen</strong>.") +
-        step("③", "Confirm the name, then tap <strong>Add</strong>. ♡");
-      note.textContent = "Samsung Internet uses its own Home Screen menu, so the instructions are matched to this browser.";
-      return;
-    }
-    if (isFirefoxAndroid) {
-      steps.innerHTML =
-        step("①", "Tap the <strong>⋮ menu</strong> in Firefox.") +
-        step("②", "Choose <strong>Install</strong> or <strong>Add to Home screen</strong> when shown.") +
-        step("③", "Confirm the shortcut on your Home Screen. ♡");
-      note.textContent = "Firefox may label this option slightly differently depending on the Android version.";
-      return;
-    }
-    if (isEdgeAndroid) {
-      steps.innerHTML =
-        step("①", "Tap the <strong>⋯ menu</strong> in Microsoft Edge.") +
-        step("②", "Choose <strong>Add to phone</strong> / <strong>Install app</strong>.") +
-        step("③", "Confirm the installation. ♡");
-      note.textContent = "The exact menu label can vary by Edge and Android version.";
-      return;
-    }
-    if (isAndroid) {
-      steps.innerHTML =
-        step("①", "Open the browser <strong>⋮ menu</strong> or tap the install icon in the address bar.") +
-        step("②", "Choose <strong>Install app</strong> or <strong>Add to Home screen</strong>.") +
-        step("③", "Confirm and open it like a private app. ♡");
-      note.textContent = "The wording can vary slightly by Android version and browser.";
-      return;
-    }
-    steps.innerHTML =
-      step("①", "Open the browser menu or the install icon near the address bar.") +
-      step("②", "Choose <strong>Install</strong> or <strong>Add to desktop</strong>.") +
-      step("③", "Confirm and open it like a private app. ♡");
-    note.textContent = "Your browser decides the exact installation label and system dialog.";
-  }
-
-  window.addEventListener("beforeinstallprompt", (event) => {
-    event.preventDefault();
-    deferredInstallPrompt = event;
-  });
-
-  installButton.addEventListener("click", () => {
-    if (isStandalone()) return;
-    setGuide();
-    if (deferredInstallPrompt && isAndroid) overlay.classList.add("android-native");
-    show();
-  });
-
-  nativeBtn.addEventListener("click", async () => {
-    if (!deferredInstallPrompt) return;
-    try {
-      deferredInstallPrompt.prompt();
-      await deferredInstallPrompt.userChoice;
-    } catch (_) {}
-    deferredInstallPrompt = null;
-    hide();
-  });
-
-  close.addEventListener("click", hide);
-  overlay.addEventListener("click", (e) => { if (e.target === overlay) hide(); });
-  document.addEventListener("keydown", (e) => { if (e.key === "Escape") hide(); });
-
-  window.addEventListener("appinstalled", () => {
-    deferredInstallPrompt = null;
-    installButton.classList.add("is-hidden");
-    hide();
-  });
-
-  if (isStandalone()) installButton.classList.add("is-hidden");
-  else installButton.classList.remove("is-hidden");
-})();
-</script>
 
 </body>
 </html>

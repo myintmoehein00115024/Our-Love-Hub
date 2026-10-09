@@ -2,9 +2,9 @@
 <html lang="en">
 
 <head>
-    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="manifest" href="../manifest.webmanifest">
     <meta name="mobile-web-app-capable" content="yes">
-    <meta name="application-name" content="Always yours">
+    <meta name="application-name" content="Our Love Hub">
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
@@ -22,12 +22,12 @@
     </style>
 
     <!-- 图标 -->
-    <link rel="icon" href="icons/apple-touch-icon.png">
-    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+    <link rel="icon" href="../assets/apple-touch-icon.png">
+    <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
 
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-title" content="Always yours">
-    <meta name="theme-color" content="#ffffff">
+    <meta name="apple-mobile-web-app-title" content="Our Love Hub">
+    <meta name="theme-color" content="#f7eef9">
 
     <!-- Remember this little world after the first visit. -->
     <script>
@@ -48,9 +48,26 @@
 
     <!-- JS -->
     <script src="js/index.js" defer></script>
+<link rel="stylesheet" href="../assets/love-hub-family.css?v=20261009">
+<script defer src="../assets/love-hub-family.js?v=20261009"></script>
 </head>
 
 <body class="intro-locked">
+<!-- Unified Our Love Hub navigation -->
+<header class="hub-family-nav" aria-label="Our Love Hub 网站导航">
+  <a class="hub-brand" href="../Our-Journey/" aria-label="返回 Our Journey">
+    <img src="../assets/icon-192.png" width="44" height="44" alt="Our Love Hub" loading="eager">
+    <span><strong>Our Love Hub</strong><small>2024.03.23 · M ♡ T</small></span>
+  </a>
+  <nav class="hub-family-links" aria-label="爱的章节">
+    <a href="../Our-Journey/" data-hub-page="journey">我们的世界</a>
+    <a href="../2025-For-My-Girlfriend/" data-hub-page="2025">2025</a>
+    <a href="../2026-For-My-Girlfriend/" data-hub-page="2026">2026</a>
+    <a href="../Always-Yours-Chat/" data-hub-page="chat">悄悄话 ↗</a>
+  </nav>
+  <button class="hub-install-button" type="button" data-hub-install>♡ <span>添加到桌面</span></button>
+</header>
+
   <section id="love-intro" class="love-intro" aria-label="A little introduction">
     <div class="intro-glow intro-glow-one"></div>
     <div class="intro-glow intro-glow-two"></div>
@@ -200,6 +217,13 @@
       </div>
     </section>
 
+    <aside class="hub-chapter-ribbon" aria-label="下一章节">
+      <div class="hub-chapter-copy"><span class="hub-chapter-overline">NEXT CHAPTER · 2026</span>
+        <strong>从第一份生日礼物，到下一年的更多爱意 ♡</strong>
+        <small>2025 是开始珍藏的地方，2026 是继续写下去的故事。</small>
+      </div>
+      <a class="hub-chapter-button" href="../2026-For-My-Girlfriend/">翻开 2026 →</a>
+    </aside>
     <div class="footer">
 
       <a href=""><br><b>💞Let’s create memories only we understand💞</b><br> </a>
@@ -207,7 +231,7 @@
     <audio autoplay>
       <source src="https://api.uomg.com/api/rand.music?sort=热歌榜" type="audio/mpeg">
     </audio>
-  <script src="js/pwa-install.js"></script>
+
 </body>
 
 </html>

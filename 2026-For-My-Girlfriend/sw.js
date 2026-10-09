@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pututulay-v7';
+const CACHE_NAME = 'pututulay-v8-family-20261009';
 const APP_SHELL = [
   './',
   './index.html',
@@ -35,15 +35,16 @@ self.addEventListener('fetch', event => {
   if (url.origin !== self.location.origin) return;
 
 
-  event.respondWith(
-    caches.match(request).then(cached => {
-      if (cached) return cached;
-      return fetch(request).then(response => {
-        if (!response || response.status !== 200 || response.type !== 'basic') return response;
-        const copy = response.clone();
-        caches.open(CACHE_NAME).then(cache => cache.put(request, copy));
-        return response;
-      }).catch(() => caches.match('./index.html'));
-    })
-  );
+  event.respondWith((async () => {
+    const cached = await caches.match(request);
+    try {
+      const response = await fetch(request);
+      if (response.ok && response.type === 'basic') {
+        event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.put(request, response.clone())));
+      }
+      return response;
+    } catch (_) {
+      return cached || await caches.match('./index.html') || Response.error();
+    }
+  })());
 });
