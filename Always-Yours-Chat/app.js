@@ -146,8 +146,16 @@ function validRole(name){return name==="Ko Ko"||name==="Chit Chit";}
 async function chooseRole(name){
   if(!validRole(name))return;
   if(outgoingBusy){toast("正在发送或保存消息，请稍等再切换身份 ♡");return;}
-  const previousRole = roleChosen ? selectedName : null;
+  // An installed device remembers its role. Warn before redirecting its notifications
+  // to the other profile; this is a mis-tap guard, NOT server-side authentication.
+  const previousRole = roleChosen ? selectedName : rememberedRole;
+  if (previousRole && previousRole !== name) {
+    const from = previousRole === "Ko Ko" ? "HE · Ko Ko" : "SHE · Chit Chit";
+    const to = name === "Ko Ko" ? "HE · Ko Ko" : "SHE · Chit Chit";
+    if (!window.confirm(`这台设备原来使用 ${from}。\n切换到 ${to} 后，此设备的手机消息提醒也会重新绑定。\n\n确认切换身份吗？`)) return;
+  }
   selectedName=name;roleChosen=true;
+  rememberedRole=name;
   if (previousRole && previousRole!==name) {
     // Existing subscription is re-bound to the newly selected HE/SHE profile below.
     verifiedPushRole=null;
@@ -488,7 +496,9 @@ async function apiSendMessage(payload){
   return withTimeout(async(signal)=>{
     const res=await fetch(`${API_BASE}/api/messages`,{
       method:"POST",
-      headers:{"Content-Type":"application/json","X-Room-Key":roomId},
+      // Older clients are still accepted by the backend during the safe rollout.
+      // Current clients additionally state the sending role for integrity checking.
+      headers:{"Content-Type":"application/json","X-Room-Key":roomId,"X-User":selectedName},
       body:JSON.stringify(payload),
       signal,
       cache:"no-store"

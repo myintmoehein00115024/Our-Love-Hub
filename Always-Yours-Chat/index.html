@@ -36,6 +36,7 @@
       <div id="setup" class="first-setup hidden" aria-live="polite">
         <div class="setup-caption">仅首次连接这台设备（无需生日验证）</div>
         <p>输入你们之前使用的共同密钥一次，保留原有聊天的端到端加密。以后只需点击 HE / SHE。</p>
+        <p class="setup-security-note">安全提示：共同密钥不应只是生日、姓名或简单数字。建议使用足够长且只有你们知道的随机密码；切换 HE/SHE 不是独立账号认证。</p>
         <label for="secret" class="setup-label">共同密钥（不会上传或写入 GitHub）</label>
         <div class="secret-wrap">
           <input id="secret" type="password" autocomplete="off" spellcheck="false" placeholder="两台设备输入相同的旧密钥" minlength="10">
@@ -168,7 +169,7 @@
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <script src="routes.js"></script>
-  <script type="module" src="app.js?v=20261010-compact-checks-v32"></script>
+  <script type="module" src="app.js?v=20261010-role-safety-v33"></script>
   <script>
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('./sw.js').catch(() => {});
