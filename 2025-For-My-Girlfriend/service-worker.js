@@ -1,4 +1,4 @@
-const CACHE_NAME = "thinthin-shell-v10-2025-responsive-20261009";
+const CACHE_NAME = "thinthin-shell-v11-2025-nav-secretfix-20261009";
 const SHELL = [
   "./",
   "./index.html",

@@ -244,25 +244,18 @@
   function bindSecret(){
     var button = document.querySelector(".love_btn");
     var input = document.querySelector(".love_text");
-    if(!button || !input) return;
 
     function openLove(){
-      var value = (input.value || "").trim();
-      if(value === secretWord){
-        button.disabled = true;
-        window.location.href = "love.html";
-      }else{
-        input.classList.remove("is-error");
-        void input.offsetWidth;
-        input.classList.add("is-error");
-        input.focus();
-      }
+      if(button) button.disabled = true;
+      window.location.href = "love.html";
     }
 
-    button.addEventListener("click", openLove);
-    input.addEventListener("keydown", function(event){
-      if(event.key === "Enter") openLove();
-    });
+    if(button) button.addEventListener("click", openLove);
+    if(input){
+      input.addEventListener("keydown", function(event){
+        if(event.key === "Enter") openLove();
+      });
+    }
   }
 
   function preloadBackgrounds(){
