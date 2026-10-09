@@ -135,11 +135,13 @@ if ('serviceWorker' in navigator) {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 7000);
       let response;
-      try { response = await fetch(CHAT_API + '/api/messages', {headers:{'X-Room-Key':roomId},cache:'no-store',signal:controller.signal}); }
+      try { response = await fetch(CHAT_API + '/api/unread', {headers:{'X-Room-Key':roomId,'X-User':role},cache:'no-store',signal:controller.signal}); }
       finally {clearTimeout(timeout);}
       if (!response.ok) return;
       const payload = await response.json();
-      const unread = (Array.isArray(payload.messages) ? payload.messages : []).filter(m => m.sender !== role && !m.seen_at && Number(m.expires_at)>Date.now()).length;
+      // Fetch only an unread count: no message text, ciphertext, media keys, or timestamps.
+      if (!payload?.ok || !Number.isSafeInteger(payload.unread) || payload.unread < 0) return;
+      const unread = payload.unread;
       if (previousUnread !== null && unread > previousUnread) playBell();
       previousUnread = unread;
       counter.textContent = unread > 99 ? '99+' : String(unread);
