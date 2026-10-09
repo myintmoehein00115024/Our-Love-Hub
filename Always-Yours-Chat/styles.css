@@ -1164,3 +1164,24 @@ body::before,body::after{opacity:.62;filter:blur(.1px)}
 .device-pair-actions{grid-template-columns:repeat(3,minmax(0,1fr))}
 .device-pair-actions button{min-width:0;overflow-wrap:anywhere}
 @media(max-width:440px){.device-pair-actions{grid-template-columns:1fr 1fr}.device-pair-actions button:first-child{grid-column:span 2}}
+
+/* Optional, owner-confirmed HE/SHE device approvals. Not an auth bypass. */
+.device-approval-panel{margin-top:16px;padding:15px;border-radius:18px;background:linear-gradient(140deg,rgba(255,246,251,.93),rgba(245,239,255,.95));border:1px solid #ead0e3;box-sizing:border-box}
+.device-approval-heading{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
+.device-approval-heading h4{margin:0;color:#654765;font:600 18px/1.35 Georgia,'Songti SC',serif}
+.device-approval-heading span{font-size:10px;color:#a0779d}
+.device-approval-panel p{margin:9px 0;font-size:12px;line-height:1.7}
+.device-approval-label{font-size:12px;font-weight:700;color:#865d80;display:block;margin:10px 0 6px}
+.device-approval-panel input{box-sizing:border-box;width:100%;min-height:45px;padding:12px;border:1px solid #ddbedd;border-radius:12px;background:#fff;color:#634866;font-size:14px}
+.device-approval-panel input:focus{outline:2px solid #c18cc8;outline-offset:2px}
+.device-approval-load{width:100%;min-height:44px;margin-top:10px;border:1px solid #d3b1d6;border-radius:12px;color:#794c7e;background:#fff;font-weight:750;cursor:pointer}
+.device-approval-load:disabled{opacity:.5;cursor:wait}
+.device-approval-result{margin-top:10px;padding:12px;border:1px solid #eddaeb;border-radius:12px;color:#80627f;background:rgba(255,255,255,.78);overflow-wrap:anywhere;font-size:12px;line-height:1.6}
+.device-approval-row{padding:11px 0;border-top:1px solid #e8d7e9;display:grid;gap:8px}
+.device-approval-row strong{font-size:12px;color:#704773}
+.device-approval-row code{font-family:ui-monospace,Consolas,monospace;font-size:11px;overflow-wrap:anywhere;color:#765a79;user-select:text}
+.device-approval-buttons{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:8px}
+.device-approval-buttons button{min-width:0;min-height:40px;padding:9px 8px;border:1px solid #cdacd2;border-radius:11px;background:linear-gradient(110deg,#b77bab,#9d86c8);color:white;font-size:12px;font-weight:750;cursor:pointer}
+.device-approval-buttons button:disabled{opacity:.5}
+.device-approval-buttons button.device-approval-skip{background:white;color:#8a6888}
+@media(max-width:370px){.device-approval-panel{padding:12px}.device-approval-buttons{grid-template-columns:1fr}}

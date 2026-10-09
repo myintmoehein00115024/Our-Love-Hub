@@ -1587,6 +1587,76 @@ const devicePairRole=$('devicePairRole');
 const devicePairCreate=$('prepareDeviceKey');
 const devicePairCopy=$('copyDeviceFingerprint');
 const devicePairCheck=$('checkDeviceStatus');
+const deviceApprovalPanel=$('deviceApprovalPanel');
+const deviceApprovalPassword=$('deviceAdminToken');
+const deviceApprovalLoad=$('loadDeviceApprovals');
+const deviceApprovalResult=$('deviceApprovalResult');
+let approvalBusy=false;
+function clearApprovalReview(){
+  if(deviceApprovalPassword)deviceApprovalPassword.value='';
+  if(deviceApprovalResult)deviceApprovalResult.textContent='尚未加载申请。只有正确的管理员口令才能查看与批准。';
+}
+function validPairFingerprint(fp){return typeof fp==='string'&&/^[A-Za-z0-9_-]{43}$/.test(fp);}
+function pairShortFingerprint(fp){return validPairFingerprint(fp)?(fp.slice(0,10)+'…'+fp.slice(-8)):'无效指纹';}
+async function deviceApprovalApi(endpoint,body,expectedRoom){
+  const response=await fetch(`${API_BASE}/api/devices/${endpoint}`,{
+    method:'POST',cache:'no-store',
+    headers:{'Content-Type':'application/json','X-Room-Key':expectedRoom,'X-User':selectedName},
+    body:JSON.stringify(body)
+  });
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok)throw new Error(data.error||'设备审批暂时不可用');
+  return data;
+}
+async function loadDeviceApprovals(){
+  if(approvalBusy||!validRole(selectedName)||!roomId)return;
+  const secret=deviceApprovalPassword?.value||'';
+  if(secret.length<32){
+    if(deviceApprovalResult)deviceApprovalResult.textContent='请先在独立 Supabase 的 Edge Function Secrets 设置至少 32 个字符的 CHAT_DEVICE_ADMIN_TOKEN，然后输入这个口令。';
+    return;
+  }
+  approvalBusy=true;deviceApprovalLoad.disabled=true;
+  const originalRole=selectedName,originalRoom=roomId;
+  try{
+    const data=await deviceApprovalApi('pending',{adminToken:secret},originalRoom);
+    if(originalRole!==selectedName||originalRoom!==roomId)throw new Error('身份发生变化，请重新查看申请');
+    if(!deviceApprovalResult)return;
+    deviceApprovalResult.replaceChildren();
+    const list=Array.isArray(data.devices)?data.devices:[];
+    if(!list.length){deviceApprovalResult.textContent='当前没有待审核的 HE / SHE 设备申请。';return;}
+    const lead=document.createElement('p');lead.textContent='待审核 '+list.length+' 台设备。请与申请者在设备上显示的完整指纹逐字核对。';deviceApprovalResult.appendChild(lead);
+    list.forEach(item=>{
+      if(!validPairFingerprint(item.fingerprint)||!validRole(item.user_name))return;
+      const row=document.createElement('div');row.className='device-approval-row';
+      const title=document.createElement('strong');title.textContent=(item.user_name==='Ko Ko'?'HE · Ko Ko':'SHE · Chit Chit')+' · 待审核';
+      const fingerprint=document.createElement('code');fingerprint.textContent=item.fingerprint;
+      const actions=document.createElement('div');actions.className='device-approval-buttons';
+      const approve=document.createElement('button');approve.type='button';approve.textContent='✓ 确认批准这台设备';
+      approve.addEventListener('click',async()=>{
+        if(approvalBusy||selectedName!==originalRole||roomId!==originalRoom)return;
+        const currentSecret=deviceApprovalPassword?.value||'';
+        if(currentSecret.length<32){toast('请重新输入管理员授权口令');return;}
+        if(!window.confirm('请再次确认：\n'+title.textContent+'\n设备指纹：'+item.fingerprint+'\n\n已在申请设备上核对完整指纹，确定批准吗？'))return;
+        approvalBusy=true;approve.disabled=true;deviceApprovalLoad.disabled=true;
+        try{
+          const result=await deviceApprovalApi('approve',{adminToken:currentSecret,user_name:item.user_name,fingerprint:item.fingerprint},originalRoom);
+          if(originalRole!==selectedName||originalRoom!==roomId)throw new Error('身份发生变化，请重新查看审批状态');
+          if(!result.ok||result.deviceState!=='approved')throw new Error('服务器未确认授权成功');
+          row.replaceChildren();
+          const done=document.createElement('strong');done.textContent='✓ 已批准 '+title.textContent.replace(' · 待审核','');row.appendChild(done);
+          deviceApprovalPassword.value='';
+          toast('设备申请已批准（当前仍是测试模式）');
+        }catch(e){toast(e.message||'审批失败');approve.disabled=false;}
+        finally{approvalBusy=false;deviceApprovalLoad.disabled=false;}
+      });
+      const skip=document.createElement('button');skip.type='button';skip.className='device-approval-skip';skip.textContent='暂不授权';skip.addEventListener('click',()=>{row.remove();});
+      actions.append(approve,skip);row.append(title,fingerprint,actions);deviceApprovalResult.appendChild(row);
+    });
+  }catch(err){if(deviceApprovalResult)deviceApprovalResult.textContent='暂时无法查看设备申请：'+(err.message||'请检查 Supabase 配置');}
+  finally{approvalBusy=false;deviceApprovalLoad.disabled=false;}
+}
+deviceApprovalLoad?.addEventListener('click',loadDeviceApprovals);
+
 let devicePairFingerprint='';
 let pairingBusy=false;
 function pairB64Url(bytes){
@@ -1627,7 +1697,7 @@ async function showDevicePairing(show){
  if(!devicePairModal)return;
  if(show&&(!roomId||!cryptoKey||!validRole(selectedName))){toast('请先进入聊天，再准备当前身份的设备授权');return;}
  devicePairModal.classList.toggle('hidden',!show);
- if(!show)return;
+ if(!show){clearApprovalReview();return;}
  devicePairRole.textContent=selectedName==='Ko Ko'?'HE · Ko Ko':'SHE · Chit Chit';
  devicePairFingerprint='';devicePairCopy.disabled=true;
  pairStatus('正在检查这台设备是否已经准备了独立身份密钥…');
@@ -1674,6 +1744,7 @@ devicePairCreate?.addEventListener('click',async()=>{
    if(!response.ok)throw new Error(result.error||'设备登记失败');
    if(result.fingerprint!==current.fp)throw new Error('服务器返回的指纹不一致，请停止操作');
    devicePairFingerprint=current.fp;devicePairCopy.disabled=false;
+   if(deviceApprovalPanel&&result.deviceState==='pending'){deviceApprovalPanel.classList.add('device-approval-ready');}
    const labels={pending:'待审核（尚未获得授权）',approved:'已由管理员批准（尚未开启强制验证）',revoked:'已撤销'};
    pairStatus('当前身份：'+(role==='Ko Ko'?'HE · Ko Ko':'SHE · Chit Chit')+
      '\n设备指纹：'+pairFingerprintLabel(current.fp)+

@@ -151,6 +151,17 @@
         <button id="checkDeviceStatus" type="button">检查本机状态</button>
         <button id="copyDeviceFingerprint" type="button" disabled>复制设备指纹</button>
       </div>
+      <section class="device-approval-panel" id="deviceApprovalPanel" aria-labelledby="deviceApprovalTitle">
+        <div class="device-approval-heading">
+          <h4 id="deviceApprovalTitle">♡ 手动确认授权设备</h4>
+          <span>测试模式 · 暂不限制现有聊天</span>
+        </div>
+        <p>提交申请后，您可在这里核对 HE / SHE 身份、设备指纹并手动批准。首次批准需要独立 Supabase 管理员口令；单纯选择 HE/SHE 不能获得审批权限。</p>
+        <label class="device-approval-label" for="deviceAdminToken">管理员授权口令（仅当前页面使用，不会保存）</label>
+        <input id="deviceAdminToken" type="password" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="输入您在 Supabase 设置的独立授权口令" maxlength="256">
+        <button class="device-approval-load" id="loadDeviceApprovals" type="button">↻ 查看待审核设备</button>
+        <div id="deviceApprovalResult" class="device-approval-result" aria-live="polite">尚未加载申请。只有正确的管理员口令才能查看与批准。</div>
+      </section>
       <p class="device-pair-tip">本阶段只登记待审核公钥，不会自动批准，也不会限制现有 HE/SHE 聊天。以后需要两台设备分别确认，再开启强制设备验证。</p>
     </section>
   </div>
