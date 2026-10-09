@@ -134,6 +134,7 @@ async function openPreparedRoom(){
   if(cached.length)renderMessages(cached);
   updateConnection("连接中…");
   startPolling();startPresence();refreshNotifyButton().catch(()=>{});
+  setTimeout(()=>repairPushBinding().catch(err=>console.warn("Notification check:",err.message)),300);
 }
 function validRole(name){return name==="Ko Ko"||name==="Chit Chit";}
 async function chooseRole(name){
@@ -141,7 +142,8 @@ async function chooseRole(name){
   const previousRole = roleChosen ? selectedName : null;
   selectedName=name;roleChosen=true;
   if (previousRole && previousRole!==name) {
-    try { localStorage.removeItem("alwaysYoursPushRegistration"); } catch {}
+    // Existing subscription is re-bound to the newly selected HE/SHE profile below.
+    verifiedPushRole=null;
   }
   try{localStorage.setItem("alwaysYoursName",selectedName);}catch{}
   document.querySelectorAll(".name-option").forEach(b=>b.classList.toggle("selected-role",b.dataset.name===name));
@@ -1270,51 +1272,177 @@ window.addEventListener("offline",()=>updateConnection("Offline · last messages
 document.addEventListener("visibilitychange",()=>{ if(!roomId) return; if(document.visibilityState!=="hidden"){ apiPresence(true).catch(()=>{}); syncMessages({silent:true}); syncPresence(); } else { apiPresence(false).catch(()=>{}); } });
 window.addEventListener("beforeunload",()=>{ apiPresence(false).catch(()=>{}); stopPolling(); stopPresence(); window.__alwaysYoursPhotoViewer?.close(); if(selectedPhotoPreviewUrl){try{URL.revokeObjectURL(selectedPhotoPreviewUrl)}catch{}} for(const url of mediaObjectUrls){try{URL.revokeObjectURL(url)}catch{}} });
 
-// Web Push: never transmit plaintext or the encryption key in a push notification.
+// Web Push is independent of the browser page: messages are delivered to the scoped Service Worker.
+// The device never uploads the chat passphrase or decryptable message bodies.
 const notifyBtn=$("notifyBtn");
+const pushDiagnostics=$("pushDiagnostics");
+const pushDiagStatus=$("pushDiagStatus");
+const pushDiagResult=$("pushDiagResult");
+const pushDiagTest=$("pushDiagTest");
+const pushDiagSync=$("pushDiagSync");
+let verifiedPushRole=null;
+let pushSyncBusy=false;
+let lastPushSync=0;
+const PUSH_LOCAL_KEY="alwaysYoursPushRegistration";
 function b64urlToBytes(value){
   const pad="=".repeat((4-value.length%4)%4);
   return base64ToBytes(value.replace(/-/g,"+").replace(/_/g,"/")+pad);
 }
+function pushIdentity(){return roomId && validRole(selectedName) ? `${roomId}:${selectedName}` : "";}
+function pushAvailable(){return !!API_BASE && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;}
+async function scopedChatRegistration(){
+  if(!('serviceWorker' in navigator))throw new Error('当前浏览器不支持后台通知');
+  const reg=await navigator.serviceWorker.register('./sw.js',{scope:'./'});
+  if(!reg.active){
+    const pending=reg.installing||reg.waiting;
+    if(pending) await Promise.race([
+      new Promise(resolve=>{if(pending.state==='activated')return resolve();pending.addEventListener('statechange',()=>{if(pending.state==='activated')resolve();});}),
+      new Promise((_,reject)=>setTimeout(()=>reject(new Error('后台服务还未启动，请刷新后再试')),8000))
+    ]);
+  }
+  if(!reg.active)throw new Error('聊天通知后台尚未准备好，请刷新页面');
+  return reg;
+}
+async function getPushConfig(){
+  const response=await fetch(`${API_BASE}/api/push/config`,{cache:'no-store'});
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok||!data.publicKey)throw new Error(data.error||'推送服务器未准备好');
+  return data.publicKey;
+}
+async function savePushSubscription(sub,publicKey){
+  const response=await fetch(`${API_BASE}/api/push/subscribe`,{
+    method:'POST',headers:{'Content-Type':'application/json','X-Room-Key':roomId,'X-User':selectedName},
+    body:JSON.stringify({subscription:sub.toJSON()}),cache:'no-store'
+  });
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok)throw new Error(data.error||'Supabase 未接受当前设备订阅');
+  const identity=pushIdentity();
+  try{localStorage.setItem(PUSH_LOCAL_KEY,identity);}catch{}
+  verifiedPushRole=identity;
+  lastPushSync=Date.now();
+  try{const reg=await scopedChatRegistration();reg.active?.postMessage({type:'always-yours-push-profile',roomId,role:selectedName,publicKey,apiBase:API_BASE});}catch{}
+  return data;
+}
+async function repairPushBinding({create=false,force=false}={}){
+  if(!pushAvailable() || !pushIdentity() || Notification.permission!=='granted')return false;
+  if(pushSyncBusy)return false;
+  const identity=pushIdentity();
+  if(!force && verifiedPushRole===identity && Date.now()-lastPushSync<3*60*1000)return true;
+  pushSyncBusy=true;
+  try{
+    const reg=await scopedChatRegistration();
+    const publicKey=await getPushConfig();
+    let sub=await reg.pushManager.getSubscription();
+    // Only the explicit button click can create a fresh subscription / prompt.
+    if(!sub&&create)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64urlToBytes(publicKey)});
+    if(!sub)return false;
+    await savePushSubscription(sub,publicKey);
+    return true;
+  }finally{
+    pushSyncBusy=false;
+    refreshNotifyButton().catch(()=>{});
+  }
+}
 async function refreshNotifyButton(){
   if(!notifyBtn)return;
-  const supported=Boolean(API_BASE)&&("serviceWorker" in navigator)&&("PushManager" in window)&&("Notification" in window);
-  notifyBtn.disabled=!supported;
-  if(!supported){notifyBtn.textContent=API_BASE?"此浏览器不支持推送":"先连接 Supabase 再开启通知";return;}
-  const reg=await navigator.serviceWorker.ready;
-  const subscription=await reg.pushManager.getSubscription();
-  const registration=roomId?`${roomId}:${selectedName}`:"";
-  const on=Boolean(subscription)&&Notification.permission==="granted"&&Boolean(registration)&&localStorage.getItem("alwaysYoursPushRegistration")===registration;
-  notifyBtn.classList.toggle("is-enabled",on);
-  notifyBtn.textContent=on?"✓ 已开启提醒":"🔔 消息提醒";
-  notifyBtn.setAttribute("aria-label",on?"手机消息提醒已开启":"开启手机消息提醒");
+  if(!pushAvailable()){
+    notifyBtn.disabled=true;notifyBtn.textContent='🔕 不支持系统推送';return;
+  }
+  notifyBtn.disabled=false;
+  const active=Notification.permission==='granted' && verifiedPushRole===pushIdentity();
+  notifyBtn.classList.toggle('is-enabled',active);
+  notifyBtn.textContent=active?'✓ 已绑定消息提醒':'🔔 开启消息提醒';
+  notifyBtn.setAttribute('aria-label',active?'消息推送已绑定当前 HE/SHE 身份':'开启或重新绑定系统推送');
 }
-notifyBtn?.addEventListener("click",async()=>{
-  if(!roomId){toast("请先进入聊天");return;}
+notifyBtn?.addEventListener('click',async()=>{
+  if(!roomId){toast('请先进入聊天');return;}
   notifyBtn.disabled=true;
   try{
-    if(!API_BASE)throw new Error("请先连接 Supabase 后再配置手机推送。");
-    if(!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) throw new Error("当前浏览器不支持推送。iPhone 请用 Safari 添加到主屏幕后，从桌面图标打开。");
-    const permit=await Notification.requestPermission();
-    if(permit!=="granted")throw new Error("需要在系统中允许此网站发送通知。");
-    const reg=await navigator.serviceWorker.ready;
-    const configRes=await fetch(`${API_BASE}/api/push/config`,{cache:"no-store"});
-    const config=await configRes.json();
-    if(!configRes.ok||!config.publicKey)throw new Error(config.error||"Supabase 推送服务尚未配置。");
-    let sub=await reg.pushManager.getSubscription();
-    if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64urlToBytes(config.publicKey)});
-    const response=await fetch(`${API_BASE}/api/push/subscribe`,{
-      method:"POST",headers:{"Content-Type":"application/json","X-Room-Key":roomId,"X-User":selectedName},
-      body:JSON.stringify({subscription:sub.toJSON()}),cache:"no-store"
-    });
-    const data=await response.json().catch(()=>({}));
-    if(!response.ok)throw new Error(data.error||"无法完成推送订阅");
-    localStorage.setItem("alwaysYoursPushRegistration",`${roomId}:${selectedName}`);
-    toast("通知已开启，收到对方消息时会提醒你 ♡");
-  }catch(error){toast(error.message||"无法开启通知");console.warn("Push subscribe:",error.message);}
+    if(!pushAvailable())throw new Error('当前浏览器不支持 Web Push。iPhone 请先从 Safari 添加到主屏幕。');
+    const permission=await Notification.requestPermission();
+    if(permission!=='granted')throw new Error('请在浏览器或手机系统中允许此网站通知。');
+    const ok=await repairPushBinding({create:true,force:true});
+    if(!ok)throw new Error('通知订阅失败，请在「更多 → 通知检测」中检查');
+    toast('已为当前身份绑定推送。建议再发送一次测试通知 ♡');
+  }catch(e){toast(e.message||'无法开启通知');console.warn('Push configuration:',e.message);}
   finally{notifyBtn.disabled=false;refreshNotifyButton().catch(()=>{});}
 });
-
+function pushMessage(msg){if(pushDiagStatus)pushDiagStatus.textContent=msg;}
+function showPushDiagnostics(show){
+  if(!pushDiagnostics)return;
+  pushDiagnostics.classList.toggle('hidden',!show);
+  if(show){pushMessage('正在检测当前设备的系统通知…');loadPushDiagnostics().catch(e=>pushMessage(e.message));}
+}
+$('openPushDiagnostics')?.addEventListener('click',()=>showPushDiagnostics(true));
+$('closePushDiagnostics')?.addEventListener('click',()=>showPushDiagnostics(false));
+pushDiagnostics?.addEventListener('click',e=>{if(e.target?.dataset?.dismissPush!==undefined)showPushDiagnostics(false);});
+function formatPushAttempt(a){
+  if(a.status_code===102)return '排队：正在等待 8 秒后的测试';
+  if(a.status_code>=200&&a.status_code<300)return '推送服务已接收（手机是否显示仍需实测）';
+  if(a.status_code===404||a.status_code===410)return '订阅已失效，请重新开启提醒';
+  if(a.status_code===401||a.status_code===403)return '推送服务拒绝认证，请检查 VAPID 密钥';
+  return a.status_code ? `推送失败（HTTP ${a.status_code}）` : '推送失败（网络或加密错误）';
+}
+async function localPushReceipt(reg){
+ if(!reg?.active)return null;
+ return new Promise(resolve=>{
+  const onMessage=event=>{
+   if(event.data?.type==='always-yours-push-receipt'){
+    clearTimeout(timer);navigator.serviceWorker.removeEventListener('message',onMessage);
+    resolve(event.data.at||null);
+   }
+  };
+  const timer=setTimeout(()=>{navigator.serviceWorker.removeEventListener('message',onMessage);resolve(null);},1200);
+  navigator.serviceWorker.addEventListener('message',onMessage);
+  reg.active.postMessage({type:'always-yours-push-last-received'});
+ });
+}
+async function loadPushDiagnostics(){
+  if(!pushDiagStatus||!roomId)return;
+  const supported=pushAvailable();
+  const permission=supported?Notification.permission:'不支持';
+  const reg=supported?await scopedChatRegistration():null;
+  const sub=reg?await reg.pushManager.getSubscription():null;
+  let line=`当前身份：${selectedName==='Ko Ko'?'HE':'SHE'} · 通知权限：${permission==='granted'?'允许':permission==='denied'?'被阻止':permission==='default'?'尚未授权':permission}`;
+  line+=` · 本机订阅：${sub?'存在':'没有'}`;
+  if(reg)line+=` · 后台：${reg.active?'正常':'未启动'}`;
+  const lastLocal=await localPushReceipt(reg);
+  line+=`\n本机最后实际收到的后台推送：${lastLocal?new Date(lastLocal).toLocaleString():'尚无记录'}`;
+  const response=await fetch(`${API_BASE}/api/push/status`,{cache:'no-store',headers:{'X-Room-Key':roomId,'X-User':selectedName}});
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok)throw new Error(data.error||'服务器状态查询失败');
+  line+=`
+Supabase 当前身份订阅设备：${data.registeredDevices} · 对方订阅设备：${data.partnerDevices}`;
+  pushMessage(line);
+  const attempts=data.latestAttempts||[];
+  pushDiagResult.textContent=attempts.length?('最近推送：'+formatPushAttempt(attempts[0])):'暂无推送记录。可以点击测试通知。';
+}
+pushDiagSync?.addEventListener('click',async()=>{
+  pushDiagSync.disabled=true;
+  try{
+    if(!pushAvailable())throw new Error('当前浏览器不支持 Web Push');
+    if(Notification.permission!=='granted')throw new Error('请先点击聊天顶部的「开启消息提醒」');
+    const ok=await repairPushBinding({create:false,force:true});
+    if(!ok)throw new Error('没有本机推送订阅，请先点击顶部「开启消息提醒」');
+    await loadPushDiagnostics();toast('接收身份已重新绑定 ♡');
+  }catch(e){pushMessage(e.message);}
+  finally{pushDiagSync.disabled=false;}
+});
+pushDiagTest?.addEventListener('click',async()=>{
+  pushDiagTest.disabled=true;
+  try{
+    if(Notification.permission!=='granted')throw new Error('请先开启系统通知权限');
+    const ok=await repairPushBinding({create:false,force:true});
+    if(!ok)throw new Error('本设备没有订阅，请先开启消息提醒');
+    const response=await fetch(`${API_BASE}/api/push/test`,{method:'POST',headers:{'Content-Type':'application/json','X-Room-Key':roomId,'X-User':selectedName},body:'{}',cache:'no-store'});
+    const data=await response.json().catch(()=>({}));
+    if(!response.ok)throw new Error(data.error||'无法发送测试通知');
+    pushMessage(`已预约 ${data.registeredDevices} 台当前身份设备的测试通知。请立即锁屏/关闭浏览器，约 8 秒后查看。`);
+    pushDiagResult.textContent='注意：发送到推送服务成功，也不能保证设备一定响铃；请检查安卓通知权限及电池限制。';
+  }catch(e){pushMessage(e.message||'测试失败');}
+  finally{pushDiagTest.disabled=false;}
+});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&roomId)repairPushBinding().catch(()=>{});});
 // Restore identity automatically on this browser when its encrypted room key exists.
 // Switching HE/SHE remains available in the chat header.
 (async function restoreChatIdentity(){

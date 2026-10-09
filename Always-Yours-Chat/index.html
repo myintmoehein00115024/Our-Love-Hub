@@ -68,6 +68,7 @@
           <details class="chat-more-menu">
             <summary aria-label="更多设置" title="更多设置">···</summary>
             <div class="chat-more-panel">
+              <button id="openPushDiagnostics" class="ghost-button" type="button">🔔 通知检测与测试</button>
               <button id="installBtn" class="ghost-button install-ghost" type="button">♡ 添加 Our Love Hub 到桌面</button>
               <p>桌面只保留一个 Our Love Hub 入口</p>
             </div>
@@ -128,6 +129,23 @@
       </div>
     </section>
   </main>
+
+  <div id="pushDiagnostics" class="push-diag hidden" role="dialog" aria-modal="true" aria-labelledby="pushDiagTitle">
+    <div class="push-diag-backdrop" data-dismiss-push></div>
+    <section class="push-diag-sheet">
+      <div class="push-diag-head"><div><span>FOR YOUR HEART ONLY ♡</span><h3 id="pushDiagTitle">手机通知检测</h3></div>
+        <button id="closePushDiagnostics" type="button" aria-label="关闭通知检测">×</button>
+      </div>
+      <p class="push-diag-explain">检查 HE / SHE 是否绑定正确。锁屏通知由浏览器和系统负责，网页关闭后不依赖定时刷新。</p>
+      <div id="pushDiagStatus" class="push-diag-status" role="status">正在检查…</div>
+      <div id="pushDiagResult" class="push-diag-last"></div>
+      <div class="push-diag-actions">
+        <button id="pushDiagSync" type="button">↻ 重新绑定当前身份</button>
+        <button id="pushDiagTest" class="push-diag-primary" type="button">🔔 8 秒后发送测试通知</button>
+      </div>
+      <p class="push-diag-tip">安卓：请检查 Chrome／安装应用的通知权限、电池后台限制及系统勿扰。苹果：从主屏幕应用中允许通知。这里不会展示聊天内容。</p>
+    </section>
+  </div>
 
   <div id="installModal" class="install-modal hidden" role="dialog" aria-modal="true" aria-labelledby="installTitle">
     <div class="install-backdrop" data-close-install></div>

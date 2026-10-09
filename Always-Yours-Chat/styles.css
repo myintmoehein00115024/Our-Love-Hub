@@ -1023,3 +1023,25 @@ body::before,body::after{opacity:.62;filter:blur(.1px)}
 .chat-card{position:relative}
 .gif-panel{position:absolute!important;top:50%!important;left:50%!important;right:auto!important;bottom:auto!important;transform:translate(-50%,-50%)!important;width:min(456px,calc(100% - 28px))!important;max-height:min(78dvh,540px)!important}
 @media(max-width:760px){.gif-panel{width:calc(100% - 18px)!important;max-height:min(78dvh,550px)!important}}
+
+/* Push diagnostics overlay: intentionally out of the normal chat layout. */
+.push-diag{position:fixed;inset:0;z-index:120;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box}
+.push-diag.hidden{display:none!important}
+.push-diag-backdrop{position:absolute;inset:0;background:rgba(58,35,68,.42);backdrop-filter:blur(5px)}
+.push-diag-sheet{position:relative;width:min(480px,100%);max-height:calc(100dvh - 40px);overflow:auto;box-sizing:border-box;border-radius:25px;
+  background:linear-gradient(150deg,#fffafe,#f5eeff);border:1px solid #edd4e9;box-shadow:0 22px 80px rgba(51,33,65,.22);padding:23px;color:#67506a}
+.push-diag-head{display:flex;align-items:flex-start;justify-content:space-between;gap:20px}
+.push-diag-head span{color:#c07aa5;letter-spacing:.16em;font-size:10px;font-weight:800}
+.push-diag-head h3{font-family:Georgia,serif;font-size:28px;line-height:1.15;margin:7px 0 12px;color:#634662}
+.push-diag-head button{width:36px;height:36px;flex-shrink:0;border:1px solid #e8cce1;border-radius:50%;background:white;color:#8b6186;font-size:24px;cursor:pointer}
+.push-diag-explain,.push-diag-tip{font-size:12px;line-height:1.7;color:#997b97}
+.push-diag-status,.push-diag-last{margin:15px 0 0;padding:13px 14px;background:rgba(255,255,255,.8);border:1px solid #eed7eb;border-radius:15px;
+  font-size:13px;line-height:1.75;white-space:pre-line;overflow-wrap:anywhere}
+.push-diag-last{font-size:12px;margin-top:8px}
+.push-diag-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}
+.push-diag-actions button{padding:13px 11px;border:1px solid #e1c5dd;border-radius:14px;background:#fff;color:#8d5b84;font-size:12px;font-weight:750;cursor:pointer}
+.push-diag-actions button:disabled{opacity:.6}
+.push-diag-actions .push-diag-primary{color:#fff;background:linear-gradient(110deg,#c480ad,#9e83d3);border-color:transparent}
+@media(max-width:480px){.push-diag{padding:10px}.push-diag-sheet{max-height:calc(100dvh - 20px);padding:18px 16px;border-radius:20px}
+ .push-diag-actions{grid-template-columns:1fr}.push-diag-head h3{font-size:24px}}
+@media(prefers-reduced-motion:reduce){.push-diag *, .chat-card * {scroll-behavior:auto!important}}
