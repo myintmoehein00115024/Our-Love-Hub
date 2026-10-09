@@ -1,42 +1,15 @@
 <!doctype html>
 <html lang="my">
 <head>
-  <link rel="manifest" href="../../manifest.webmanifest">
+  <link rel="manifest" href="../manifest.webmanifest">
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="application-name" content="Our Love Hub">
+  <meta name="application-name" content="Always yours">
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#eeeaff">
   <title>For You · Chit Chit</title>
-  <script>
-    (function(){
-      const k = 'thinthin_story_unlocked_at';
-      const ttl = 15 * 60 * 1000;
-      function read(store){
-        try { return Number(store.getItem(k)); } catch(e){ return NaN; }
-      }
-      function valid(t){ return Number.isFinite(t) && t > 0 && (Date.now() - t) < ttl; }
-      let t = read(localStorage);
-      if(!valid(t)) t = read(sessionStorage);
-      if(!valid(t) && sessionStorage.getItem('thinthin_story_unlocked') === '2024-03-23') {
-        t = Date.now();
-      }
-      if(valid(t)) {
-        try {
-          const value = String(t);
-          localStorage.setItem(k, value);
-          sessionStorage.setItem(k, value);
-          sessionStorage.setItem('thinthin_story_unlocked', '2024-03-23');
-        } catch(e) {}
-      } else {
-        try { localStorage.removeItem(k); sessionStorage.removeItem(k); } catch(e) {}
-        window.location.replace('../index.html');
-      }
-    })();
-  </script>
+  <script>(function(){try{localStorage.setItem("thinthin_story_seen","1");localStorage.setItem("thinthin_story_unlocked_at",String(Date.now()));sessionStorage.setItem("thinthin_story_seen","1");sessionStorage.setItem("thinthin_story_unlocked_at",String(Date.now()));sessionStorage.setItem("thinthin_story_unlocked","2024-03-23");}catch(e){}})();</script>
   <link rel="stylesheet" href="css/style.css">
-  <link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png">
-  <link rel="apple-touch-icon" sizes="180x180" href="../../assets/apple-touch-icon.png">
 </head>
 <body>
   <div class="ambient" aria-hidden="true">

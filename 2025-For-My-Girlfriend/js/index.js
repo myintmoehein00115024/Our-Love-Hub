@@ -1,14 +1,11 @@
 (() => {
   "use strict";
 
-  // The date we became a couple, 23 March 2024 (month is zero-indexed in JS).
   const LOVE_START_DATE = "2024-03-23";
   const START_DATE = new Date(2024, 2, 23);
   const UNLOCK_KEY = "thinthin_story_unlocked_at";
-  const UNLOCK_DURATION = 15 * 60 * 1000;
+  const SEEN_KEY = "thinthin_story_seen";
   const counter = document.getElementById("runtime_span");
-  const music = document.getElementById("bg-music");
-  const musicToggle = document.getElementById("music-toggle");
 
   function updateRuntime() {
     if (!counter) return;
@@ -32,11 +29,11 @@
       monthAnchor = new Date(anchor.getFullYear(), anchor.getMonth() + months, anchor.getDate());
     }
 
-    // Use calendar-day arithmetic so timezone DST changes do not alter the count.
     const days = Math.round((
       Date.UTC(current.getFullYear(), current.getMonth(), current.getDate()) -
       Date.UTC(monthAnchor.getFullYear(), monthAnchor.getMonth(), monthAnchor.getDate())
     ) / 86400000);
+
     const yearLabel = years === 1 ? "Year" : "Years";
     const monthLabel = months === 1 ? "Month" : "Months";
     const dayLabel = days === 1 ? "Day" : "Days";
@@ -44,139 +41,59 @@
     counter.textContent = `We're In Love · ${years} ${yearLabel} · ${months} ${monthLabel} · ${days} ${dayLabel}`;
   }
 
-  function setMusicState(isPlaying) {
-    if (!musicToggle) return;
-    musicToggle.classList.toggle("playing", isPlaying);
-    musicToggle.setAttribute("aria-pressed", String(isPlaying));
-    musicToggle.setAttribute("aria-label", isPlaying ? "Pause music" : "Play music");
-    const label = musicToggle.querySelector(".music-label");
-    if (label) label.textContent = isPlaying ? "Playing" : "Music";
-  }
-
-  if (music && musicToggle) {
-    musicToggle.addEventListener("click", async () => {
-      try {
-        if (music.paused) {
-          await music.play();
-          setMusicState(true);
-        } else {
-          music.pause();
-          setMusicState(false);
-        }
-      } catch (error) {
-        setMusicState(false);
-      }
-    });
-
-    music.addEventListener("play", () => setMusicState(true));
-    music.addEventListener("pause", () => setMusicState(false));
-  }
-
-  // Before opening any internal story page, refresh the shared unlock timestamp
-  // in both storage buckets. This prevents a navigation flash/redirect when
-  // one storage bucket is temporarily unavailable or contains an older value.
-  function syncUnlockBeforeNavigate() {
+  function rememberStory() {
     try {
-      if (!document.documentElement.classList.contains("story-unlocked")) return;
-      const raw = localStorage.getItem(UNLOCK_KEY) || sessionStorage.getItem(UNLOCK_KEY);
-      const t = Number(raw);
-      if (!Number.isFinite(t) || t <= 0 || (Date.now() - t) >= UNLOCK_DURATION) return;
-      const now = String(t);
+      const now = String(Date.now());
       localStorage.setItem(UNLOCK_KEY, now);
       sessionStorage.setItem(UNLOCK_KEY, now);
+      localStorage.setItem(SEEN_KEY, "1");
+      sessionStorage.setItem(SEEN_KEY, "1");
       sessionStorage.setItem("thinthin_story_unlocked", LOVE_START_DATE);
-    } catch (error) {
-      try {
-        const t = Number(sessionStorage.getItem(UNLOCK_KEY));
-        if (Number.isFinite(t) && t > 0 && (Date.now() - t) < UNLOCK_DURATION) {
-          sessionStorage.setItem("thinthin_story_unlocked", LOVE_START_DATE);
-        }
-      } catch (_) {}
-    }
+    } catch (error) {}
   }
 
-  document.querySelectorAll('a[href="./message/index.html"], a[href="./Love/love.html"], a[href="./heartbeat/index.html"]').forEach(link => {
-    link.addEventListener("click", syncUnlockBeforeNavigate, {capture: true});
+  function syncUnlockBeforeNavigate() {
+    if (!document.documentElement.classList.contains("story-unlocked")) return;
+    rememberStory();
+  }
+
+  document.querySelectorAll('a[href="./message/index.html"], a[href="./Love/love.html"], a[href="./heartbeat/index.html"]').forEach((link) => {
+    link.addEventListener("click", syncUnlockBeforeNavigate, { capture: true });
   });
 
   const intro = document.getElementById("love-intro");
   const enterLove = document.getElementById("enter-love");
 
-  const storyGate = document.getElementById("story-date-gate");
-  const storyDateInput = document.getElementById("story-date-input");
-  const storyDateSubmit = document.getElementById("story-date-submit");
-  const storyDateBack = document.getElementById("story-date-back");
-  const storyDateError = document.getElementById("story-date-error");
-
-  function closeStoryGate() {
-    if (!storyGate) return;
-    storyGate.classList.remove("is-open");
-    storyGate.setAttribute("aria-hidden", "true");
-    if (storyDateError) storyDateError.textContent = "";
-  }
-
-  function openStory() {
+  function openStory(immediate = false) {
+    if (!intro) return;
     intro.classList.add("is-hidden");
     document.body.classList.remove("intro-locked");
-    window.setTimeout(() => intro.remove(), 700);
-  }
-
-  function hasValidUnlock() {
-    try {
-      const raw = localStorage.getItem(UNLOCK_KEY) || sessionStorage.getItem(UNLOCK_KEY);
-      const t = Number(raw);
-      if (Number.isFinite(t) && t > 0 && (Date.now() - t) < UNLOCK_DURATION) {
-        try {
-          localStorage.setItem(UNLOCK_KEY, String(t));
-          sessionStorage.setItem(UNLOCK_KEY, String(t));
-        } catch (_) {}
-        return true;
-      }
-      localStorage.removeItem(UNLOCK_KEY);
-      sessionStorage.removeItem(UNLOCK_KEY);
-    } catch (error) {
-      try {
-        const t = Number(sessionStorage.getItem(UNLOCK_KEY));
-        return Number.isFinite(t) && t > 0 && (Date.now() - t) < UNLOCK_DURATION;
-      } catch (_) { return false; }
+    document.documentElement.classList.add("story-unlocked");
+    if (immediate) {
+      intro.remove();
+    } else {
+      window.setTimeout(() => intro.remove(), 650);
     }
-    return false;
   }
 
-  if (intro && enterLove && storyGate) {
-    if (hasValidUnlock()) openStory();
-    enterLove.addEventListener("click", () => {
-      storyGate.classList.add("is-open");
-      storyGate.setAttribute("aria-hidden", "false");
-      window.setTimeout(() => storyDateInput?.focus(), 180);
-    });
+  function hasSeenStory() {
+    try {
+      return localStorage.getItem(SEEN_KEY) === "1" || sessionStorage.getItem(SEEN_KEY) === "1";
+    } catch (error) {
+      try { return sessionStorage.getItem(SEEN_KEY) === "1"; } catch (_) { return false; }
+    }
+  }
 
-    storyDateBack?.addEventListener("click", closeStoryGate);
-
-    storyDateSubmit?.addEventListener("click", () => {
-      const rawValue = (storyDateInput?.value || "").trim();
-      const value = rawValue.replace(/\s+/g, "").replace(/\//g, "-").replace(/\./g, "-");
-      if (value !== LOVE_START_DATE) {
-        if (storyDateError) storyDateError.textContent = "That date is not quite our beginning. Try again, my love. ♡";
-        storyDateInput?.classList.add("has-error");
-        return;
-      }
-      storyDateInput.classList.remove("has-error");
-      try {
-        const now = String(Date.now());
-        localStorage.setItem(UNLOCK_KEY, now);
-        sessionStorage.setItem(UNLOCK_KEY, now);
-        sessionStorage.setItem("thinthin_story_unlocked", LOVE_START_DATE);
-      } catch (error) {}
-      document.documentElement.classList.add("story-unlocked");
-      closeStoryGate();
-      openStory();
-    });
-
-    storyDateInput?.addEventListener("keydown", (event) => {
-      if (event.key === "Enter") storyDateSubmit?.click();
-      if (event.key === "Escape") closeStoryGate();
-    });
+  if (intro && enterLove) {
+    if (hasSeenStory()) {
+      rememberStory();
+      openStory(true);
+    } else {
+      enterLove.addEventListener("click", () => {
+        rememberStory();
+        openStory(false);
+      });
+    }
   }
 
   updateRuntime();

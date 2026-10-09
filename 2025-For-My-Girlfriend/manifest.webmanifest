@@ -1,30 +1,37 @@
 {
-  "id": "../",
-  "name": "Our Love Hub · M ♡ T",
-  "short_name": "Our Love Hub",
-  "description": "One little home for all our memories, messages, and birthday surprises.",
-  "lang": "zh-CN",
-  "start_url": "../",
-  "scope": "../",
+  "name": "Always yours · M 💞 T",
+  "short_name": "Always yours",
+  "description": "A private little love story made for Thin Thin Yu Hlaing.",
+  "lang": "en",
+  "dir": "ltr",
+  "id": "./",
+  "start_url": "./index.html",
+  "scope": "./",
   "display": "standalone",
-  "background_color": "#fcf3f8",
-  "theme_color": "#a66b9c",
+  "display_override": [
+    "window-controls-overlay",
+    "standalone",
+    "minimal-ui"
+  ],
   "orientation": "any",
+  "background_color": "#f7f4ff",
+  "theme_color": "#eeeaff",
+  "prefer_related_applications": false,
   "icons": [
     {
-      "src": "../assets/icon-192.png",
+      "src": "./icons/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any"
+      "purpose": "any maskable"
     },
     {
-      "src": "../assets/icon-512.png",
+      "src": "./icons/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "../assets/icon-512-maskable.png",
+      "src": "./icons/icon-512-maskable.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"

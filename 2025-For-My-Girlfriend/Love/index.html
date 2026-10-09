@@ -1,17 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <link rel="manifest" href="../../manifest.webmanifest">
+  <link rel="manifest" href="../manifest.webmanifest">
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="application-name" content="Our Love Hub">
-  <script>(function(){try{var t=Number(localStorage.getItem("thinthin_story_unlocked_at"));if(!Number.isFinite(t)||t<=0||(Date.now()-t)>=15*60*1000){localStorage.removeItem("thinthin_story_unlocked_at");window.location.replace("../index.html");}}catch(e){window.location.replace("../index.html");}})();</script>
+  <meta name="application-name" content="Always yours">
+  <script>(function(){try{localStorage.setItem("thinthin_story_seen","1");localStorage.setItem("thinthin_story_unlocked_at",String(Date.now()));sessionStorage.setItem("thinthin_story_seen","1");sessionStorage.setItem("thinthin_story_unlocked_at",String(Date.now()));sessionStorage.setItem("thinthin_story_unlocked","2024-03-23");}catch(e){}})();</script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#eee7ff">
   <title>A Little Secret, Just For Us ♡</title>
   <link href="css/styles.css" rel="stylesheet" type="text/css">
-  <link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png">
-  <link rel="apple-touch-icon" sizes="180x180" href="../../assets/apple-touch-icon.png">
 </head>
 <body class="love-entry-page">
   <div class="ambient-glow ambient-glow-one" aria-hidden="true"></div>

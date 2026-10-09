@@ -1,8 +1,8 @@
-const CACHE_NAME = "thinthin-shell-v9-unified-icon";
+const CACHE_NAME = "thinthin-shell-v8-anniversary-20240323";
 const SHELL = [
   "./",
   "./index.html",
-  "../manifest.webmanifest",
+  "./manifest.webmanifest",
   "./css/style.css",
   "./js/index.js",
   "./js/pwa-install.js",
@@ -14,9 +14,10 @@ const SHELL = [
   "./Love/js/love.js",
   "./heartbeat/index.html",
   "./heartbeat/css/style.css",
-  "../assets/icon-192.png",
-  "../assets/icon-512.png",
-  "../assets/apple-touch-icon.png"
+  "./icons/icon-192.png",
+  "./icons/icon-512.png",
+  "./icons/icon-512-maskable.png",
+  "./icons/apple-touch-icon.png"
 ];
 
 self.addEventListener("install", event => {

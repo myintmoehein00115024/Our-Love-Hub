@@ -2,13 +2,13 @@
 <html lang="en">
 
 <head>
-    <link rel="manifest" href="../manifest.webmanifest">
+    <link rel="manifest" href="manifest.webmanifest">
     <meta name="mobile-web-app-capable" content="yes">
-    <meta name="application-name" content="Our Love Hub">
+    <meta name="application-name" content="Always yours">
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>Always yours</title>
+    <title>Always Yours · 2025</title>
 
     <!-- CSS -->
     <link rel="stylesheet" href="css/style.css">
@@ -22,36 +22,23 @@
     </style>
 
     <!-- 图标 -->
-
-<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+    <link rel="icon" href="icons/apple-touch-icon.png">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-title" content="Our Love Hub">
+    <meta name="apple-mobile-web-app-title" content="Always yours">
     <meta name="theme-color" content="#ffffff">
 
-    <!-- Keep the story unlocked for 15 minutes across refreshes and internal pages. -->
+    <!-- Remember this little world after the first visit. -->
     <script>
       (function () {
         try {
-          var key = "thinthin_story_unlocked_at";
-          var ttl = 15 * 60 * 1000;
-          var t = Number(localStorage.getItem(key));
-          if (!Number.isFinite(t) || t <= 0) {
-            t = Number(sessionStorage.getItem(key));
-          }
-          if (Number.isFinite(t) && t > 0 && (Date.now() - t) < ttl) {
-            var now = String(t);
-            localStorage.setItem(key, now);
-            sessionStorage.setItem(key, now);
+          if (localStorage.getItem("thinthin_story_seen") === "1") {
             document.documentElement.classList.add("story-unlocked");
-          } else {
-            localStorage.removeItem(key);
-            sessionStorage.removeItem(key);
           }
         } catch (e) {
           try {
-            var ts = Number(sessionStorage.getItem("thinthin_story_unlocked_at"));
-            if (Number.isFinite(ts) && ts > 0 && (Date.now() - ts) < 15 * 60 * 1000) {
+            if (sessionStorage.getItem("thinthin_story_seen") === "1") {
               document.documentElement.classList.add("story-unlocked");
             }
           } catch (_) {}
@@ -61,8 +48,6 @@
 
     <!-- JS -->
     <script src="js/index.js" defer></script>
-  <link rel="icon" type="image/png" sizes="32x32" href="../assets/favicon-32.png">
-  <link rel="apple-touch-icon" sizes="180x180" href="../assets/apple-touch-icon.png">
 </head>
 
 <body class="intro-locked">
@@ -71,7 +56,7 @@
     <div class="intro-glow intro-glow-two"></div>
     <div class="intro-card">
       <div class="intro-heart" aria-hidden="true">♡</div>
-      <p class="intro-kicker">A little story, made with love</p>
+      <p class="intro-kicker">A little world, made with love</p>
       <h1>For <span>Thin Thin Yu Hlaing</span></h1>
       <p class="intro-date">23 August 2025 · Her 23rd Birthday</p>
       <div class="intro-divider"><span>♥</span></div>
@@ -85,26 +70,10 @@
         Thin Thin Yu Hlaing, this little world was made especially for you.
         <br><span class="intro-sign">With all my love, always. ♡</span>
       </p>
-      <p class="intro-made">Made on August 23, 2025 · A 23rd birthday gift · Always yours.</p>
+      <p class="intro-made">Made in 2025 · The first page of our little love archive · Always yours.</p>
       <button id="enter-love" class="enter-love" type="button">
-        <span>Enter Our Story</span><b aria-hidden="true">♡</b>
+        <span>Open Our Little World</span><b aria-hidden="true">♡</b>
       </button>
-
-      <div id="story-date-gate" class="story-date-gate" aria-hidden="true">
-        <div class="story-date-card" role="dialog" aria-modal="true" aria-labelledby="story-date-title">
-          <div class="story-date-heart" aria-hidden="true">♡</div>
-          <p class="story-date-kicker">One little question, my love</p>
-          <h2 id="story-date-title">When did our story begin?</h2>
-          <p class="story-date-hint">Enter the date we became <em>us</em>.</p>
-          <label for="story-date-input">Our beginning</label>
-          <input id="story-date-input" type="date" lang="en-US" autocomplete="off" min="2000-01-01" max="2024-03-23" aria-label="Our beginning date" />
-          <p id="story-date-error" class="story-date-error" role="alert" aria-live="polite"></p>
-          <div class="story-date-actions">
-            <button id="story-date-back" type="button">Back</button>
-            <button id="story-date-submit" type="button">Open Our Story <span>♡</span></button>
-          </div>
-        </div>
-      </div>
     </div>
   </section>
   <div id="content">
