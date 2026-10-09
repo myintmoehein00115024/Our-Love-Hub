@@ -971,3 +971,55 @@ body::before,body::after{opacity:.62;filter:blur(.1px)}
 .message-reply-button:focus-visible{outline:2px solid #af75a0;outline-offset:3px}
 @media(max-width:760px){.enhanced-message-actions button{min-height:32px!important;font-size:12px!important;padding:6px 10px!important}.message-reply-quote{padding:8px 10px;margin-bottom:8px}.sticker-message{font-size:15px!important}.gif-tool-button{width:40px!important}}
 @media(prefers-reduced-motion:reduce){.sticker-message,.sticker.compact-sticker,.emoji-choice{animation:none!important;transition:none!important;transform:none!important}}
+
+/* v25: refined message controls, calm rendering, compact GIF gallery */
+/* Eliminate perpetual shimmers and moving background decorations that can flicker on desktop GPUs. */
+.message-bubble::after,.chat-card::after,body::before,body::after{animation:none!important;transition:none!important}
+.message-bubble::after{display:none!important}
+.message-row,.message-row.mine,.message-row.theirs{display:flex!important;align-items:flex-start;gap:7px!important;max-width:100%;min-width:0;margin-bottom:13px!important}
+.message-row.mine{justify-content:flex-end!important}
+.message-row.theirs{justify-content:flex-start!important}
+.message-side-actions{display:flex;flex-direction:column;gap:5px;flex:none;margin-top:19px;position:relative;z-index:2}
+.message-side-actions button{display:grid;place-items:center;width:27px;height:27px;min-width:0;min-height:0;padding:0;border-radius:9px;border:1px solid #ead3e5;background:rgba(255,255,255,.91);box-shadow:0 3px 10px rgba(109,72,113,.07);color:#a56798;font-size:17px;font-weight:700;line-height:1;cursor:pointer;transition:border-color .16s ease,background .16s ease}
+.message-side-actions button.message-edit-button{font-size:15px;color:#906189;background:#fcf0f9}
+.message-side-actions button:hover,.message-side-actions button:focus-visible{border-color:#d29fc4;background:#f9e9f5;outline:2px solid transparent}
+.message-row .message-bubble,.message-row.photo-row .message-bubble,.message-row.sticker-row .message-bubble{min-width:0!important;max-width:min(74%,520px)!important;width:fit-content;flex:0 1 auto;padding:11px 14px!important}
+.message-row.photo-row .message-bubble{width:min(66%,440px)!important}
+.message-row .message-text{font-size:14px!important;line-height:1.52!important}
+.message-meta-row{margin-top:5px!important;gap:4px 8px!important;justify-content:flex-start!important;font-size:10px!important}
+.message-read-status{font-size:10px!important;margin-top:2px!important}
+.message-row .sender{font-size:10px!important;margin-bottom:3px}
+.messages{scroll-behavior:auto!important}
+.gif-panel{position:absolute;left:clamp(9px,2.6vw,23px);bottom:calc(100% - 4px);z-index:24;width:min(456px,calc(100% - 24px));max-height:min(72dvh,570px);overflow-y:auto;overscroll-behavior:contain;border-radius:23px;padding:15px;background:linear-gradient(150deg,#fffbfe,#f5efff);border:1px solid #ead6e8;box-shadow:0 23px 58px rgba(96,64,105,.18)}
+.gif-panel.hidden{display:none!important}
+.gif-panel-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;border-bottom:1px solid #eddde9;padding:0 2px 12px;margin-bottom:12px}
+.gif-panel-head>div{display:flex;flex-direction:column;gap:2px}.gif-panel-head span{font-size:10px;letter-spacing:.14em;color:#c38eae;font-weight:800}
+.gif-panel-head strong{font:700 20px Georgia,serif;color:#765371}.gif-panel-head small{font-size:10px;color:#a1849b}
+#closeGifPanel{border:1px solid #ead1e4;width:30px;height:30px;border-radius:50%;background:#fff;color:#a77799;font-size:20px;cursor:pointer}
+.romantic-gif-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+.romantic-gif-option{min-width:0;border:1px solid #edd6e7;background:#fff;border-radius:14px;padding:5px;cursor:pointer;overflow:hidden;display:grid;gap:3px;place-items:center;color:#987089;font-size:11px;font-weight:750}
+.romantic-gif-option img{display:block;width:100%;aspect-ratio:1.28;object-fit:contain;background:#fcebf5;border-radius:10px}
+.romantic-gif-option:hover,.romantic-gif-option:focus-visible{border-color:#c88ab4;box-shadow:0 5px 16px rgba(159,92,139,.12)}
+.gif-panel-actions{margin:13px 0 10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+#gifPickBtn{border:1px solid #d9b4d0;background:#fff4fb;border-radius:11px;color:#94577e;font-size:12px;font-weight:750;padding:9px 11px;cursor:pointer}
+.gif-find-links{display:flex;gap:10px;flex-wrap:wrap}.gif-find-links a{font-size:11px;color:#93628f;text-decoration:underline;text-underline-offset:3px}
+.gif-url-label{display:block;font-size:11px;font-weight:700;color:#8f6484;margin:9px 0 6px}
+.gif-url-row{display:flex;gap:7px}.gif-url-row input{min-width:0;flex:1;border-radius:11px;padding:9px 11px;border:1px solid #e2c8de;background:#fff;font-size:12px;color:#76516d}
+.gif-url-row button{border:0;border-radius:11px;padding:9px 13px;background:#cf8abb;color:white;font-size:12px;font-weight:750;cursor:pointer;white-space:nowrap}
+.gif-url-row button:disabled{opacity:.6;cursor:wait}
+.gif-panel-hint{font-size:10px;color:#a18199;line-height:1.5;margin:8px 0 0}
+@media(max-width:760px){
+ .message-row .message-bubble,.message-row.photo-row .message-bubble,.message-row.sticker-row .message-bubble{max-width:calc(100% - 39px)!important;padding:10px 12px!important}
+ .message-row.photo-row .message-bubble{width:min(76%,375px)!important}
+ .message-side-actions{gap:5px;margin-top:18px}
+ .message-side-actions button{width:28px;height:28px}
+ .gif-panel{left:9px;width:calc(100% - 18px);max-height:min(64dvh,465px);padding:12px}
+ .romantic-gif-grid{gap:7px}
+}
+@media(max-width:360px){.romantic-gif-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(prefers-reduced-motion:reduce){.gif-panel *{animation:none!important;transition:none!important}}
+
+/* Keep animated picker within chat viewport without forcing document scrolling. */
+.chat-card{position:relative}
+.gif-panel{position:absolute!important;top:50%!important;left:50%!important;right:auto!important;bottom:auto!important;transform:translate(-50%,-50%)!important;width:min(456px,calc(100% - 28px))!important;max-height:min(78dvh,540px)!important}
+@media(max-width:760px){.gif-panel{width:calc(100% - 18px)!important;max-height:min(78dvh,550px)!important}}

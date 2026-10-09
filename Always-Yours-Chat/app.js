@@ -127,7 +127,7 @@ async function deviceCredentials(){try{const v=await deviceRecord("get");return 
 function revealSetup(msg=""){ $("setup").classList.remove("hidden"); if(msg)setStatus(msg); secretInput.focus(); }
 async function openPreparedRoom(){
   if(!roomId||!cryptoKey||!validRole(selectedName))return;
-  lastMessageIds="";firstSync=true;
+  lastMessageIds="";lastContentIds="";firstSync=true;
   const cached=await loadCache();
   showChat();
   $("roomLabel").textContent=`${selectedName === "Ko Ko" ? "HE · Ko Ko" : "SHE · Chit Chit"} ♡`;
@@ -157,6 +157,7 @@ let deferredInstallPrompt = null;
 let pollTimer = null;
 let syncing = false;
 let lastMessageIds = "";
+let lastContentIds = "";
 let lastRenderedCount = 0;
 let firstSync = true;
 let draftTimer = null;
@@ -227,7 +228,7 @@ function showGate(){
   document.querySelectorAll(".name-option").forEach(b=>b.classList.remove("selected-role"));
   messagesEl.replaceChildren();
   emptyState.classList.remove("hidden");
-  lastMessageIds="";lastRenderedCount=0;firstSync=true;
+  lastMessageIds="";lastContentIds="";lastRenderedCount=0;firstSync=true;
   readMarkedIds.clear();
   for(const url of mediaObjectUrls){try{URL.revokeObjectURL(url)}catch{}}
   mediaObjectUrls.clear();
@@ -277,9 +278,11 @@ function expiryLabel(ts){
 }
 function showNewHint(){ if(!newMessageHint) return; newMessageHint.classList.remove("hidden"); clearTimeout(showNewHint._t); showNewHint._t=setTimeout(()=>newMessageHint.classList.add("hidden"),2200); }
 function renderMessages(items){
+  const shouldStickToBottom=messagesEl.scrollHeight-messagesEl.clientHeight-messagesEl.scrollTop<100;
+  const priorScrollTop=messagesEl.scrollTop;
   for(const url of mediaObjectUrls){ try{URL.revokeObjectURL(url)}catch{} }
   mediaObjectUrls.clear();
-  messagesEl.innerHTML="";
+  messagesEl.replaceChildren();
   if(!items.length){ emptyState.classList.remove("hidden"); return; }
   emptyState.classList.add("hidden");
   let previousDay="";
@@ -326,25 +329,56 @@ function renderMessages(items){
     if(item.edited_at){ const ed=document.createElement("span"); ed.className="message-edited"; ed.textContent="edited"; meta.appendChild(ed); }
     const age=document.createElement("span"); age.className="message-age"; age.textContent=expiryLabel(item.expires_at); meta.appendChild(age);
     bubble.appendChild(meta);
-    const actions=document.createElement("div");actions.className="message-actions enhanced-message-actions";
-    const replyBtn=document.createElement("button");replyBtn.type="button";replyBtn.className="message-reply-button";
-    replyBtn.textContent="↩ 回复";replyBtn.setAttribute("aria-label", "回复"+(mine?"自己":"对方")+"的消息");
-    replyBtn.addEventListener("click",()=>beginReply(item));actions.appendChild(replyBtn);
+    const actions=document.createElement("div");
+    actions.className="message-side-actions";
+    const replyBtn=document.createElement("button");
+    replyBtn.type="button"; replyBtn.className="message-reply-button";
+    replyBtn.textContent="↩";
+    replyBtn.title="回复这条消息";
+    replyBtn.setAttribute("aria-label","回复"+(mine?"自己":"对方")+"的消息");
+    replyBtn.addEventListener("click",()=>beginReply(item));
+    actions.appendChild(replyBtn);
     if(mine&&item.kind==="text"){
-      const editBtn=document.createElement("button");editBtn.type="button";editBtn.className="message-edit-button";
-      editBtn.textContent="✎ 编辑";editBtn.setAttribute("aria-label","编辑这条消息");
-      editBtn.addEventListener("click",()=>beginEdit(item));actions.appendChild(editBtn);
+      const editBtn=document.createElement("button");
+      editBtn.type="button"; editBtn.className="message-edit-button";
+      editBtn.textContent="✎";
+      editBtn.title="编辑这条消息";
+      editBtn.setAttribute("aria-label","编辑这条消息");
+      editBtn.addEventListener("click",()=>beginEdit(item));
+      actions.appendChild(editBtn);
     }
-    bubble.appendChild(actions);
     if(mine){
-      const read=document.createElement("div"); read.className=`message-read-status ${item.seen_at?"is-seen":"is-sent"}`;
+      const read=document.createElement("div");
+      read.className=`message-read-status ${item.seen_at?"is-seen":"is-sent"}`;
       read.textContent=item.seen_at?`Seen ♡ · ${formatSeenTime(item.seen_at)}`:"Sent · waiting to be seen";
       bubble.appendChild(read);
     }
     row.dataset.chatMessageId=item.id;
-    row.appendChild(bubble); messagesEl.appendChild(row);
+    // Keep the controls beside the message, not below its text (compact WhatsApp-style).
+    if(mine) row.append(actions,bubble);
+    else row.append(bubble,actions);
+    messagesEl.appendChild(row);
   }
-  requestAnimationFrame(()=>{ messagesEl.scrollTop = messagesEl.scrollHeight; });
+  requestAnimationFrame(()=>{
+    // Preserve history reading position, and only stick to the bottom when the reader already was there.
+    messagesEl.scrollTop=shouldStickToBottom?messagesEl.scrollHeight:priorScrollTop;
+  });
+}
+
+function updateReadReceipts(items){
+  const byId=new Map(items.map(x=>[x.id,x]));
+  for(const row of messagesEl.querySelectorAll('[data-chat-message-id]')){
+    const m=byId.get(row.dataset.chatMessageId);
+    if(!m)continue;
+    const read=row.querySelector('.message-read-status');
+    if(read){
+      const seen=Boolean(m.seen_at);
+      const next=seen?`Seen ♡ · ${formatSeenTime(m.seen_at)}`:'Sent · waiting to be seen';
+      if(read.textContent!==next)read.textContent=next;
+      read.classList.toggle('is-seen',seen);
+      read.classList.toggle('is-sent',!seen);
+    }
+  }
 }
 
 async function withTimeout(promise){
@@ -758,14 +792,18 @@ async function syncMessages({silent=false}={}){
     const items=await decodeItems(raw);
     const ids=items.map(x=>`${x.id}:${x.edited_at||0}:${x.seen_at||0}`).join("|");
     const changed=ids!==lastMessageIds;
+    const contentIds=items.map(x=>`${x.id}:${x.edited_at||0}`).join("|");
+    const contentChanged=contentIds!==lastContentIds;
     lastMessageIds=ids;
+    lastContentIds=contentIds;
     if (changed && 'BroadcastChannel' in window) {
       const channel = new BroadcastChannel('always-yours-chat-events');
       channel.postMessage({type:'messages-updated'});
       channel.close();
     }
     saveCache(items);
-    if(changed || !messagesEl.children.length) renderMessages(items);
+    if(contentChanged || !messagesEl.children.length) renderMessages(items);
+    else if(changed) updateReadReceipts(items);
     markVisibleMessagesRead(items);
     syncPresence();
     updateConnection("已连接 · 已同步");
@@ -822,8 +860,7 @@ function beginReply(item){
   if(replyPreviewText)replyPreviewText.textContent=replyingTo.text;
   replyPreview?.classList.remove("hidden");
   input.placeholder="写下你的回复…";
-  input.focus();
-  requestAnimationFrame(()=>document.querySelector(".composer-wrap")?.scrollIntoView({behavior:"smooth",block:"end"}));
+  input.focus({preventScroll:true});
 }
 $("cancelReplyBtn")?.addEventListener("click",clearReply);
 
@@ -844,8 +881,7 @@ function beginEdit(item){
   sendBtn.textContent="保存修改 ♡";
   sendBtn.disabled=!String(input.value||"").trim();
   input.placeholder="编辑这条消息…";
-  input.focus();
-  requestAnimationFrame(()=>{ document.querySelector(".composer-wrap")?.scrollIntoView({behavior:"smooth",block:"end"}); });
+  input.focus({preventScroll:true});
 }
 function cancelEdit(){
   editingMessageId=null;
@@ -950,7 +986,104 @@ $("resetDeviceBtn").addEventListener("click",async()=>{
 });
 sendBtn.addEventListener("click",()=>editingMessageId?editMessage():sendMessage());
 photoBtn?.addEventListener("click",()=>photoInput?.click());
-gifBtn?.addEventListener("click",()=>gifInput?.click());
+gifBtn?.addEventListener("click",()=>toggleGifPanel());
+const gifPanel=$("gifPanel");
+const gifUrlInput=$("gifUrlInput");
+const gifImportBtn=$("gifImportBtn");
+const gifPickBtn=$("gifPickBtn");
+const gifStatus=$("gifStatus");
+const CURATED_GIFS=[
+  {file:"pulse-love.gif",label:"心动"},
+  {file:"hugs.gif",label:"抱抱"},
+  {file:"miss-you.gif",label:"想你了"},
+  {file:"good-night.gif",label:"晚安"},
+  {file:"kiss.gif",label:"亲亲"},
+  {file:"forever.gif",label:"永远是你"}
+];
+function hideGifPanel(){gifPanel?.classList.add("hidden");gifBtn?.setAttribute("aria-expanded","false");}
+function toggleGifPanel(){
+  const opening=gifPanel?.classList.contains("hidden");
+  if(!gifPanel)return;
+  gifPanel.classList.toggle("hidden",!opening);
+  gifBtn?.setAttribute("aria-expanded",String(opening));
+  emojiPanel?.classList.add("hidden");stickerPanel?.classList.add("hidden");
+  if(opening)gifUrlInput?.focus({preventScroll:true});
+}
+function setGifStatus(message){if(gifStatus)gifStatus.textContent=message;}
+async function selectRomanticGif(filename,label){
+  setGifStatus(`准备 ${label} 动图…`);
+  try{
+    const url=new URL(`./romantic-gifs/${filename}`,window.location.href);
+    const res=await fetch(url,{cache:"force-cache"});
+    if(!res.ok)throw new Error("内置动图加载失败");
+    const file=new File([await res.blob()],filename,{type:"image/gif"});
+    await choosePhoto(file);
+    if(selectedPhotoFile){hideGifPanel();toast(`已选「${label}」♡ 点击发送即可加密分享`);}
+  }catch(e){setGifStatus(e.message||"动图暂时不可用");}
+}
+function normalizeRomanticGifUrl(value){
+  const raw=String(value||"").trim();
+  let u;
+  try { u=new URL(raw); }catch{throw new Error("请输入 GIF 图片的网址（https://…）");}
+  if(u.protocol!=="https:"||u.username||u.password||u.port)throw new Error("只接受 HTTPS GIF 网址");
+  const host=u.hostname.toLowerCase();
+  // GIPHY GIF page links can be converted into their official media endpoint.
+  if(host==="giphy.com"||host==="www.giphy.com"){
+    const last=u.pathname.split("/").filter(Boolean).pop()||"";
+    const gifId=last.split("-").pop();
+    if(!/^[a-zA-Z0-9]{8,40}$/.test(gifId))throw new Error("GIPHY 页面地址不完整，请使用复制图片地址");
+    u=new URL(`https://media.giphy.com/media/${gifId}/giphy.gif`);
+  }
+  const allowed=host==="media.giphy.com"||host==="i.giphy.com"||host==="media.tenor.com"||host==="c.tenor.com"||host==="giphy.com"||host==="www.giphy.com";
+  if(!allowed)throw new Error("仅支持 GIPHY 和 Tenor 的 GIF 图片直链");
+  if(!/\.gif$/i.test(u.pathname))throw new Error("请复制 .gif 图片地址，而不是网页地址");
+  u.search="";u.hash="";
+  return u.href;
+}
+async function importOnlineGif(){
+  const btn=gifImportBtn;
+  try{
+    const url=normalizeRomanticGifUrl(gifUrlInput?.value);
+    btn.disabled=true;
+    setGifStatus("正在安全获取 GIF…（最多 2 MB）");
+    const controller=new AbortController();
+    const timeout=setTimeout(()=>controller.abort(),12000);
+    let file;
+    try{
+      const response=await fetch(url,{credentials:"omit",mode:"cors",redirect:"follow",signal:controller.signal,cache:"no-store"});
+      if(!response.ok)throw new Error("图片下载失败，请换一个 GIF");
+      if(Number(response.headers.get("Content-Length")||0)>2*1024*1024)throw new Error("GIF 超过 2 MB，请换较小的 GIF");
+      if(!response.body)throw new Error("此图片网站暂不支持获取 GIF");
+      const chunks=[];let size=0;const reader=response.body.getReader();
+      while(true){const {done,value}=await reader.read();if(done)break;size+=value.length;
+        if(size>2*1024*1024){await reader.cancel();throw new Error("GIF 超过 2 MB，请换较小的动图");}
+        chunks.push(value);
+      }
+      file=new File(chunks,`our-romantic-gif-${Date.now()}.gif`,{type:"image/gif"});
+    }finally{clearTimeout(timeout);}
+    await choosePhoto(file);
+    if(selectedPhotoFile){hideGifPanel();toast("GIF 已选好，确认发送后会加密上传 ♡");}
+  }catch(e){setGifStatus(e.name==="AbortError"?"下载超时，请换一个 GIF 直链":e instanceof TypeError?"图片站点限制了跨域下载；试试另存 GIF 后本地上传":e.message);}
+  finally{if(btn)btn.disabled=false;}
+}
+function initializeGifPanel(){
+  if(!gifPanel)return;
+  // Chat-relative sheet never shifts the whole page or overflows beyond the header.
+  chat.appendChild(gifPanel);
+  const grid=gifPanel.querySelector(".romantic-gif-grid");
+  for(const entry of CURATED_GIFS){
+    const btn=document.createElement("button");btn.type="button";btn.className="romantic-gif-option";btn.title=`选择 ${entry.label} GIF`;
+    const img=document.createElement("img");img.src=`./romantic-gifs/${entry.file}`;img.alt=`${entry.label} GIF`;img.width=120;img.height=94;img.loading="lazy";
+    const caption=document.createElement("span");caption.textContent=entry.label;
+    btn.append(img,caption);btn.addEventListener("click",()=>selectRomanticGif(entry.file,entry.label));
+    grid?.appendChild(btn);
+  }
+  gifImportBtn?.addEventListener("click",importOnlineGif);
+  gifUrlInput?.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();importOnlineGif();}});
+  gifPickBtn?.addEventListener("click",()=>gifInput?.click());
+  $("closeGifPanel")?.addEventListener("click",hideGifPanel);
+}
+initializeGifPanel();
 gifInput?.addEventListener("change",()=>{const file=gifInput.files?.[0];if(file)choosePhoto(file);});
 photoInput?.addEventListener("change",()=>{ const file=photoInput.files?.[0]; if(file) choosePhoto(file); });
 removePhotoBtn?.addEventListener("click",clearSelectedPhoto);
@@ -1082,13 +1215,14 @@ function ensurePhotoViewer(){
 }
 function openPhotoViewer(data){ ensurePhotoViewer(); window.__alwaysYoursPhotoViewer?.open(data); }
 
-$("emojiBtn").addEventListener("click",()=>{ const open=emojiPanel.classList.toggle("hidden"); stickerPanel.classList.add("hidden"); $("emojiBtn").setAttribute("aria-expanded",String(!open)); $("stickerBtn").setAttribute("aria-expanded","false"); });
-$("stickerBtn").addEventListener("click",()=>{ const open=stickerPanel.classList.toggle("hidden"); emojiPanel.classList.add("hidden"); $("stickerBtn").setAttribute("aria-expanded",String(!open)); $("emojiBtn").setAttribute("aria-expanded","false"); });
+$("emojiBtn").addEventListener("click",()=>{ const open=emojiPanel.classList.toggle("hidden"); stickerPanel.classList.add("hidden"); hideGifPanel(); $("emojiBtn").setAttribute("aria-expanded",String(!open)); $("stickerBtn").setAttribute("aria-expanded","false"); });
+$("stickerBtn").addEventListener("click",()=>{ const open=stickerPanel.classList.toggle("hidden"); emojiPanel.classList.add("hidden"); hideGifPanel(); $("stickerBtn").setAttribute("aria-expanded",String(!open)); $("emojiBtn").setAttribute("aria-expanded","false"); });
 
 document.addEventListener("click",e=>{
   const target=e.target;
   if(emojiPanel && !emojiPanel.classList.contains("hidden") && !emojiPanel.contains(target) && target!==$("emojiBtn")){emojiPanel.classList.add("hidden");$("emojiBtn").setAttribute("aria-expanded","false");}
   if(stickerPanel && !stickerPanel.classList.contains("hidden") && !stickerPanel.contains(target) && target!==$("stickerBtn")){stickerPanel.classList.add("hidden");$("stickerBtn").setAttribute("aria-expanded","false");}
+  if(gifPanel && !gifPanel.classList.contains("hidden") && !gifPanel.contains(target) && target!==gifBtn)hideGifPanel();
 });
 
 function isStandalone(){

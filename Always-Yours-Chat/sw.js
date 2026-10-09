@@ -1,6 +1,6 @@
 // Dedicated chat PWA worker: same unified icon, scoped to /Always-Yours-Chat/.
-const CACHE="always-yours-v24-reply-gif-bubble-20261009";
-const ASSETS=["./","./index.html","./styles.css","./app.js","./routes.js","./manifest.webmanifest","../assets/favicon-32.png","../assets/icon-192.png","../assets/icon-512.png","../assets/apple-touch-icon.png"];
+const CACHE="always-yours-v25-compact-gif-stable-20261009";
+const ASSETS=["./","./index.html","./styles.css","./app.js","./routes.js","./manifest.webmanifest","../assets/favicon-32.png","../assets/icon-192.png","../assets/icon-512.png","../assets/apple-touch-icon.png", "./romantic-gifs/pulse-love.gif", "./romantic-gifs/hugs.gif", "./romantic-gifs/miss-you.gif", "./romantic-gifs/good-night.gif", "./romantic-gifs/kiss.gif", "./romantic-gifs/forever.gif"];
 self.addEventListener("install",e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting())));
 self.addEventListener("activate",e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith("always-yours-")&&k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
 self.addEventListener("fetch",e=>{

@@ -88,6 +88,14 @@
         <div id="newMessageHint" class="new-message-hint hidden" aria-live="polite">收到新消息 ♡</div>
         <div id="emojiPanel" class="emoji-panel hidden" aria-label="Emoji picker"></div>
         <div id="stickerPanel" class="sticker-panel hidden" aria-label="Stickers"></div>
+        <div id="gifPanel" class="gif-panel hidden" aria-label="浪漫 GIF 选择器">
+          <div class="gif-panel-head"><div><span>OUR LITTLE GIFS ♡</span><strong>给 TA 的动图</strong><small>选择后预览，点发送才会加密上传</small></div><button type="button" id="closeGifPanel" aria-label="关闭 GIF 选择">×</button></div>
+          <div class="romantic-gif-grid" aria-label="预置浪漫动图"></div>
+          <div class="gif-panel-actions"><button type="button" id="gifPickBtn">＋ 上传自己的 GIF</button><div class="gif-find-links"><a href="https://giphy.com/search/love" target="_blank" rel="noopener noreferrer">GIPHY 找动图 ↗</a><a href="https://tenor.com/search/love-gifs" target="_blank" rel="noopener noreferrer">Tenor 找动图 ↗</a></div></div>
+          <label class="gif-url-label" for="gifUrlInput">粘贴 GIPHY / Tenor 的 GIF 图片直链</label>
+          <div class="gif-url-row"><input id="gifUrlInput" type="url" spellcheck="false" autocomplete="off" placeholder="https://media.giphy.com/...gif" aria-label="网络 GIF 图片地址"><button id="gifImportBtn" type="button">导入 ♡</button></div>
+          <p id="gifStatus" class="gif-panel-hint" aria-live="polite">GIF 网页请先「复制图片地址」，最大 2 MB。部分网站限制跨域，请保存后上传。</p>
+        </div>
         <div id="replyPreview" class="reply-compose-preview hidden" aria-live="polite">
           <div class="reply-compose-icon">↩</div>
           <div class="reply-compose-content"><strong id="replyPreviewLabel">回复</strong><span id="replyPreviewText"></span></div>
@@ -111,7 +119,7 @@
           <button id="stickerBtn" class="tool-button" type="button" aria-label="发送甜蜜贴纸" title="甜蜜贴纸" aria-expanded="false">♡</button>
           <button id="photoBtn" class="tool-button photo-tool-button" type="button" aria-label="选择照片" title="选择照片">▧</button>
           <input id="photoInput" class="photo-input" type="file" accept="image/png,image/jpeg,image/webp,image/heic,image/heif">
-          <button id="gifBtn" class="tool-button gif-tool-button" type="button" aria-label="上传自己的 GIF 动图" title="发送自己的 GIF 动图">GIF</button>
+          <button id="gifBtn" class="tool-button gif-tool-button" type="button" aria-label="选择浪漫 GIF 或从网络导入" title="浪漫 GIF 和网络导入" aria-expanded="false">GIF</button>
           <input id="gifInput" class="photo-input" type="file" accept="image/gif,.gif">
           <div class="tool-spacer"></div>
           <span id="connectionState" class="connection-state">连接中…</span>
