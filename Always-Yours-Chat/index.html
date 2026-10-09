@@ -11,7 +11,7 @@
   <link rel="manifest" href="../manifest.webmanifest">
   <link rel="icon" type="image/png" sizes="32x32" href="../assets/favicon-32.png">
   <link rel="apple-touch-icon" sizes="180x180" href="../assets/apple-touch-icon.png">
-  <link rel="stylesheet" href="styles.css?v=20261010-compact-checks-v32">
+  <link rel="stylesheet" href="styles.css?v=20261010-device-pairing-v34">
   <title>Always Yours ♡ · Our Love Hub</title>
 </head>
 <body>
@@ -74,6 +74,7 @@
             <summary aria-label="更多设置" title="更多设置">···</summary>
             <div class="chat-more-panel">
               <button id="openPushDiagnostics" class="ghost-button" type="button">🔔 通知检测与测试</button>
+              <button id="openDeviceEnrollment" class="ghost-button" type="button">🛡️ 双人设备授权准备</button>
               <button id="installBtn" class="ghost-button install-ghost" type="button">♡ 添加 Our Love Hub 到桌面</button>
               <p>桌面只保留一个 Our Love Hub 入口</p>
             </div>
@@ -136,6 +137,23 @@
     </section>
   </main>
 
+  <div id="deviceEnrollment" class="device-pair-panel hidden" role="dialog" aria-modal="true" aria-labelledby="deviceEnrollmentTitle">
+    <div class="device-pair-backdrop" data-close-device-pair></div>
+    <section class="device-pair-sheet">
+      <div class="device-pair-head">
+        <div><span>JUST THE TWO OF US ♡</span><h3 id="deviceEnrollmentTitle">设备授权准备</h3></div>
+        <button id="closeDeviceEnrollment" type="button" aria-label="关闭设备授权准备">×</button>
+      </div>
+      <p>为当前 <strong id="devicePairRole">HE / SHE</strong> 身份生成一把属于这台浏览器的签名密钥。私钥只保存在本机，不会上传，也不影响现有的聊天加密密钥。</p>
+      <div id="devicePairStatus" class="device-pair-status" role="status" aria-live="polite">尚未准备。</div>
+      <div class="device-pair-actions">
+        <button id="prepareDeviceKey" type="button">♡ 申请本机设备授权</button>
+        <button id="copyDeviceFingerprint" type="button" disabled>复制设备指纹</button>
+      </div>
+      <p class="device-pair-tip">本阶段只登记待审核公钥，不会自动批准，也不会限制现有 HE/SHE 聊天。以后需要两台设备分别确认，再开启强制设备验证。</p>
+    </section>
+  </div>
+
   <div id="pushDiagnostics" class="push-diag hidden" role="dialog" aria-modal="true" aria-labelledby="pushDiagTitle">
     <div class="push-diag-backdrop" data-dismiss-push></div>
     <section class="push-diag-sheet">
@@ -169,7 +187,7 @@
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <script src="routes.js"></script>
-  <script type="module" src="app.js?v=20261010-role-safety-v33"></script>
+  <script type="module" src="app.js?v=20261010-device-pairing-v34"></script>
   <script>
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('./sw.js').catch(() => {});

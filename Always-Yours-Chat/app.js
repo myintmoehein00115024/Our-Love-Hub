@@ -1576,3 +1576,116 @@ document.addEventListener('visibilitychange',()=>{if(document.visibilityState===
   if(!stored || roleChosen)return;
   await chooseRole(rememberedRole);
 })().catch(err=>console.warn('Unable to restore previous chat identity',err));
+
+
+// Optional device enrollment, stage A only. A pending key grants NO chat privilege.
+// The signing private key is generated non-extractable and stored in this browser's IndexedDB.
+const PAIR_DB_NAME='always-yours-identity-keys-v1';
+const devicePairModal=$('deviceEnrollment');
+const devicePairStatus=$('devicePairStatus');
+const devicePairRole=$('devicePairRole');
+const devicePairCreate=$('prepareDeviceKey');
+const devicePairCopy=$('copyDeviceFingerprint');
+let devicePairFingerprint='';
+let pairingBusy=false;
+function pairB64Url(bytes){
+  const arr=bytes instanceof Uint8Array?bytes:new Uint8Array(bytes);
+  let binary='';for(const b of arr)binary+=String.fromCharCode(b);
+  return btoa(binary).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+async function pairingDb(){
+ return new Promise((resolve,reject)=>{
+   const req=indexedDB.open(PAIR_DB_NAME,1);
+   req.onupgradeneeded=()=>{if(!req.result.objectStoreNames.contains('keys'))req.result.createObjectStore('keys');};
+   req.onsuccess=()=>resolve(req.result);
+   req.onerror=()=>reject(req.error||new Error('无法存储设备签名密钥'));
+ });
+}
+async function pairingStore(role,value){
+ const db=await pairingDb();
+ const key=roomId+':'+role;
+ return new Promise((resolve,reject)=>{
+   const tx=db.transaction('keys',value?'readwrite':'readonly');
+   const req=value?tx.objectStore('keys').put(value,key):tx.objectStore('keys').get(key);
+   req.onsuccess=()=>resolve(req.result);
+   req.onerror=()=>reject(req.error||new Error('读取设备密钥失败'));
+   tx.oncomplete=()=>db.close();
+ });
+}
+function pairStatus(text){if(devicePairStatus)devicePairStatus.textContent=text;}
+function pairFingerprintLabel(value){return value;} // Exact 43-character value, case-sensitive; do not shorten approval fingerprint.
+async function currentDeviceFingerprint(){
+ const entry=await pairingStore(selectedName);
+ if(!entry?.pair?.publicKey||!entry?.pair?.privateKey||entry.pair.privateKey.extractable) return null;
+ const publicKey=await crypto.subtle.exportKey('jwk',entry.pair.publicKey);
+ const material='AY-DEVICE-FP-V1|'+publicKey.x+'|'+publicKey.y;
+ const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(material));
+ return {entry,publicKey,fp:pairB64Url(digest)};
+}
+async function showDevicePairing(show){
+ if(!devicePairModal)return;
+ if(show&&(!roomId||!cryptoKey||!validRole(selectedName))){toast('请先进入聊天，再准备当前身份的设备授权');return;}
+ devicePairModal.classList.toggle('hidden',!show);
+ if(!show)return;
+ devicePairRole.textContent=selectedName==='Ko Ko'?'HE · Ko Ko':'SHE · Chit Chit';
+ devicePairFingerprint='';devicePairCopy.disabled=true;
+ pairStatus('正在检查这台设备是否已经准备了独立身份密钥…');
+ try{
+   const current=await currentDeviceFingerprint();
+   if(!current){pairStatus('尚未准备设备身份。点击「申请本机设备授权」后，才会生成本机独立签名密钥。');return;}
+   devicePairFingerprint=current.fp;devicePairCopy.disabled=false;
+   pairStatus('本机已经保存身份私钥。\n设备指纹：'+pairFingerprintLabel(current.fp)+'\n点击「申请本机设备授权」可再次检查服务器的待审核状态。');
+ }catch(err){pairStatus('无法检查设备身份：'+(err.message||'请检查浏览器是否允许本地存储'));}
+}
+$('openDeviceEnrollment')?.addEventListener('click',()=>{
+ document.querySelector('.chat-more-menu')?.removeAttribute('open');
+ showDevicePairing(true);
+});
+$('closeDeviceEnrollment')?.addEventListener('click',()=>showDevicePairing(false));
+devicePairModal?.addEventListener('click',event=>{
+ if(event.target?.dataset?.closeDevicePair!==undefined)showDevicePairing(false);
+});
+
+devicePairCreate?.addEventListener('click',async()=>{
+ if(pairingBusy||!roomId||!cryptoKey||!validRole(selectedName))return;
+ pairingBusy=true;devicePairCreate.disabled=true;
+ const role=selectedName,expectedRoom=roomId;
+ try{
+   let item=await pairingStore(role);
+   if(!item?.pair?.privateKey){
+     const pair=await crypto.subtle.generateKey({name:'ECDSA',namedCurve:'P-256'},false,['sign','verify']);
+     if(pair.privateKey.extractable)throw new Error('设备密钥保护失败');
+     item={pair};
+     await pairingStore(role,item);
+   }
+   const current=await currentDeviceFingerprint();
+   if(!current||selectedName!==role||roomId!==expectedRoom)throw new Error('身份已切换，请重新打开设备授权页面');
+   const nonce=pairB64Url(crypto.getRandomValues(new Uint8Array(16)));
+   const data=new TextEncoder().encode(['AY-DEVICE-ENROLL-V1',expectedRoom,role,nonce].join('\n'));
+   const proof=await crypto.subtle.sign({name:'ECDSA',hash:'SHA-256'},current.entry.pair.privateKey,data);
+   pairStatus('正在登记当前设备公钥（不会上传私钥、共同密钥或聊天正文）…');
+   const response=await fetch(`${API_BASE}/api/devices/enroll`,{
+     method:'POST',cache:'no-store',
+     headers:{'Content-Type':'application/json','X-Room-Key':expectedRoom,'X-User':role},
+     body:JSON.stringify({publicKey:{kty:'EC',crv:'P-256',x:current.publicKey.x,y:current.publicKey.y},nonce,signature:pairB64Url(proof)})
+   });
+   const result=await response.json().catch(()=>({}));
+   if(!response.ok)throw new Error(result.error||'设备登记失败');
+   if(result.fingerprint!==current.fp)throw new Error('服务器返回的指纹不一致，请停止操作');
+   devicePairFingerprint=current.fp;devicePairCopy.disabled=false;
+   const labels={pending:'待审核（尚未获得授权）',approved:'已由管理员批准（尚未开启强制验证）',revoked:'已撤销'};
+   pairStatus('当前身份：'+(role==='Ko Ko'?'HE · Ko Ko':'SHE · Chit Chit')+
+     '\n设备指纹：'+pairFingerprintLabel(current.fp)+
+     '\n服务器状态：'+(labels[result.deviceState]||result.deviceState)+
+     '\n现有聊天仍可正常使用；这不是独立身份验证已经生效的证明。');
+ }catch(err){pairStatus('未完成设备登记：'+(err.message||String(err))+'\n原有聊天不受影响。');}
+ finally{pairingBusy=false;devicePairCreate.disabled=false;}
+});
+devicePairCopy?.addEventListener('click',async()=>{
+ if(!devicePairFingerprint)return;
+ try{await navigator.clipboard.writeText(devicePairFingerprint);toast('完整设备指纹已复制（不是私钥或密码）');}
+ catch{pairStatus('设备指纹：'+pairFingerprintLabel(devicePairFingerprint)+'\n请核对完整设备指纹。');}
+});
+document.addEventListener('keydown',event=>{
+ if(event.key==='Escape'&&!devicePairModal?.classList.contains('hidden'))showDevicePairing(false);
+});
