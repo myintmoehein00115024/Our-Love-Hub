@@ -1,9 +1,10 @@
-const CACHE_NAME = "thinthin-shell-v9-family-20261009";
+const CACHE_NAME = "thinthin-shell-v10-2025-responsive-20261009";
 const SHELL = [
   "./",
   "./index.html",
   "./manifest.webmanifest",
   "./css/style.css",
+  "./css/2025-responsive.css",
   "./js/index.js",
   "./js/pwa-install.js",
   "./message/index.html",
