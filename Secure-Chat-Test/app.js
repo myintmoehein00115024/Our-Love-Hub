@@ -5,6 +5,7 @@ const API_BASE='https://zegjegutcigbydtzggur.supabase.co/functions/v1/always-you
 const AUTH_DB='always-yours-identity-keys-v1',ENC_DB='always-yours-secure-encryption-v1';
 const $=id=>document.getElementById(id),te=new TextEncoder(),td=new TextDecoder();
 const state={role:null,identity:null,fp:null,session:null,expires:0,encryption:null,keys:[],busy:false,timer:null};
+let lastApprovalFocus=null;
 const validB64=/^[A-Za-z0-9_-]+$/;
 function b64(bytes){const v=bytes instanceof Uint8Array?bytes:new Uint8Array(bytes);let s='';for(const c of v)s+=String.fromCharCode(c);return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');}
 function un64(s){if(!validB64.test(s))throw new Error('无效的加密编码');return Uint8Array.from(atob(s.replace(/-/g,'+').replace(/_/g,'/')+'='.repeat((4-s.length%4)%4)),c=>c.charCodeAt(0));}
@@ -41,7 +42,7 @@ async function enrollIfNeeded(identity){
      te.encode(['AY-DEVICE-ENROLL-V2',role,nonce].join('\n'))));
  const x=await jsonFetch(API_BASE+'/enroll',{user_name:role,publicKey:{kty:'EC',crv:'P-256',x:identity.pub.x,y:identity.pub.y},nonce,signature});
  if(x.fingerprint!==identity.fp)throw new Error('设备指纹校验失败');
- if(x.deviceState!=='approved')throw new Error('此设备尚未获批准，已提交授权申请。请在独立 Device-Approval 网页批准后，再选择 '+(role==='Ko Ko'?'HE':'SHE')+' 进入。\n设备指纹：'+identity.fp);
+ return x.deviceState;
 }
 async function jsonFetch(url,body){const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},cache:'no-store',body:JSON.stringify(body)});const x=await r.json().catch(()=>({}));if(!r.ok)throw new Error(x.error||'服务器暂时无法连接');return x;}
 async function login(force=false){
@@ -140,21 +141,93 @@ async function refresh(){
  }catch(e){status('读取失败：'+e.message);}
  finally{refreshBusy=false;}
 }
+function approvalText(message,stage='待审核'){
+ $('approvalState').textContent=stage;
+ $('approvalMessage').textContent=message;
+}
+function openApproval(role){
+ lastApprovalFocus=document.activeElement;
+ $('approvalRole').textContent=role==='Ko Ko'?'HE · Ko Ko':'SHE · Chit Chit';
+ $('approvalFingerprint').textContent='正在生成安全设备指纹…';
+ $('approvalCopy').disabled=true;
+ $('deviceApproval').classList.remove('hidden');
+ $('approvalRetry').disabled=true;
+ approvalText('正在检查本机设备是否已经获得授权…','检查中…');
+ $('approvalClose').focus({preventScroll:true});
+}
+function closeApproval(){
+ if(state.busy)return;
+ $('deviceApproval').classList.add('hidden');
+ state.role=null;state.identity=null;state.fp=null;state.session=null;
+ $('gateStatus').textContent='选择身份后，将自动检查本机授权状态。';
+ (lastApprovalFocus?.isConnected?lastApprovalFocus:document.querySelector('[data-role]'))?.focus({preventScroll:true});
+}
 async function chooseRole(role){
- if(state.busy)return;state.busy=true;clearInterval(state.timer);state.session=null;state.encryption=null;state.role=role;lastPaint='';
+ if(state.busy)return;
+ const isSamePending=state.role===role&&!$('deviceApproval').classList.contains('hidden');
+ state.busy=true;clearInterval(state.timer);state.session=null;state.encryption=null;state.role=role;lastPaint='';
+ if(!isSamePending)openApproval(role);
+ $('approvalRetry').disabled=true;
  try{
-  status('正在寻找本机已有的设备身份…');
+  approvalText('正在验证本机身份，请稍候…','检查中…');
   const data=await findSigningIdentity(role);
   state.identity=data.pair;state.fp=data.fp;
-  await enrollIfNeeded(data);await login();await setupEncryption();
+  $('approvalFingerprint').textContent=data.fp;
+  $('approvalCopy').disabled=false;
+  const deviceState=await enrollIfNeeded(data);
+  if(deviceState!=='approved'){
+   if(deviceState==='pending'){
+    approvalText('申请已提交，正在等待管理员确认。\n您可以复制设备指纹发给管理员，批准后点击「重新检查授权」。','待管理员审批');
+   }else if(deviceState==='revoked'){
+    approvalText('这台设备的授权已被撤销，无法进入聊天。请联系管理员处理。','已撤销');
+   }else{
+    approvalText('此设备当前没有有效授权，无法进入聊天。请联系管理员检查申请状态。','尚未授权');
+   }
+   $('gateStatus').textContent='本机授权待确认 · 请在授权窗口查看状态。';
+   return;
+  }
+  approvalText('设备已获批准，正在完成服务器私钥验证和加密准备…','已批准');
+  await login();await setupEncryption();
   try{localStorage.setItem('ay-secure-role-v1',role);}catch{}
-  $('gate').classList.add('hidden');$('chat').classList.remove('hidden');$('who').textContent=(role==='Ko Ko'?'HE · Ko Ko':'SHE · Chit Chit')+' · 已验证设备';
+  $('deviceApproval').classList.add('hidden');
+  $('gate').classList.add('hidden');$('chat').classList.remove('hidden');
+  $('who').textContent=(role==='Ko Ko'?'HE · Ko Ko':'SHE · Chit Chit')+' · 已验证设备';
   $('messages').replaceChildren();await refresh();state.timer=setInterval(refresh,10000);
- }catch(e){$('chat').classList.add('hidden');$('gate').classList.remove('hidden');state.role=null;status('无法进入安全聊天：'+e.message+'\n请检查您是否在同一浏览器里已获设备批准。');}
- finally{state.busy=false;if(state.role)refresh();}
+ }catch(e){
+  $('chat').classList.add('hidden');$('gate').classList.remove('hidden');
+  const message=e?.message||'未知错误';
+  approvalText('无法完成本机授权检查：'+message+'\n请确认网络正常，然后点击「重新检查授权」。','检查失败');
+ }finally{
+  state.busy=false;$('approvalRetry').disabled=false;
+  if(state.role&& !$('chat').classList.contains('hidden'))refresh();
+ }
 }
 document.querySelectorAll('[data-role]').forEach(b=>b.addEventListener('click',()=>chooseRole(b.dataset.role)));
-$('exit').addEventListener('click',()=>{try{localStorage.removeItem('ay-secure-role-v1');}catch{}clearInterval(state.timer);state.role=null;state.session=null;state.identity=null;state.encryption=null;$('chat').classList.add('hidden');$('gate').classList.remove('hidden');$('gateStatus').textContent='请选择此设备已经批准的身份。';});
+$('approvalRetry').addEventListener('click',()=>{if(state.role)chooseRole(state.role);});
+$('approvalCopy').addEventListener('click',async()=>{
+ if(!state.fp)return;
+ try{await navigator.clipboard.writeText(state.fp);$('approvalCopy').textContent='✓ 已复制';}
+ catch{ $('approvalFingerprint').textContent=state.fp+'\n（复制失败，请长按指纹手动复制）';$('approvalCopy').textContent='请长按复制'; }
+ setTimeout(()=>{if($('approvalCopy'))$('approvalCopy').textContent='复制设备指纹';},2200);
+});
+$('approvalClose').addEventListener('click',closeApproval);
+$('approvalSwitch').addEventListener('click',closeApproval);
+$('deviceApproval').addEventListener('keydown',e=>{
+ if(e.key==='Escape'){e.preventDefault();closeApproval();}
+ if(e.key==='Tab'){
+  const focusable=Array.from($('deviceApproval').querySelectorAll('button:not(:disabled)'));
+  if(!focusable.length)return;
+  const first=focusable[0],last=focusable[focusable.length-1];
+  if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}
+  else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}
+ }
+});
+$('exit').addEventListener('click',()=>{
+ try{localStorage.removeItem('ay-secure-role-v1');}catch{}
+ clearInterval(state.timer);state.role=null;state.session=null;state.identity=null;state.encryption=null;
+ $('chat').classList.add('hidden');$('gate').classList.remove('hidden');
+ $('gateStatus').textContent='选择身份后，将自动检查本机授权状态。';
+});
 $('composer').addEventListener('submit',async e=>{
  e.preventDefault();if(state.busy||!state.role)return;const input=$('message'),message=input.value.trim();if(!message)return;
  state.busy=true;$('send').disabled=true;try{const payload=await encryptMessage(message);await request('/messages','POST',payload);input.value='';lastPaint='';await refresh();}catch(err){status('发送失败：'+err.message);}finally{state.busy=false;$('send').disabled=false;refresh();}
