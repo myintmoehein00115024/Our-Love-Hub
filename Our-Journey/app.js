@@ -96,6 +96,41 @@ if ('serviceWorker' in navigator) {
   const CHAT_API = 'https://zegjegutcigbydtzggur.supabase.co/functions/v1/always-yours-chat';
   const chatDbName = 'always-yours-private-device-v1';
   let activeFetch = false;
+  let previousUnread = null;
+  let soundEnabled = false;
+  let audioContext = null;
+  // Sound requires a user gesture; locked/background devices depend on Web Push.
+  function enableBellSound() {
+    soundEnabled = true;
+    try {
+      audioContext ||= new (window.AudioContext || window.webkitAudioContext)();
+      if (audioContext.state === 'suspended') audioContext.resume().catch(() => {});
+    } catch { soundEnabled = false; }
+  }
+  function playBell() {
+    if (!soundEnabled || !audioContext || document.hidden) return;
+    try {
+      const now = audioContext.currentTime;
+      [0, .17].forEach((offset, i) => {
+        const oscillator = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        oscillator.type = 'sine';
+        oscillator.frequency.value = i ? 988 : 784;
+        gain.gain.setValueAtTime(.0001, now + offset);
+        gain.gain.exponentialRampToValueAtTime(.09, now + offset + .02);
+        gain.gain.exponentialRampToValueAtTime(.0001, now + offset + .42);
+        oscillator.connect(gain).connect(audioContext.destination);
+        oscillator.start(now + offset);
+        oscillator.stop(now + offset + .44);
+      });
+    } catch {}
+  }
+  document.addEventListener('pointerdown', enableBellSound, {once:true});
+  document.addEventListener('keydown', enableBellSound, {once:true});
+  const channel = 'BroadcastChannel' in window ? new BroadcastChannel('always-yours-chat-events') : null;
+  if (channel) channel.onmessage = event => {
+    if (event.data?.type === 'messages-updated') updateBell();
+  };
   function getRoomFromDevice() {
     return new Promise(resolve => {
       let request;
@@ -128,6 +163,8 @@ if ('serviceWorker' in navigator) {
       if (!response.ok) return;
       const payload = await response.json();
       const unread = (Array.isArray(payload.messages) ? payload.messages : []).filter(m => m.sender !== role && !m.seen_at && Number(m.expires_at)>Date.now()).length;
+      if (previousUnread !== null && unread > previousUnread) playBell();
+      previousUnread = unread;
       counter.textContent = unread > 99 ? '99+' : String(unread);
       counter.hidden = unread === 0;
       bell.classList.toggle('has-unread', unread > 0);
@@ -136,7 +173,7 @@ if ('serviceWorker' in navigator) {
     finally {activeFetch = false;}
   }
   updateBell();
-  window.setInterval(updateBell, 20000);
+  window.setInterval(updateBell, 4000);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) updateBell(); });
   window.addEventListener('pageshow', updateBell);
 })();

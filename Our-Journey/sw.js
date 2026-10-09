@@ -1,5 +1,5 @@
 // Our Journey: refreshed UI and removal of the unused Google Drive cabinet.
-const CACHE = 'our-journey-v16-unread-bell-20261009';
+const CACHE = 'our-journey-v17-bell-live-20261009';
 const CORE = [
   './', './index.html', './styles.css', './routes.js', './app.js',
   '../manifest.webmanifest', '../assets/icon-192.png',

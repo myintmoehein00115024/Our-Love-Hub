@@ -665,6 +665,11 @@ async function syncMessages({silent=false}={}){
     const ids=items.map(x=>`${x.id}:${x.edited_at||0}:${x.seen_at||0}`).join("|");
     const changed=ids!==lastMessageIds;
     lastMessageIds=ids;
+    if (changed && 'BroadcastChannel' in window) {
+      const channel = new BroadcastChannel('always-yours-chat-events');
+      channel.postMessage({type:'messages-updated'});
+      channel.close();
+    }
     saveCache(items);
     if(changed || !messagesEl.children.length) renderMessages(items);
     markVisibleMessagesRead(items);
