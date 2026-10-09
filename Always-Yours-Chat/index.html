@@ -7,7 +7,7 @@
   <meta name="description" content="A tiny private space for two hearts.">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="Always Yours">
+  <meta name="apple-mobile-web-app-title" content="Our Love Hub">
   <link rel="manifest" href="../manifest.webmanifest">
   <link rel="icon" type="image/png" sizes="32x32" href="../assets/favicon-32.png">
   <link rel="apple-touch-icon" sizes="180x180" href="../assets/apple-touch-icon.png">
@@ -48,7 +48,7 @@
         <button id="gateInstallBtn" class="install-pill" type="button"><span class="install-pill-icon">♡</span><span><strong>添加到主屏幕</strong><small>统一安装 Our Love Hub</small></span></button>
         <button id="resetDeviceBtn" class="quiet-link" type="button">重新配置此设备</button>
       </div>
-      <div class="tiny-note">对话由共同密钥加密 · 消息保留 48 小时</div>
+      <div class="tiny-note">仅你我可读 · 端到端加密 · 30 天后自动清理</div>
     </section>
 
     <section id="chat" class="card chat-card hidden" aria-label="Private chat">
@@ -59,7 +59,7 @@
           <div class="eyebrow">OUR LOVE HUB · JUST THE TWO OF US</div>
           <h2>Always Yours <span>♡</span></h2>
           <p id="roomLabel" class="room-label">Private room</p>
-          <div class="chat-subline">2024.03.23 · 两颗心，一个小世界</div>
+          <div class="chat-subline"><span class="v3-sparkle">✧</span> 2024.03.23 · 从初见到永远 <span class="v3-sparkle">✧</span></div>
           </div>
         </div>
         <div class="header-actions">
@@ -70,11 +70,12 @@
       </header>
 
       <div id="chatNetworkBanner" class="chat-network-banner hidden" role="status" aria-live="polite"><span id="networkBannerText">聊天服务器暂时未连接，消息尚不能送达。</span><button type="button" id="networkSettingsBtn">检查连接</button></div>
+      <div class="v3-story-ribbon" aria-hidden="true"><span>✧</span> OUR LITTLE UNIVERSE <span>·</span> EVERY MESSAGE, A MEMORY <span>✧</span></div>
       <div id="messages" class="messages" aria-live="polite"></div>
       <div id="emptyState" class="empty-state">
         <div class="empty-heart">♡</div>
         <strong>属于我们的第一条消息，等着你 ♡</strong>
-        <span>只有 HE 和 SHE 的聊天空间 · 消息保存 48 小时</span>
+        <span>每句话都是我们的秘密 · 消息珍藏 30 天</span>
       </div>
 
       <div class="composer-wrap">
@@ -87,7 +88,7 @@
           <button id="photoBtn" class="tool-button photo-tool-button" type="button" aria-label="Choose a photo">📷</button>
           <input id="photoInput" class="photo-input" type="file" accept="image/*">
           <div class="tool-spacer"></div>
-          <span id="connectionState" class="connection-state">Connecting…</span>
+          <span id="connectionState" class="connection-state">连接中…</span>
         </div>
         <div id="photoPreview" class="photo-preview hidden" aria-live="polite">
           <div class="photo-preview-thumb-wrap">
@@ -103,7 +104,7 @@
           <textarea id="messageInput" rows="1" maxlength="2000" placeholder="写给你的那个人…"></textarea>
           <button id="sendBtn" class="send-button" type="button">发送 ♡</button>
         </div>
-        <div class="composer-foot">只有我们两个 · 照片和消息会在 48 小时后消失</div>
+        <div class="composer-foot"><span>🔒 我们的秘密由端到端加密守护</span><span>✧ 文字和照片保存 30 天</span></div>
       </div>
     </section>
   </main>

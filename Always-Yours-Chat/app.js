@@ -24,7 +24,7 @@ try{
 let API_BASE = validWorkerUrl(savedWorkerUrl) || DEFAULT_CHAT_API;
 const API_TIMEOUT_MS = 9000;
 const POLL_MS = 10000;
-const TTL_MS = 48 * 60 * 60 * 1000;
+const TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30-day rolling retention
 const ROOM_SALT = "always-yours-room-v2";
 const KEY_SALT = "always-yours-e2ee-v2";
 const MAX_VISIBLE_MESSAGES = 80;
@@ -259,7 +259,14 @@ async function loadCache(){
 
 function dayKey(value){ const d=new Date(Number(value)||Date.now()); return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`; }
 function dayLabel(value){ const d=new Date(Number(value)||Date.now()); const now=new Date(); if(dayKey(d.getTime())===dayKey(now.getTime())) return "Today"; const y=new Date(now); y.setDate(now.getDate()-1); if(dayKey(d.getTime())===dayKey(y.getTime())) return "Yesterday"; return new Intl.DateTimeFormat(undefined,{month:"short",day:"numeric"}).format(d); }
-function expiryLabel(ts){ const remain=Math.max(0,Number(ts||0)-Date.now()); const h=Math.floor(remain/3600000); const m=Math.floor((remain%3600000)/60000); return h>0?`vanishes in ${h}h ${m}m`:`vanishes in ${m}m`; }
+function expiryLabel(ts){
+  const remain=Math.max(0,Number(ts||0)-Date.now());
+  if(!remain) return "30 天保存期已结束";
+  const days=Math.ceil(remain/(24*60*60*1000));
+  if(days>1) return `剩余 ${days} 天`;
+  const h=Math.ceil(remain/(60*60*1000));
+  return h>1?`剩余 ${h} 小时`:`将在 1 小时内清理`;
+}
 function showNewHint(){ if(!newMessageHint) return; newMessageHint.classList.remove("hidden"); clearTimeout(showNewHint._t); showNewHint._t=setTimeout(()=>newMessageHint.classList.add("hidden"),2200); }
 function renderMessages(items){
   for(const url of mediaObjectUrls){ try{URL.revokeObjectURL(url)}catch{} }
@@ -481,30 +488,62 @@ async function encryptBinary(buffer){
   return {iv:bytesToBase64(iv),ciphertext:cipher};
 }
 
+// Strip image metadata, resize large mobile photos and prefer compact WebP/JPEG.
+// Output is encrypted before it ever reaches Supabase Storage.
 async function compressImage(file){
-  const MAX_ORIGINAL=15*1024*1024;
-  const MAX_OUTPUT=3.5*1024*1024;
-  if(file.size>MAX_ORIGINAL) throw new Error("Please choose a photo smaller than 15 MB.");
-  const bitmap=await createImageBitmap(file);
-  const maxSide=1800;
-  const scale=Math.min(1,maxSide/Math.max(bitmap.width,bitmap.height));
-  const width=Math.max(1,Math.round(bitmap.width*scale));
-  const height=Math.max(1,Math.round(bitmap.height*scale));
-  const canvas=document.createElement("canvas");
-  canvas.width=width; canvas.height=height;
-  const ctx=canvas.getContext("2d",{alpha:false});
-  if(!ctx){bitmap.close(); throw new Error("Photo processing is unavailable on this device.");}
-  ctx.drawImage(bitmap,0,0,width,height);
-  bitmap.close();
-  let quality=.84;
-  let blob=await new Promise(r=>canvas.toBlob(r,"image/webp",quality));
-  if(!blob) blob=await new Promise(r=>canvas.toBlob(r,"image/jpeg",quality));
-  while(blob && blob.size>MAX_OUTPUT && quality>.55){
-    quality-=.06;
-    blob=await new Promise(r=>canvas.toBlob(r,"image/webp",quality));
+  const MAX_ORIGINAL = 25 * 1024 * 1024;
+  const TARGET = 750 * 1024;
+  const MAX_OUTPUT = 1250 * 1024;
+  if(file.size > MAX_ORIGINAL) throw new Error("请选择小于 25 MB 的照片。");
+  if(!file.type.startsWith("image/")) throw new Error("请先选择一张照片。");
+  // Safari fallback for devices without createImageBitmap or with unsupported HEIC decoding.
+  let bitmap, release=()=>{};
+  if(typeof createImageBitmap==="function") {
+    try { bitmap=await createImageBitmap(file,{imageOrientation:"from-image"}); }
+    catch { try { bitmap=await createImageBitmap(file); } catch {} }
   }
-  if(!blob) throw new Error("Could not prepare this photo.");
-  return new File([blob],"always-yours-photo.webp",{type:blob.type||"image/webp"});
+  if(bitmap) release=()=>bitmap.close();
+  else {
+    const tempUrl=URL.createObjectURL(file);
+    try {
+      bitmap=await new Promise((resolve,reject)=>{
+        const image=new Image();
+        image.onload=()=>resolve(image);
+        image.onerror=()=>reject(new Error("无法读取这张照片，请改用 JPG 或 PNG。"));
+        image.src=tempUrl;
+      });
+    } finally { URL.revokeObjectURL(tempUrl); }
+  }
+  const sourceWidth=bitmap.naturalWidth||bitmap.width, sourceHeight=bitmap.naturalHeight||bitmap.height;
+  const canvas=document.createElement("canvas");
+  const ctx=canvas.getContext("2d",{alpha:false});
+  if(!ctx){release();throw new Error("当前设备不支持图片压缩。");}
+  const preferred = "image/webp";
+  let edge=1600, blob=null, mime=preferred;
+  try {
+    for(let pass=0;pass<5;pass++) {
+      const scale=Math.min(1,edge/Math.max(sourceWidth,sourceHeight));
+      canvas.width=Math.max(1,Math.round(sourceWidth*scale));
+      canvas.height=Math.max(1,Math.round(sourceHeight*scale));
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      ctx.fillStyle="#fff"; ctx.fillRect(0,0,canvas.width,canvas.height);
+      ctx.drawImage(bitmap,0,0,canvas.width,canvas.height);
+      for(const quality of [.82,.70,.58,.47]) {
+        let next=await new Promise(r=>canvas.toBlob(r,mime,quality));
+        if(!next || next.type!==mime) {
+          mime="image/jpeg";
+          next=await new Promise(r=>canvas.toBlob(r,mime,quality));
+        }
+        if(next && (!blob || next.size < blob.size)) blob=next;
+        if(blob && blob.size<=TARGET) break;
+      }
+      if(blob && blob.size<=TARGET) break;
+      edge=Math.max(720,Math.round(edge*.79));
+    }
+  } finally { release(); canvas.width=0; canvas.height=0; }
+  if(!blob || blob.size > MAX_OUTPUT) throw new Error("照片仍然太大，请选择较小的图片。");
+  const ext=blob.type==="image/jpeg"?"jpg":"webp";
+  return new File([blob],`our-memory-${Date.now()}.${ext}`,{type:blob.type||mime});
 }
 
 function clearSelectedPhoto(){
@@ -535,7 +574,10 @@ async function choosePhoto(file){
     selectedPhotoPreviewUrl=URL.createObjectURL(prepared);
     photoPreviewImg.src=selectedPhotoPreviewUrl;
     photoPreviewName.textContent=file.name;
-    photoPreviewMeta.textContent=`Ready to send · ${Math.max(1,Math.round(prepared.size/1024))} KB after compression · encrypted before upload`;
+    const beforeKB=Math.round(file.size/1024);
+    const afterKB=Math.max(1,Math.round(prepared.size/1024));
+    const saved=file.size>0?Math.max(0,Math.round((1-prepared.size/file.size)*100)):0;
+    photoPreviewMeta.textContent=`已压缩 ${beforeKB} KB → ${afterKB} KB · 节省 ${saved}% · 发送前加密`;
     photoPreview.classList.remove("hidden");
     input.placeholder="Add a little note with this photo…";
     input.focus();
