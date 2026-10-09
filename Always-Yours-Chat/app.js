@@ -27,7 +27,8 @@ const POLL_MS = 10000;
 const TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30-day rolling retention
 const ROOM_SALT = "always-yours-room-v2";
 const KEY_SALT = "always-yours-e2ee-v2";
-const MAX_VISIBLE_MESSAGES = 80;
+const MAX_VISIBLE_MESSAGES = 80; // Per-page size; older days load on demand.
+const PAGE_SIZE = 80;
 const CACHE_PREFIX = "alwaysYoursMessageCache:";
 const STICKERS = ["🥰","😘","🫶","💞","🌙","💋","🩷","🤍","抱抱 ♡","想你了 ♡","晚安 🌙","永远是你 💞"];
 const EMOJIS = ["😊","🥰","😘","😍","🫶","💕","💗","💖","💞","💋","🌹","🌙","✨","🥺","🤍","❤️‍🔥","🩷","😚","😌","💐"];
@@ -127,11 +128,16 @@ async function deviceCredentials(){try{const v=await deviceRecord("get");return 
 function revealSetup(msg=""){ $("setup").classList.remove("hidden"); if(msg)setStatus(msg); secretInput.focus(); }
 async function openPreparedRoom(){
   if(!roomId||!cryptoKey||!validRole(selectedName))return;
+  const epoch=++viewEpoch;
+  historyMessages=[];hasMoreHistory=false;historyBusy=false;
+  messagePlaintextCache.clear();
+  updateLoadOlderButton();
   lastMessageIds="";lastContentIds="";firstSync=true;
   const cached=await loadCache();
+  if(epoch!==viewEpoch)return;
   showChat();
   $("roomLabel").textContent=`${selectedName === "Ko Ko" ? "HE · Ko Ko" : "SHE · Chit Chit"} ♡`;
-  if(cached.length)renderMessages(cached);
+  if(cached.length){ historyMessages=cached; renderMessages(cached); }
   updateConnection("连接中…");
   startPolling();startPresence();refreshNotifyButton().catch(()=>{});
   setTimeout(()=>repairPushBinding().catch(err=>console.warn("Notification check:",err.message)),300);
@@ -139,6 +145,7 @@ async function openPreparedRoom(){
 function validRole(name){return name==="Ko Ko"||name==="Chit Chit";}
 async function chooseRole(name){
   if(!validRole(name))return;
+  if(outgoingBusy){toast("正在发送或保存消息，请稍等再切换身份 ♡");return;}
   const previousRole = roleChosen ? selectedName : null;
   selectedName=name;roleChosen=true;
   if (previousRole && previousRole!==name) {
@@ -162,6 +169,12 @@ let lastMessageIds = "";
 let lastContentIds = "";
 let lastRenderedCount = 0;
 let firstSync = true;
+let viewEpoch = 0;
+let historyMessages = [];
+let hasMoreHistory = false;
+let historyBusy = false;
+let outgoingBusy = false;
+const messagePlaintextCache = new Map();
 let draftTimer = null;
 let selectedPhotoFile = null;
 let selectedPhotoPreviewUrl = null;
@@ -226,11 +239,16 @@ function formatSeenTime(value){ return new Intl.DateTimeFormat(undefined,{hour:"
 
 function showChat(){ gate.classList.add("hidden"); chat.classList.remove("hidden"); ensurePresenceUi(); ensureEditBar(); }
 function showGate(){
+  if(outgoingBusy){toast("消息仍在发送，请稍等 ♡");return;}
+  ++viewEpoch;
+  historyMessages=[];hasMoreHistory=false;historyBusy=false;
+  messagePlaintextCache.clear();updateLoadOlderButton();
   roleChosen=false;
   document.querySelectorAll(".name-option").forEach(b=>b.classList.remove("selected-role"));
   messagesEl.replaceChildren();
   emptyState.classList.remove("hidden");
   lastMessageIds="";lastContentIds="";lastRenderedCount=0;firstSync=true;
+  syncing=false;
   readMarkedIds.clear();
   for(const url of mediaObjectUrls){try{URL.revokeObjectURL(url)}catch{}}
   mediaObjectUrls.clear();
@@ -427,17 +445,22 @@ $("testWorkerBtn")?.addEventListener("click",async()=>{
   finally{btn.disabled=false;}
 });
 $("networkSettingsBtn")?.addEventListener("click",()=>{
+  if(outgoingBusy){toast("消息还在发送，暂时不能切换 ♡");return;}
   showGate();roomId=null;cryptoKey=null;
   // Connection is preconfigured in routes.js. No user-visible URL form.
   setStatus("连接已预设。如果无法连接，请稍后重试。");
 });
-async function apiGetMessages(){
-  if(!API_BASE)throw new Error("尚未配置 Supabase 服务地址，请在入口的连接设置中填写 Edge Function URL。");
+async function apiGetMessages({before=null,beforeId=null}={}){
+  if(!API_BASE)throw new Error("Supabase 服务暂时不可用，请检查网络。");
+  const requestedRoom=roomId;
+  const url=new URL(`${API_BASE}/api/messages`);
+  url.searchParams.set("limit",String(PAGE_SIZE));
+  if(before!==null && beforeId){url.searchParams.set("before",String(before));url.searchParams.set("before_id",beforeId);}
   return withTimeout(async(signal)=>{
-    const res=await fetch(`${API_BASE}/api/messages`,{method:"GET",headers:{"X-Room-Key":roomId},signal,cache:"no-store"});
+    const res=await fetch(url.href,{method:"GET",headers:{"X-Room-Key":requestedRoom},signal,cache:"no-store"});
     const data=await res.json().catch(()=>({}));
     if(!res.ok) throw new Error(data.error||"Could not read messages");
-    return data.messages||[];
+    return {messages:Array.isArray(data.messages)?data.messages:[],hasMore:Boolean(data.hasMore)};
   });
 }
 
@@ -713,7 +736,14 @@ async function decodeItems(raw){
   for(const item of raw){
     if(Number(item.expires_at||0)<=Date.now()) continue;
     try{
-      const payload=await decryptPayload(item.iv,item.ciphertext);
+      let payload;
+      const cached=messagePlaintextCache.get(item.id);
+      if(cached?.iv===item.iv && cached.ciphertext===item.ciphertext){payload=cached.payload;}
+      else{
+        payload=await decryptPayload(item.iv,item.ciphertext);
+        messagePlaintextCache.set(item.id,{iv:item.iv,ciphertext:item.ciphertext,payload});
+        if(messagePlaintextCache.size>400){messagePlaintextCache.delete(messagePlaintextCache.keys().next().value);}
+      }
       out.push({
         id:item.id,
         sender:item.sender,
@@ -734,7 +764,7 @@ async function decodeItems(raw){
       });
     }catch{}
   }
-  return out.slice(-MAX_VISIBLE_MESSAGES);
+  return out;
 }
 
 
@@ -786,44 +816,90 @@ function startPresence(){
 }
 function stopPresence(){ if(presenceTimer){clearInterval(presenceTimer);presenceTimer=null;} }
 
-async function syncMessages({silent=false}={}){
-  if(!roomId || !cryptoKey || syncing) return;
-  syncing=true;
+function updateLoadOlderButton(){
+  const button=$("loadOlderMessages");
+  if(!button)return;
+  button.hidden=!hasMoreHistory && !historyBusy;
+  button.disabled=historyBusy;
+  button.textContent=historyBusy?"正在加载以前的回忆…":"查看更早的消息 ♡";
+}
+function mergeHistory(recent,old){
+  const merged=new Map();
+  for(const item of old){if(Number(item.expires_at)>Date.now())merged.set(item.id,item);}
+  for(const item of recent){merged.set(item.id,item);}
+  return [...merged.values()].sort((a,b)=>Number(a.created_at)-Number(b.created_at)||a.id.localeCompare(b.id));
+}
+async function loadOlderMessages(){
+  if(historyBusy||!hasMoreHistory||!roomId||!historyMessages.length)return;
+  historyBusy=true;updateLoadOlderButton();
+  const epoch=viewEpoch;
+  const oldest=historyMessages[0];
+  const preservedTop=messagesEl.scrollTop;
+  const preservedHeight=messagesEl.scrollHeight;
   try{
-    const raw=await apiGetMessages();
-    const items=await decodeItems(raw);
+    const response=await apiGetMessages({before:oldest.created_at,beforeId:oldest.id});
+    if(epoch!==viewEpoch)return;
+    const older=await decodeItems(response.messages);
+    if(epoch!==viewEpoch)return;
+    historyMessages=mergeHistory(older,historyMessages);
+    hasMoreHistory=response.hasMore;
+    const ids=historyMessages.map(x=>`${x.id}:${x.edited_at||0}:${x.seen_at||0}`).join("|");
+    lastMessageIds=ids;
+    lastContentIds=historyMessages.map(x=>`${x.id}:${x.edited_at||0}`).join("|");
+    renderMessages(historyMessages);
+    if(document.visibilityState!=="hidden")markVisibleMessagesRead(older);
+    // Keep the current place in the timeline after older messages are prepended.
+    requestAnimationFrame(()=>{if(epoch===viewEpoch)messagesEl.scrollTop=preservedTop+(messagesEl.scrollHeight-preservedHeight);});
+  }catch(e){if(epoch===viewEpoch)toast("较早的消息暂时无法加载，请稍后重试 ♡");}
+  finally{if(epoch===viewEpoch){historyBusy=false;updateLoadOlderButton();}}
+}
+$("loadOlderMessages")?.addEventListener("click",loadOlderMessages);
+async function syncMessages({silent=false}={}){
+  if(!roomId || !cryptoKey || syncing)return;
+  syncing=true;
+  const epoch=viewEpoch;
+  try{
+    const response=await apiGetMessages();
+    if(epoch!==viewEpoch)return;
+    const recent=await decodeItems(response.messages);
+    if(epoch!==viewEpoch)return;
+    const items=mergeHistory(recent,historyMessages);
+    historyMessages=items;
+    // Only replace the "older history available" flag before the first user request to load history.
+    if(!items.length || items.length===recent.length)hasMoreHistory=response.hasMore;
+    updateLoadOlderButton();
     const ids=items.map(x=>`${x.id}:${x.edited_at||0}:${x.seen_at||0}`).join("|");
     const changed=ids!==lastMessageIds;
     const contentIds=items.map(x=>`${x.id}:${x.edited_at||0}`).join("|");
     const contentChanged=contentIds!==lastContentIds;
     lastMessageIds=ids;
     lastContentIds=contentIds;
-    if (changed && 'BroadcastChannel' in window) {
-      const channel = new BroadcastChannel('always-yours-chat-events');
+    if(changed && 'BroadcastChannel' in window){
+      const channel=new BroadcastChannel('always-yours-chat-events');
       channel.postMessage({type:'messages-updated'});
       channel.close();
     }
-    saveCache(items);
-    if(contentChanged || !messagesEl.children.length) renderMessages(items);
-    else if(changed) updateReadReceipts(items);
-    markVisibleMessagesRead(items);
+    // Keep the encrypted offline cache small rather than putting a month of plaintext in storage.
+    saveCache(items.slice(-MAX_VISIBLE_MESSAGES));
+    if(contentChanged || !messagesEl.children.length)renderMessages(items);
+    else if(changed)updateReadReceipts(items);
+    if(document.visibilityState!=="hidden")markVisibleMessagesRead(recent);
     syncPresence();
     updateConnection("已连接 · 已同步");
     clearBackendIssue();
-    if(!firstSync && changed && items.length>lastRenderedCount){ showNewHint(); }
+    if(!firstSync && recent.some(m=>m.sender!==selectedName && m.created_at>Date.now()-60000) && changed)showNewHint();
     firstSync=false;
     lastRenderedCount=items.length;
   }catch(error){
+    if(epoch!==viewEpoch)return;
     const cached=await loadCache();
-    if(cached.length && !messagesEl.children.length) renderMessages(cached);
+    if(epoch!==viewEpoch)return;
+    if(cached.length && !messagesEl.children.length)renderMessages(cached);
     updateConnection(navigator.onLine?"服务器未连接":"离线 · 最近消息仅在本机");
     showBackendIssue(error);
-    if(!silent && navigator.onLine) toast("聊天服务器未连接，请检查连接设置。");
-  }finally{
-    syncing=false;
-  }
+    if(!silent && navigator.onLine)toast("聊天服务器暂时未连接，请稍后重试。");
+  }finally{syncing=false;}
 }
-
 function startPolling(){
   stopPolling();
   syncMessages({silent:true});
@@ -893,12 +969,13 @@ function cancelEdit(){
   updateSendButton();
 }
 async function editMessage(){
+  if(outgoingBusy)return;
   const id=editingMessageId;
   const text=String(input.value||"").trim();
   if(!id) return sendMessage();
   if(!text){ toast("An edited message cannot be empty."); return; }
   if(text.length>2000){ toast("Message is too long."); return; }
-  sendBtn.disabled=true;
+  outgoingBusy=true;sendBtn.disabled=true;
   try{
     const encrypted=await encryptPayload({kind:"text",text,reply:editingMessageReply||undefined});
     await apiEditMessage(id,encrypted);
@@ -912,17 +989,20 @@ async function editMessage(){
     console.error(error);
     toast(error.message||"Could not edit message.");
   }finally{
+    outgoingBusy=false;
     updateSendButton();
     input.focus();
   }
 }
 
 async function sendMessage(kind="text", value=input.value){
+  if(outgoingBusy)return;
   const textValue=String(value||"").trim();
   const hasPhoto=Boolean(selectedPhotoFile);
   if(!roomId || !cryptoKey || !validRole(selectedName) || (!textValue && !hasPhoto)) return;
   if(textValue.length>2000){ toast("Message is too long."); return; }
-  sendBtn.disabled=true;
+  outgoingBusy=true;sendBtn.disabled=true;
+  const messageId=crypto.randomUUID();
   try{
     if(hasPhoto){
       const arrayBuffer=await selectedPhotoFile.arrayBuffer();
@@ -939,11 +1019,11 @@ async function sendMessage(kind="text", value=input.value){
         mime:selectedPhotoFile.type||"image/webp",
         name:selectedPhotoFile.name||"always-yours-photo.webp"
       });
-      await apiSendMessage({id:crypto.randomUUID(),sender:selectedName,media_key:mediaKey,...encryptedMessage});
+      await apiSendMessage({id:messageId,sender:selectedName,media_key:mediaKey,...encryptedMessage});
       clearSelectedPhoto();
     }else{
       const encrypted=await encryptPayload({kind,text:textValue,reply:replyingTo||undefined});
-      await apiSendMessage({id:crypto.randomUUID(),sender:selectedName,...encrypted});
+      await apiSendMessage({id:messageId,sender:selectedName,...encrypted});
       input.value="";
       input.style.height="auto";
       try{localStorage.removeItem("alwaysYoursDraft")}catch{}
@@ -957,11 +1037,24 @@ async function sendMessage(kind="text", value=input.value){
     clearBackendIssue();
     await syncMessages({silent:true});
   }catch(error){
-    console.error(error);
-    toast(navigator.onLine?(error.message||"Could not send right now."):"You're offline · try again when connected.");
-    updateConnection("未送达 · 请检查连接");
-    showBackendIssue(error);
+    console.warn("Message send uncertain or failed:",String(error?.message||error).slice(0,140));
+    // A timed-out POST can have reached Supabase: verify its unique ID before telling the user to retry.
+    let delivered=false;
+    try{
+      const page=await apiGetMessages();
+      delivered=page.messages.some(item=>item.id===messageId);
+    }catch{}
+    if(delivered){
+      clearSelectedPhoto(); input.value="";input.style.height="auto"; clearReply();
+      await syncMessages({silent:true});
+      toast("消息已在云端确认送达 ♡");
+    }else{
+      toast(navigator.onLine?"暂时无法确认送达，请检查聊天记录后再重发。":"当前离线，消息尚未确认送达。");
+      updateConnection("未确认送达 · 请检查连接");
+      showBackendIssue(error);
+    }
   }finally{
+    outgoingBusy=false;
     updateSendButton();
     input.focus();
   }
@@ -980,7 +1073,10 @@ $("toggleSecret").addEventListener("click",()=>{
 });
 $("enterBtn").addEventListener("click",()=>connectRoom(secretInput.value));
 secretInput.addEventListener("keydown",e=>{if(e.key==="Enter")connectRoom(secretInput.value);});
-$("changeSecretBtn").addEventListener("click",()=>{showGate();roomId=null;cryptoKey=null;setStatus("");$("setup").classList.add("hidden");});
+$("changeSecretBtn").addEventListener("click",()=>{
+  if(outgoingBusy){toast("消息正在发送，请稍等再切换身份 ♡");return;}
+  showGate();roomId=null;cryptoKey=null;setStatus("");$("setup").classList.add("hidden");
+});
 $("resetDeviceBtn").addEventListener("click",async()=>{
   if(!confirm("要重新配置这台设备吗？此操作不会删除云端消息，但需要再次输入之前的共同密钥。"))return;
   await deviceRecord("delete");roomId=null;cryptoKey=null;
