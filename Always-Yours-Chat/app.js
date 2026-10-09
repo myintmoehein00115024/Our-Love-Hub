@@ -1786,6 +1786,51 @@ devicePairCheck?.addEventListener('click',async()=>{
  }catch(error){pairStatus('设备状态检查失败：'+(error.message||String(error))+'\n不会影响现有聊天和通知。');}
  finally{pairingBusy=false;devicePairCheck.disabled=false;devicePairCreate.disabled=false;}
 });
+// Security migration diagnostic: test a real server-issued, single-use challenge.
+// Does not authorize messages or bypass the existing shared encryption key.
+const deviceChallengeTest=document.createElement('button');
+deviceChallengeTest.type='button';
+deviceChallengeTest.className=devicePairCheck?.className||'';
+deviceChallengeTest.textContent='测试已授权设备签名';
+deviceChallengeTest.setAttribute('aria-label','测试服务器一次性签名认证');
+if(devicePairCheck?.parentElement)devicePairCheck.insertAdjacentElement('afterend',deviceChallengeTest);
+deviceChallengeTest.addEventListener('click',async()=>{
+ if(pairingBusy||!roomId||!cryptoKey||!validRole(selectedName))return;
+ pairingBusy=true;deviceChallengeTest.disabled=true;
+ if(devicePairCheck)devicePairCheck.disabled=true;
+ if(devicePairCreate)devicePairCreate.disabled=true;
+ const role=selectedName,expectedRoom=roomId;
+ try{
+   const current=await currentDeviceFingerprint();
+   if(!current)throw new Error('本机尚未登记独立签名密钥');
+   pairStatus('正在向服务器申请一次性挑战码…');
+   const commonHeaders={'Content-Type':'application/json','X-Room-Key':expectedRoom,'X-User':role};
+   const challengeRes=await fetch(`${API_BASE}/api/devices/challenge`,{
+     method:'POST',cache:'no-store',headers:commonHeaders,body:JSON.stringify({fingerprint:current.fp})
+   });
+   const challenge=await challengeRes.json().catch(()=>({}));
+   if(!challengeRes.ok)throw new Error(challenge.error||'无法领取挑战');
+   if(!/^[0-9a-f-]{36}$/.test(challenge.challengeId||'')||!/^[A-Za-z0-9_-]{43}$/.test(challenge.challenge||''))
+     throw new Error('服务器挑战格式无效');
+   if(selectedName!==role||roomId!==expectedRoom)throw new Error('身份已切换，请重新验证');
+   const payload=new TextEncoder().encode(['AY-DEVICE-CHALLENGE-V1',expectedRoom,role,challenge.challengeId,challenge.challenge].join('\n'));
+   const signature=await crypto.subtle.sign({name:'ECDSA',hash:'SHA-256'},current.entry.pair.privateKey,payload);
+   const verifyRes=await fetch(`${API_BASE}/api/devices/challenge/verify`,{
+     method:'POST',cache:'no-store',headers:commonHeaders,
+     body:JSON.stringify({challengeId:challenge.challengeId,signature:pairB64Url(signature)})
+   });
+   const result=await verifyRes.json().catch(()=>({}));
+   if(!verifyRes.ok)throw new Error(result.error||'服务器验签失败');
+   if(selectedName!==role||roomId!==expectedRoom)throw new Error('身份已切换，请重新验证');
+   if(result.approvedDeviceVerified!==true||result.fingerprint!==current.fp||result.enforced!==false)
+     throw new Error('服务器认证结果异常，请停止操作');
+   pairStatus('服务器一次性挑战验证：通过 ✓\n身份：'+(role==='Ko Ko'?'HE':'SHE')+
+     '\n设备指纹：'+current.fp+'\n强制认证仍未启用，现有聊天不受影响。');
+ }catch(error){pairStatus('挑战验证未通过：'+(error.message||String(error))+'\n现有聊天仍然可以使用。');}
+ finally{pairingBusy=false;deviceChallengeTest.disabled=false;
+   if(devicePairCheck)devicePairCheck.disabled=false;
+   if(devicePairCreate)devicePairCreate.disabled=false;}
+});
 devicePairCopy?.addEventListener('click',async()=>{
  if(!devicePairFingerprint)return;
  try{await navigator.clipboard.writeText(devicePairFingerprint);toast('完整设备指纹已复制（不是私钥或密码）');}
