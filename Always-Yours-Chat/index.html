@@ -52,20 +52,26 @@
     </section>
 
     <section id="chat" class="card chat-card hidden" aria-label="Private chat">
-      <header class="chat-header">
+      <header class="chat-header" aria-label="聊天导航">
         <div class="chat-brand-row">
-          <img src="../assets/icon-192.png" alt="Our Love Hub" class="chat-brand-logo" width="52" height="52" />
-          <div>
-          <div class="eyebrow">OUR LOVE HUB · JUST THE TWO OF US</div>
-          <h2>Always Yours <span>♡</span></h2>
-          <p id="roomLabel" class="room-label">Private room</p>
-          <div class="chat-subline"><span class="v3-sparkle">✧</span> 2024.03.23 · 从初见到永远 <span class="v3-sparkle">✧</span></div>
+          <img src="../assets/icon-192.png" alt="Our Love Hub" class="chat-brand-logo" width="42" height="42">
+          <div class="chat-brand-copy">
+            <h2>Always Yours <span>♡</span></h2>
+            <div class="chat-status-line">
+              <p id="roomLabel" class="room-label">HE / SHE</p>
+            </div>
           </div>
         </div>
-        <div class="header-actions">
-          <button id="changeSecretBtn" class="ghost-button" type="button">切换 HE / SHE</button>
-          <button id="notifyBtn" class="ghost-button notify-button" type="button">🔔 开启消息提醒</button>
-          <button id="installBtn" class="ghost-button install-ghost" type="button">添加到主屏幕</button>
+        <div class="header-actions" aria-label="聊天操作">
+          <button id="changeSecretBtn" class="ghost-button compact-role-button" type="button" aria-label="切换聊天身份 HE 或 SHE">切换身份</button>
+          <button id="notifyBtn" class="ghost-button notify-button" type="button" aria-label="开启手机消息提醒">🔔 消息提醒</button>
+          <details class="chat-more-menu">
+            <summary aria-label="更多设置" title="更多设置">···</summary>
+            <div class="chat-more-panel">
+              <button id="installBtn" class="ghost-button install-ghost" type="button">♡ 添加 Our Love Hub 到桌面</button>
+              <p>桌面只保留一个 Our Love Hub 入口</p>
+            </div>
+          </details>
         </div>
       </header>
 
@@ -82,27 +88,26 @@
         <div id="newMessageHint" class="new-message-hint hidden" aria-live="polite">收到新消息 ♡</div>
         <div id="emojiPanel" class="emoji-panel hidden" aria-label="Emoji picker"></div>
         <div id="stickerPanel" class="sticker-panel hidden" aria-label="Stickers"></div>
-        <div class="composer-tools">
-          <button id="emojiBtn" class="tool-button" type="button" aria-label="Open emoji picker" aria-expanded="false">😊</button>
-          <button id="stickerBtn" class="tool-button" type="button" aria-label="Open sticker picker" aria-expanded="false">💞</button>
-          <button id="photoBtn" class="tool-button photo-tool-button" type="button" aria-label="Choose a photo">📷</button>
+        <div class="composer-heading">
+          <label for="messageInput">写给 TA 的悄悄话 <span aria-hidden="true">♡</span></label>
+          <span>只属于我们的小对话</span>
+        </div>
+        <div id="photoPreview" class="photo-preview hidden" aria-live="polite">
+          <div class="photo-preview-thumb-wrap"><img id="photoPreviewImg" class="photo-preview-img" alt="Selected photo preview"></div>
+          <div class="photo-preview-info"><strong id="photoPreviewName">Photo selected</strong><span id="photoPreviewMeta">Compressed securely before sending.</span></div>
+          <button id="removePhotoBtn" class="photo-remove-button" type="button" aria-label="移除照片">×</button>
+        </div>
+        <div class="composer">
+          <textarea id="messageInput" rows="2" maxlength="2000" aria-label="输入聊天消息" placeholder="想和 TA 说些什么…"></textarea>
+          <button id="sendBtn" class="send-button" type="button">发送 ♡</button>
+        </div>
+        <div class="composer-tools" aria-label="表情与图片工具">
+          <button id="emojiBtn" class="tool-button" type="button" aria-label="选择 Emoji 表情" title="选择 Emoji 表情" aria-expanded="false">☺</button>
+          <button id="stickerBtn" class="tool-button" type="button" aria-label="发送甜蜜贴纸" title="甜蜜贴纸" aria-expanded="false">♡</button>
+          <button id="photoBtn" class="tool-button photo-tool-button" type="button" aria-label="选择照片" title="选择照片">▧</button>
           <input id="photoInput" class="photo-input" type="file" accept="image/*">
           <div class="tool-spacer"></div>
           <span id="connectionState" class="connection-state">连接中…</span>
-        </div>
-        <div id="photoPreview" class="photo-preview hidden" aria-live="polite">
-          <div class="photo-preview-thumb-wrap">
-            <img id="photoPreviewImg" class="photo-preview-img" alt="Selected photo preview">
-          </div>
-          <div class="photo-preview-info">
-            <strong id="photoPreviewName">Photo selected</strong>
-            <span id="photoPreviewMeta">Compressed securely before sending.</span>
-          </div>
-          <button id="removePhotoBtn" class="photo-remove-button" type="button" aria-label="Remove selected photo">×</button>
-        </div>
-        <div class="composer">
-          <textarea id="messageInput" rows="1" maxlength="2000" placeholder="写给你的那个人…"></textarea>
-          <button id="sendBtn" class="send-button" type="button">发送 ♡</button>
         </div>
         <div class="composer-foot"><span>🔒 我们的秘密由端到端加密守护</span><span>✧ 文字和照片保存 30 天</span></div>
       </div>

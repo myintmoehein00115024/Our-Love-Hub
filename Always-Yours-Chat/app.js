@@ -552,7 +552,7 @@ function clearSelectedPhoto(){
   if(photoPreviewImg) photoPreviewImg.removeAttribute("src");
   photoPreview?.classList.add("hidden");
   if(photoInput) photoInput.value="";
-  if(input) input.placeholder="Write something only we need to see…";
+  if(input) input.placeholder="想和 TA 说些什么…";
   updateSendButton();
 }
 
@@ -784,7 +784,7 @@ function beginEdit(item){
 function cancelEdit(){
   editingMessageId=null;
   if(editBar) editBar.classList.add("hidden");
-  if(input) input.placeholder="Write something only we need to see…";
+  if(input) input.placeholder="想和 TA 说些什么…";
   updateSendButton();
 }
 async function editMessage(){
@@ -844,6 +844,8 @@ async function sendMessage(kind="text", value=input.value){
     }
     stickerPanel.classList.add("hidden");
     if(emojiPanel) emojiPanel.classList.add("hidden");
+    $("stickerBtn")?.setAttribute("aria-expanded","false");
+    $("emojiBtn")?.setAttribute("aria-expanded","false");
     setStatus("");
     clearBackendIssue();
     await syncMessages({silent:true});
@@ -890,50 +892,46 @@ try{localStorage.removeItem("alwaysYoursDraft");}catch{}
 function buildStickerPanel(){
   stickerPanel.innerHTML="";
   const head=document.createElement("div");
-  head.className="sticker-panel-head";
-  head.innerHTML='<div><strong>Little feelings</strong><span>Pick one for us ♡</span></div><span class="sticker-panel-spark">✦</span>';
-  stickerPanel.appendChild(head);
-  const grid=document.createElement("div");
-  grid.className="sticker-grid";
+  head.className="picker-head";
+  head.innerHTML='<div><span class="picker-overline">JUST FOR US ♡</span><strong>心动小贴纸</strong><small>点一下，把爱意送给 TA</small></div>';
+  const close=document.createElement("button");
+  close.type="button";close.className="picker-close";close.textContent="×";close.setAttribute("aria-label","关闭贴纸面板");
+  close.addEventListener("click",()=>{stickerPanel.classList.add("hidden");$("stickerBtn").setAttribute("aria-expanded","false");});
+  head.appendChild(close);stickerPanel.appendChild(head);
+  const makeTitle=(title)=>{const el=document.createElement("div");el.className="picker-section-label";el.textContent=title;stickerPanel.appendChild(el);};
+  const iconGrid=document.createElement("div");iconGrid.className="sticker-grid compact-sticker-grid";
+  const wordsGrid=document.createElement("div");wordsGrid.className="sticker-words-grid";
   for(const s of STICKERS){
+    const isWord=/[\u3400-\u9fff]/.test(s);
     const b=document.createElement("button");
-    b.type="button";
-    b.className=s.length>3?"sticker text-sticker":"sticker";
-    const parts=s.split(" ");
-    const face=parts.shift() || "♡";
-    const label=parts.join(" ");
-    const faceEl=document.createElement("span");
-    faceEl.className="sticker-face";
-    faceEl.textContent=face;
-    b.appendChild(faceEl);
-    if(label){
-      const labelEl=document.createElement("span");
-      labelEl.className="sticker-label";
-      labelEl.textContent=label;
-      b.appendChild(labelEl);
-    }
-    b.title=`Send ${s}`;
+    b.type="button";b.className=isWord?"sticker-word":"sticker compact-sticker";
+    b.textContent=s;
+    b.title=`发送 ${s}`;b.setAttribute("aria-label",`发送 ${s}`);
     b.addEventListener("click",()=>sendMessage("sticker",s));
-    grid.appendChild(b);
+    (isWord?wordsGrid:iconGrid).appendChild(b);
   }
-  stickerPanel.appendChild(grid);
+  makeTitle("心动表情");stickerPanel.appendChild(iconGrid);
+  makeTitle("暖心短句");stickerPanel.appendChild(wordsGrid);
 }
 buildStickerPanel();
 
 function buildEmojiPanel(){
   if(!emojiPanel) return;
   const groups={
-    "All": EMOJIS,
-    "Faces": ["😊","🥰","😘","😍","🫶","🥺","😚","😌","🤭","☺️","😇","🤗","😋","😉"],
-    "Love": ["🫶","💕","💗","💖","💞","💋","🌹","💘","🩷","🤍","❤️‍🔥","💐","💓","💝"],
-    "Soft": ["🌙","✨","🥺","🤍","🩷","💗","💞","🌷","🌸","🪽","☁️","⭐","💫","🫧"]
+    "常用": EMOJIS,
+    "心情": ["😊","🥰","😘","😍","🫶","🥺","😚","😌","🤭","☺️","😇","🤗","😋","😉"],
+    "爱意": ["🫶","💕","💗","💖","💞","💋","🌹","💘","🩷","🤍","❤️‍🔥","💐","💓","💝"],
+    "温柔": ["🌙","✨","🥺","🤍","🩷","💗","💞","🌷","🌸","🪽","☁️","⭐","💫","🫧"]
   };
-  let current="All";
+  let current="常用";
   const render=()=>{
     emojiPanel.innerHTML="";
     const head=document.createElement("div");
     head.className="emoji-panel-head";
-    head.innerHTML='<div><strong>Little feelings</strong><span>Pick a feeling for us ♡</span></div><span class="emoji-panel-spark">✦</span>';
+    head.innerHTML='<div><span class="picker-overline">LITTLE FEELINGS ♡</span><strong>挑一个心情</strong><small>让每一句话更可爱</small></div>';
+    const close=document.createElement('button');close.type='button';close.className='picker-close';close.textContent='×';close.setAttribute('aria-label','关闭表情面板');
+    close.addEventListener('click',()=>{emojiPanel.classList.add('hidden');$('emojiBtn').setAttribute('aria-expanded','false');});
+    head.appendChild(close);
     emojiPanel.appendChild(head);
     const tabs=document.createElement("div");
     tabs.className="emoji-tabs";
@@ -954,7 +952,7 @@ function buildEmojiPanel(){
     });
     emojiPanel.appendChild(grid);
     const foot=document.createElement("div");
-    foot.className="emoji-panel-foot"; foot.textContent="Tap an emoji to add it to your message ♡";
+    foot.className="emoji-panel-foot"; foot.textContent="轻点表情加入文字，再按发送 ♡";
     emojiPanel.appendChild(foot);
   };
   render();
@@ -1083,7 +1081,8 @@ async function refreshNotifyButton(){
   const registration=roomId?`${roomId}:${selectedName}`:"";
   const on=Boolean(subscription)&&Notification.permission==="granted"&&Boolean(registration)&&localStorage.getItem("alwaysYoursPushRegistration")===registration;
   notifyBtn.classList.toggle("is-enabled",on);
-  notifyBtn.textContent=on?"✓ 已允许消息提醒":"🔔 开启手机消息提醒";
+  notifyBtn.textContent=on?"✓ 已开启提醒":"🔔 消息提醒";
+  notifyBtn.setAttribute("aria-label",on?"手机消息提醒已开启":"开启手机消息提醒");
 }
 notifyBtn?.addEventListener("click",async()=>{
   if(!roomId){toast("请先进入聊天");return;}
