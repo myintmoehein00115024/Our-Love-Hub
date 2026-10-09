@@ -1,4 +1,31 @@
-console.clear();
+// 2025: device-aware WebGL scene, with pausing on background tabs.
+const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const isTouchSizedScreen = Math.min(window.innerWidth, window.innerHeight) < 830;
+const numSpikes = prefersReducedMotion ? 2400 : (isTouchSizedScreen ? 5200 : 13000);
+const motionButton = document.getElementById('heartbeat-motion-toggle');
+const fallback = document.getElementById('heartbeat-fallback');
+let sceneReady = false;
+let userPaused = prefersReducedMotion;
+function syncMotionButton(){
+  if (!motionButton) return;
+  motionButton.setAttribute('aria-pressed', String(userPaused));
+  motionButton.setAttribute('aria-label', userPaused ? '播放心跳动画' : '暂停心跳动画');
+  motionButton.innerHTML = userPaused ? '▶ <span>播放动画</span>' : 'Ⅱ <span>暂停动画</span>';
+}
+function updateRenderLoop(){
+  if (!sceneReady) return;
+  if (userPaused || document.hidden){
+    renderer.setAnimationLoop(null);
+    renderer.render(scene,camera);
+  }else renderer.setAnimationLoop(render);
+}
+if (motionButton) motionButton.addEventListener('click',function(){
+  userPaused = !userPaused;
+  syncMotionButton();
+  updateRenderLoop();
+});
+document.addEventListener('visibilitychange',updateRenderLoop);
+syncMotionButton();
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(
@@ -9,11 +36,12 @@ const camera = new THREE.PerspectiveCamera(
 );
 
 const renderer = new THREE.WebGLRenderer({
-  antialias: true,
+  antialias: !isTouchSizedScreen,
   alpha: true
 });
 // Keep the page background visible through the WebGL canvas.
 renderer.setClearColor(0x000000, 0);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isTouchSizedScreen ? 1.35 : 1.7));
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
@@ -43,7 +71,11 @@ new THREE.OBJLoader().load('https://assets.codepen.io/127738/heart_2.obj',obj =>
   originHeart = Array.from(heart.geometry.attributes.position.array);
   sampler = new THREE.MeshSurfaceSampler(heart).build();
   init();
-  renderer.setAnimationLoop(render);
+  sceneReady = true;
+  if (fallback) fallback.hidden = true;
+  updateRenderLoop();
+},undefined, function(){
+  if (fallback) fallback.hidden = false;
 });
 
 let positions = [];
@@ -61,23 +93,26 @@ class Grass {
     sampler.sample(pos);
     this.pos = pos.clone();
     this.scale = Math.random() * 0.01 + 0.001;
-    this.one = null;
-    this.two = null;
+    this.one = this.pos.clone();
+    this.two = this.pos.clone();
   }
   update (a) {
     const noise = simplex.noise4D(this.pos.x*1.5, this.pos.y*1.5, this.pos.z*1.5, a * 0.0005) + 1;
-    this.one = this.pos.clone().multiplyScalar(1.01 + (noise * 0.15 * beat.a));
-    this.two = this.one.clone().add(this.one.clone().setLength(this.scale));
+    this.one.copy(this.pos).multiplyScalar(1.01 + (noise * 0.15 * beat.a));
+    this.two.copy(this.one).multiplyScalar(1 + this.scale / Math.max(this.one.length(), 0.0001));
   }
 }
 
 let spikes = [];
-function init (a) {
+let linePositions = null;
+function init () {
   positions = [];
-  for (let i = 0; i < 20000; i++) {
-    const g = new Grass();
-    spikes.push(g);
-  }
+  spikes = [];
+  for (let i = 0; i < numSpikes; i++) spikes.push(new Grass());
+  linePositions = new Float32Array(numSpikes * 6);
+  const attribute = new THREE.BufferAttribute(linePositions, 3);
+  attribute.setUsage(THREE.DynamicDrawUsage);
+  geometry.setAttribute('position', attribute);
 }
 
 const beat = { a: 0 };
@@ -101,22 +136,26 @@ gsap.to(group.rotation, {
 });
 
 function render(a) {
-  positions = [];
-  spikes.forEach(g => {
+  for (let i = 0; i < spikes.length; i++) {
+    const g = spikes[i];
     g.update(a);
-    positions.push(g.one.x, g.one.y, g.one.z);
-    positions.push(g.two.x, g.two.y, g.two.z);
-  });
-  geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(positions), 3));
+    const offset = i * 6;
+    linePositions[offset] = g.one.x;
+    linePositions[offset + 1] = g.one.y;
+    linePositions[offset + 2] = g.one.z;
+    linePositions[offset + 3] = g.two.x;
+    linePositions[offset + 4] = g.two.y;
+    linePositions[offset + 5] = g.two.z;
+  }
+  geometry.attributes.position.needsUpdate = true;
   
   const vs = heart.geometry.attributes.position.array;
   for (let i = 0; i < vs.length; i+=3) {
-    const v = new THREE.Vector3(originHeart[i], originHeart[i+1], originHeart[i+2]);
     const noise = simplex.noise4D(originHeart[i]*1.5, originHeart[i+1]*1.5, originHeart[i+2]*1.5, a * 0.0005) + 1;
-    v.multiplyScalar(1 + (noise * 0.15 * beat.a));
-    vs[i] = v.x;
-    vs[i+1] = v.y;
-    vs[i+2] = v.z;
+    const multiplier = 1 + noise * 0.15 * beat.a;
+    vs[i] = originHeart[i] * multiplier;
+    vs[i+1] = originHeart[i+1] * multiplier;
+    vs[i+2] = originHeart[i+2] * multiplier;
   }
   heart.geometry.attributes.position.needsUpdate = true;
   

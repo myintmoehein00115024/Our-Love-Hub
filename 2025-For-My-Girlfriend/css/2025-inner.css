@@ -1,0 +1,73 @@
+/* Our Love Hub · 2025 inner chapter visual system (2026-10) */
+:root{--inner-ink:#5d4460;--inner-rose:#b475a3;--inner-lilac:#987fbd;--inner-sub:#927f96;--inner-line:rgba(225,189,218,.7)}
+body.page-2025-letter,body.page-2025-love,body.page-2025-heartbeat{--inner-top:calc(86px + env(safe-area-inset-top,0px));font-family:"Avenir Next","Segoe UI","Noto Sans Myanmar",system-ui,sans-serif;color:var(--inner-ink)}
+body:is(.page-2025-letter,.page-2025-love,.page-2025-heartbeat) .year2025-subnav{box-sizing:border-box;width:min(850px,calc(100% - 38px));min-height:54px;margin:17px auto 0;padding:7px 11px;display:flex;align-items:center;justify-content:space-between;gap:8px;border:1px solid rgba(237,204,228,.78);border-radius:19px;background:linear-gradient(135deg,rgba(255,255,255,.87),rgba(252,245,255,.91));box-shadow:0 10px 35px rgba(134,94,145,.08);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
+body:is(.page-2025-letter,.page-2025-love,.page-2025-heartbeat) .year2025-subnav a{flex:0 1 auto;display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:8px 13px;border-radius:13px;font-size:12px;color:#906886;white-space:nowrap;text-decoration:none;font-weight:750;background:rgba(255,255,255,.65)}
+body:is(.page-2025-letter,.page-2025-love,.page-2025-heartbeat) .year2025-subnav-chapter{font-size:10px;letter-spacing:.12em;font-weight:750;color:#b087a7}
+body:is(.page-2025-letter,.page-2025-love,.page-2025-heartbeat) .year2025-subnav :is(a,button):focus-visible{outline:3px solid #b778a8;outline-offset:3px}
+
+/* Message: comfortable multilingual reading and independent scroll */
+body.page-2025-letter{background:radial-gradient(circle at 12% 6%,rgba(252,216,233,.5),transparent 34%),radial-gradient(circle at 85% 17%,rgba(226,212,254,.48),transparent 32%),linear-gradient(145deg,#fff8fb 0%,#f9f4ff 70%,#fffafa 100%)}
+.page-2025-letter .page-shell{min-height:auto;display:block;padding:35px 20px max(120px,calc(env(safe-area-inset-bottom,0px) + 95px));box-sizing:border-box}
+.page-2025-letter .letter-card{width:min(830px,100%);margin:22px auto 0;border-radius:36px;padding:clamp(46px,6vw,75px) clamp(24px,7vw,80px) clamp(38px,5vw,60px);background:linear-gradient(160deg,rgba(255,255,255,.96),rgba(250,244,255,.94));box-shadow:0 26px 75px rgba(123,87,139,.12),inset 0 1px 0 rgba(255,255,255,.95)}
+.page-2025-letter .letter-card:before{border-color:rgba(219,178,205,.28)}
+.page-2025-letter .eyebrow{font-family:"Avenir Next","Segoe UI",system-ui,sans-serif;letter-spacing:.17em;font-size:10px;color:#b182a3}
+.page-2025-letter .letter-card h1{font-family:"Noto Sans Myanmar","Myanmar Sangam MN","Padauk","Myanmar Text",system-ui,sans-serif;font-size:clamp(24px,3.5vw,40px);line-height:1.55;font-weight:700;color:#604260;text-wrap:balance}
+.page-2025-letter .divider{margin:18px auto 19px}
+.page-2025-letter .letter-reading-tools{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 26px;padding:10px 0 13px;border-bottom:1px solid rgba(226,195,221,.52)}
+.page-2025-letter .letter-reading-hint{font-size:11px;font-weight:650;letter-spacing:.02em;color:#a4869c;line-height:1.5}
+.page-2025-letter .reading-sparkle{color:#bf83ad;margin-right:3px}
+.page-2025-letter .letter-skip{min-height:38px;white-space:nowrap;padding:8px 12px;border:1px solid rgba(222,186,214,.85);border-radius:999px;background:rgba(255,255,255,.86);font:700 11px/1.3 "Avenir Next","Segoe UI",system-ui,sans-serif;color:#a16996;cursor:pointer;transition:background .2s,transform .2s}
+.page-2025-letter .letter-skip:hover{background:#fff3fb;transform:translateY(-1px)}
+.page-2025-letter .letter-skip:focus-visible{outline:3px solid #b778a8;outline-offset:2px}
+.page-2025-letter .letter-body{font-family:"Noto Sans Myanmar","Myanmar Sangam MN","Padauk","Myanmar Text",system-ui,sans-serif;font-size:clamp(16px,1.65vw,19px);font-weight:500;line-height:2.15;letter-spacing:0;overflow-wrap:anywhere;color:#584e5d}
+.page-2025-letter .letter-body p{margin-bottom:24px;max-width:68ch}
+.page-2025-letter .signature{margin-top:27px}
+.page-2025-letter .back-home,.page-2025-letter .music-toggle{bottom:max(13px,env(safe-area-inset-bottom,0px));min-height:46px;border-color:rgba(230,192,219,.75);background:rgba(255,251,255,.94);box-shadow:0 9px 24px rgba(126,88,140,.1)}
+.page-2025-letter .wish-button{min-height:43px;border-color:rgba(222,185,211,.6)}
+.page-2025-letter #wish-note[hidden],.page-2025-letter .letter-skip[hidden]{display:none!important}
+
+/* Love: compact top strip, readable cinematic message, preserve original scene and controls */
+body.page-2025-love .year2025-subnav{position:fixed;top:max(7px,env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);margin:0;z-index:2147483600}
+.page-2025-love .memory-header{top:max(82px,calc(env(safe-area-inset-top,0px) + 83px))}
+.page-2025-love .love_you{max-width:750px;padding:clamp(18px,3.5vw,32px);border-radius:26px;line-height:1.65}
+.page-2025-love .finale-caption{max-width:90vw}
+.page-2025-love .love-music-control,.page-2025-love .thinthin-return{min-height:46px;border:1px solid rgba(224,188,217,.7);box-shadow:0 13px 29px rgba(142,100,149,.11);background:rgba(255,250,255,.91)}
+
+/* Heartbeat: center stage, lightweight informational framing */
+body.page-2025-heartbeat{background:radial-gradient(circle at 17% 16%,rgba(255,214,232,.42),transparent 38%),radial-gradient(circle at 82% 79%,rgba(223,211,251,.55),transparent 46%),linear-gradient(145deg,#fff9fc,#f7f0ff 74%,#fffafa);overflow:hidden;min-height:100svh}
+body.page-2025-heartbeat .year2025-subnav{position:fixed;top:max(8px,env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);margin:0;padding:7px 11px;min-height:54px;z-index:100;pointer-events:auto}
+.page-2025-heartbeat canvas{position:fixed;inset:0!important;width:100vw!important;height:100dvh!important;z-index:2;display:block;touch-action:none}
+.page-2025-heartbeat .heartbeat-message{position:fixed;top:clamp(85px,13vh,140px);left:50%;transform:translateX(-50%);z-index:10;width:min(500px,calc(100% - 35px));text-align:center;pointer-events:none;filter:drop-shadow(0 3px 15px rgba(255,255,255,.65))}
+.page-2025-heartbeat .heartbeat-message>span{font-size:10px;letter-spacing:.18em;font-weight:800;color:#b37caa}
+.page-2025-heartbeat .heartbeat-message h1{font:500 clamp(25px,4vw,39px)/1.25 Georgia,"Songti SC",serif;letter-spacing:-.04em;margin:8px 0;color:#69466b}
+.page-2025-heartbeat .heartbeat-message em{font-style:italic;color:#ac79a9}
+.page-2025-heartbeat .heartbeat-message p{font-size:12px;letter-spacing:.09em;color:#a181a4;margin:0}
+.page-2025-heartbeat .heartbeat-motion-toggle{position:fixed;right:max(16px,env(safe-area-inset-right,0px));bottom:max(17px,env(safe-area-inset-bottom,0px));z-index:50;display:inline-flex;gap:8px;align-items:center;justify-content:center;min-height:46px;padding:10px 17px;border-radius:999px;border:1px solid rgba(227,190,217,.77);background:rgba(255,250,255,.91);color:#8c6790;font:700 12px/1.4 "Avenir Next","Segoe UI",system-ui,sans-serif;box-shadow:0 12px 30px rgba(144,97,151,.12);cursor:pointer;backdrop-filter:blur(10px)}
+.page-2025-heartbeat .heartbeat-motion-toggle:focus-visible{outline:3px solid #b778a8;outline-offset:3px}
+.page-2025-heartbeat .heartbeat-fallback:not([hidden]){position:fixed;left:50%;top:51%;transform:translate(-50%,-50%);z-index:15;width:min(340px,calc(100% - 42px));padding:28px 18px;border-radius:26px;border:1px solid rgba(221,185,217,.77);text-align:center;background:rgba(255,255,255,.9);box-shadow:0 18px 45px rgba(123,87,139,.13);color:#8e7190;line-height:1.7}
+.page-2025-heartbeat .heartbeat-fallback span{display:block;font-size:54px;color:#b976a8}
+.page-2025-heartbeat .heartbeat-fallback p{font-size:14px;margin:0}
+@media(max-width:700px){
+  body:is(.page-2025-letter,.page-2025-love,.page-2025-heartbeat) .year2025-subnav{width:calc(100% - 18px);padding:6px 8px;gap:5px;min-height:50px;border-radius:16px}
+  body:is(.page-2025-letter,.page-2025-love,.page-2025-heartbeat) .year2025-subnav a{padding:7px 9px;min-height:38px;font-size:11px}
+  body:is(.page-2025-letter,.page-2025-love,.page-2025-heartbeat) .year2025-subnav-chapter{display:none}
+  .page-2025-letter .page-shell{padding:25px 12px max(95px,calc(env(safe-area-inset-bottom,0px) + 84px))}
+  .page-2025-letter .letter-card{margin-top:12px;padding:46px clamp(21px,4.8vw,34px) 31px;border-radius:29px}
+  .page-2025-letter .letter-reading-tools{align-items:flex-start;gap:6px;flex-wrap:wrap}
+  .page-2025-letter .letter-body{font-size:16px;line-height:2}
+  .page-2025-love .memory-header{top:max(70px,calc(env(safe-area-inset-top,0px) + 73px))}
+  .page-2025-heartbeat .heartbeat-message{top:max(92px,calc(env(safe-area-inset-top,0px) + 91px))}
+  .page-2025-heartbeat .heartbeat-motion-toggle{padding:9px 13px}
+}
+@media(max-width:390px){
+  .page-2025-letter .letter-card{padding:44px 17px 27px}
+  .page-2025-letter .letter-body{font-size:15.5px;line-height:2.04}
+  .page-2025-letter .letter-skip{font-size:10px}
+  .page-2025-love .love-music-control,.page-2025-love .thinthin-return{padding:9px 11px}
+  .page-2025-heartbeat .heartbeat-message h1{font-size:26px}
+  .page-2025-heartbeat .heartbeat-motion-toggle span{display:none}
+}
+@media(prefers-reduced-motion:reduce){
+  body:is(.page-2025-letter,.page-2025-love,.page-2025-heartbeat) *,body:is(.page-2025-letter,.page-2025-love,.page-2025-heartbeat) *::before,body:is(.page-2025-letter,.page-2025-love,.page-2025-heartbeat) *::after{scroll-behavior:auto!important;transition-duration:0s!important}
+}

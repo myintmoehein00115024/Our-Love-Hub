@@ -1,4 +1,4 @@
-const CACHE_NAME = "thinthin-shell-v13-2025-gap-logo-date-20261009";
+const CACHE_NAME = "thinthin-shell-v14-2025-inner-polish-20261009";
 const SHELL = [
   "./",
   "./index.html",
@@ -10,6 +10,7 @@ const SHELL = [
   "../assets/icon-512-maskable.png",
   "./css/style.css",
   "./css/2025-responsive.css",
+  "./css/2025-inner.css",
   "./js/index.js",
   "./js/pwa-install.js",
   "./message/index.html",
@@ -20,6 +21,7 @@ const SHELL = [
   "./Love/js/love.js",
   "./heartbeat/index.html",
   "./heartbeat/css/style.css",
+  "./heartbeat/js/script.js",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
   "./icons/icon-512-maskable.png",
