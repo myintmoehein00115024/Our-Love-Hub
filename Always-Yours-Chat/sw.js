@@ -1,5 +1,5 @@
 // Dedicated chat PWA worker: same unified icon, scoped to /Always-Yours-Chat/.
-const CACHE="always-yours-v28-back-clean-20261009";
+const CACHE="always-yours-v29-pwa-audit-20261009";
 const ASSETS=["./","./index.html","./styles.css","./app.js","./routes.js","./manifest.webmanifest","../assets/favicon-32.png","../assets/icon-192.png","../assets/icon-512.png","../assets/apple-touch-icon.png", "./romantic-gifs/pulse-love.gif", "./romantic-gifs/hugs.gif", "./romantic-gifs/miss-you.gif", "./romantic-gifs/good-night.gif", "./romantic-gifs/kiss.gif", "./romantic-gifs/forever.gif"];
 self.addEventListener("install",e=>e.waitUntil((async()=>{
  const cache=await caches.open(CACHE);
@@ -13,7 +13,7 @@ self.addEventListener("fetch",e=>{
  const url=new URL(e.request.url);
  if(url.origin===location.origin)e.respondWith(fetch(e.request,{cache:"no-store"}).then(r=>{
    if(r.ok){const copy=r.clone();caches.open(CACHE).then(c=>c.put(e.request,copy)).catch(()=>{});}return r;
- }).catch(()=>caches.match(e.request)));
+ }).catch(async()=> (await caches.match(e.request,{ignoreSearch:true}))||Response.error()));
 });
 self.addEventListener("push",event=>{
  let data={};try{data=event.data?.json()||{};}catch{}

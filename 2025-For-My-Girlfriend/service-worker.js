@@ -1,4 +1,4 @@
-const CACHE_NAME = "thinthin-shell-v16-2025-2026-bridge-20261009";
+const CACHE_NAME = "thinthin-shell-v17-pwa-audit-20261009";
 const SHELL = [
   "./",
   "./index.html",
@@ -29,7 +29,13 @@ const SHELL = [
 ];
 
 self.addEventListener("install", event => {
-  event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(SHELL)).then(() => self.skipWaiting()));
+  event.waitUntil((async () => {
+    const cache = await caches.open(CACHE_NAME);
+    // Keep the 2025 chapter available if one non-essential image or subpage fails.
+    await cache.addAll(["./", "./index.html", "./css/style.css", "./js/index.js"]);
+    await Promise.allSettled(SHELL.map(path => cache.add(path)));
+    await self.skipWaiting();
+  })());
 });
 
 self.addEventListener("activate", event => {
@@ -48,7 +54,7 @@ self.addEventListener("fetch", event => {
       try {
         const fresh = await fetch(req);
         const clone = fresh.clone();
-        caches.open(CACHE_NAME).then(cache => cache.put(req, clone));
+        event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.put(req, clone)).catch(() => {}));
         return fresh;
       } catch (_) {
         const cached = await caches.match(req);
@@ -63,7 +69,7 @@ self.addEventListener("fetch", event => {
       const fresh = await fetch(req);
       if (fresh && fresh.ok) {
         const clone = fresh.clone();
-        caches.open(CACHE_NAME).then(cache => cache.put(req, clone));
+        event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.put(req, clone)).catch(() => {}));
       }
       return fresh;
     } catch (_) {

@@ -1,28 +1,21 @@
 {
-  "name": "Our Love Hub · 2025",
+  "id": "../",
+  "name": "Our Love Hub · M ♡ T",
   "short_name": "Our Love Hub",
-  "description": "Our Love Hub · 2025 chapter for Thin Thin Yu Hlaing.",
-  "lang": "en",
-  "dir": "ltr",
-  "id": "./",
-  "start_url": "./index.html",
-  "scope": "./",
+  "description": "One little home for all our memories, messages, and birthday surprises.",
+  "lang": "zh-CN",
+  "start_url": "../",
+  "scope": "../",
   "display": "standalone",
-  "display_override": [
-    "window-controls-overlay",
-    "standalone",
-    "minimal-ui"
-  ],
+  "background_color": "#fcf3f8",
+  "theme_color": "#a66b9c",
   "orientation": "any",
-  "background_color": "#f7f4ff",
-  "theme_color": "#eeeaff",
-  "prefer_related_applications": false,
   "icons": [
     {
       "src": "../assets/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
       "src": "../assets/icon-512.png",

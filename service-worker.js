@@ -1,18 +1,39 @@
-// The hub controls only its own shell; module-specific workers keep their own caches.
-const CACHE_NAME = 'our-love-hub-shell-v2-direct-journey-20240323';
-const SHELL = ['./', './index.html', './manifest.webmanifest', './assets/icon-192.png', './assets/icon-512.png', './assets/apple-touch-icon.png'];
-self.addEventListener('install', event => event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(SHELL)).then(() => self.skipWaiting())));
-self.addEventListener('activate', event => event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k.startsWith('our-love-hub-shell-') && k !== CACHE_NAME).map(k => caches.delete(k)))).then(() => self.clients.claim())));
-self.addEventListener('fetch', event => {
-  const req = event.request;
-  if (req.method !== 'GET') return;
-  const url = new URL(req.url);
-  if (url.origin !== self.location.origin) return;
-  const base = new URL(self.registration.scope).pathname;
-  if (req.mode === 'navigate' && (url.pathname === base || url.pathname === base + 'index.html')) {
-    event.respondWith(fetch(req).then(response => {
-      if(response.ok){const copy=response.clone();caches.open(CACHE_NAME).then(cache=>cache.put(req,copy));}
+// Our Love Hub: root landing / anniversary login only.
+// Each subsite keeps its own scoped Service Worker, especially Chat (Web Push).
+const CACHE_NAME='our-love-hub-shell-v3-pwa-audit-20261009';
+const CORE=['./','./index.html'];
+const OPTIONAL=['./manifest.webmanifest','./assets/icon-192.png','./assets/icon-512.png','./assets/apple-touch-icon.png'];
+self.addEventListener('install',event=>{
+  event.waitUntil((async()=>{
+    const cache=await caches.open(CACHE_NAME);
+    await cache.addAll(CORE);
+    await Promise.allSettled(OPTIONAL.map(path=>cache.add(path)));
+    await self.skipWaiting();
+  })());
+});
+self.addEventListener('activate',event=>{
+  event.waitUntil((async()=>{
+    const names=await caches.keys();
+    await Promise.all(names.filter(n=>n.startsWith('our-love-hub-shell-')&&n!==CACHE_NAME).map(n=>caches.delete(n)));
+    await self.clients.claim();
+  })());
+});
+self.addEventListener('fetch',event=>{
+  const req=event.request;
+  if(req.method!=='GET'||req.mode!=='navigate')return;
+  const url=new URL(req.url);
+  const base=new URL(self.registration.scope);
+  if(url.origin!==base.origin || ![base.pathname,base.pathname+'index.html'].includes(url.pathname))return;
+  event.respondWith((async()=>{
+    try{
+      const response=await fetch(req);
+      if(response.ok){
+        const clone=response.clone();
+        event.waitUntil(caches.open(CACHE_NAME).then(cache=>cache.put('./index.html',clone)).catch(()=>{}));
+      }
       return response;
-    }).catch(()=>caches.match(req).then(r=>r||caches.match('./index.html'))));
-  }
+    }catch{
+      return (await caches.match('./index.html'))||Response.error();
+    }
+  })());
 });
