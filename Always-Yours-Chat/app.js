@@ -235,7 +235,24 @@ function formatTime(value){
   const d=new Date(Number(value)||Date.now());
   return new Intl.DateTimeFormat(undefined,{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"}).format(d);
 }
-function formatSeenTime(value){ return new Intl.DateTimeFormat(undefined,{hour:"2-digit",minute:"2-digit"}).format(new Date(Number(value)||Date.now())); }
+// Dates are already separated by day in the chat timeline. Show only HH:mm in each bubble.
+function formatBubbleTime(value){
+  return new Intl.DateTimeFormat("zh-CN",{hour:"2-digit",minute:"2-digit",hour12:false})
+    .format(new Date(Number(value)||Date.now()));
+}
+// A receipt is based ONLY on the server's seen_at field, never on online presence.
+function setReadReceipt(element, seen){
+  if(!element)return;
+  const isSeen=Boolean(seen);
+  element.classList.toggle("is-seen",isSeen);
+  element.classList.toggle("is-sent",!isSeen);
+  const description=isSeen?"对方已读":"已发送，对方尚未阅读";
+  element.setAttribute("aria-label",description);
+  element.title=description;
+  const checks=element.querySelector(".receipt-checks");
+  if(checks) checks.textContent=isSeen?"✓✓":"✓";
+}
+
 
 function showChat(){ gate.classList.add("hidden"); chat.classList.remove("hidden"); ensurePresenceUi(); ensureEditBar(); }
 function showGate(){
@@ -339,8 +356,28 @@ function renderMessages(items){
 
     }
     const meta=document.createElement("div"); meta.className="message-meta-row";
-    const tm=document.createElement("div"); tm.className="message-time"; tm.textContent=formatTime(item.created_at); meta.appendChild(tm);
-    if(item.edited_at){ const ed=document.createElement("span"); ed.className="message-edited"; ed.textContent="edited"; meta.appendChild(ed); }
+    if(item.edited_at){
+      const ed=document.createElement("span"); ed.className="message-edited";
+      ed.textContent="✎"; ed.title="消息已编辑"; ed.setAttribute("aria-label","消息已编辑");
+      meta.appendChild(ed);
+    }
+    const tm=document.createElement("time");
+    tm.className="message-time";
+    tm.textContent=formatBubbleTime(item.created_at);
+    tm.dateTime=new Date(Number(item.created_at)||Date.now()).toISOString();
+    tm.title=formatTime(item.created_at);
+    meta.appendChild(tm);
+    if(mine){
+      const read=document.createElement("span");
+      read.className="message-read-status";
+      read.setAttribute("role","img");
+      const checks=document.createElement("span");
+      checks.className="receipt-checks";
+      checks.setAttribute("aria-hidden","true");
+      read.appendChild(checks);
+      setReadReceipt(read,item.seen_at);
+      meta.appendChild(read);
+    }
     // Keep the retention timestamp for local filtering; omit per-message countdown UI.
     bubble.appendChild(meta);
     const actions=document.createElement("div");
@@ -361,12 +398,6 @@ function renderMessages(items){
       editBtn.addEventListener("click",()=>beginEdit(item));
       actions.appendChild(editBtn);
     }
-    if(mine){
-      const read=document.createElement("div");
-      read.className=`message-read-status ${item.seen_at?"is-seen":"is-sent"}`;
-      read.textContent=item.seen_at?`Seen ♡ · ${formatSeenTime(item.seen_at)}`:"Sent · waiting to be seen";
-      bubble.appendChild(read);
-    }
     row.dataset.chatMessageId=item.id;
     // Keep the controls beside the message, not below its text (compact WhatsApp-style).
     if(mine) row.append(actions,bubble);
@@ -385,13 +416,7 @@ function updateReadReceipts(items){
     const m=byId.get(row.dataset.chatMessageId);
     if(!m)continue;
     const read=row.querySelector('.message-read-status');
-    if(read){
-      const seen=Boolean(m.seen_at);
-      const next=seen?`Seen ♡ · ${formatSeenTime(m.seen_at)}`:'Sent · waiting to be seen';
-      if(read.textContent!==next)read.textContent=next;
-      read.classList.toggle('is-seen',seen);
-      read.classList.toggle('is-sent',!seen);
-    }
+    if(read) setReadReceipt(read,m.seen_at);
   }
 }
 

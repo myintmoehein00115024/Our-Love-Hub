@@ -1,5 +1,5 @@
 // Dedicated chat PWA worker: same unified icon, scoped to /Always-Yours-Chat/.
-const CACHE="always-yours-v31-clean-bubble-meta-20261009";
+const CACHE="always-yours-v32-compact-checks-20261010";
 const ASSETS=["./","./index.html","./styles.css","./app.js","./routes.js","./manifest.webmanifest","../assets/favicon-32.png","../assets/icon-192.png","../assets/icon-512.png","../assets/apple-touch-icon.png", "./romantic-gifs/pulse-love.gif", "./romantic-gifs/hugs.gif", "./romantic-gifs/miss-you.gif", "./romantic-gifs/good-night.gif", "./romantic-gifs/kiss.gif", "./romantic-gifs/forever.gif"];
 self.addEventListener("install",e=>e.waitUntil((async()=>{
  const cache=await caches.open(CACHE);
