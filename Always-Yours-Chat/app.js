@@ -46,6 +46,11 @@ const connectionState = $("connectionState");
 const stickerPanel = $("stickerPanel");
 const photoBtn = $("photoBtn");
 const photoInput = $("photoInput");
+const gifBtn = $("gifBtn");
+const gifInput = $("gifInput");
+const replyPreview = $("replyPreview");
+const replyPreviewLabel = $("replyPreviewLabel");
+const replyPreviewText = $("replyPreviewText");
 const photoPreview = $("photoPreview");
 const photoPreviewImg = $("photoPreviewImg");
 const photoPreviewName = $("photoPreviewName");
@@ -81,7 +86,7 @@ function ensureEditBar(){
   editBar=document.createElement("div");
   editBar.id="editBar";
   editBar.className="edit-bar hidden";
-  editBar.innerHTML='<div class="edit-bar-copy"><span class="edit-bar-icon">✎</span><div><strong>Editing your message</strong><span id="editBarText"></span></div></div><button type="button" id="cancelEditBtn" class="edit-cancel">Cancel</button>';
+  editBar.innerHTML='<div class="edit-bar-copy"><span class="edit-bar-icon">✎</span><div><strong>正在编辑消息</strong><span id="editBarText"></span></div></div><button type="button" id="cancelEditBtn" class="edit-cancel">取消</button>';
   document.querySelector(".composer-wrap").insertBefore(editBar,document.querySelector(".composer-wrap").firstElementChild);
   editBar.querySelector("#cancelEditBtn").addEventListener("click",cancelEdit);
 }
@@ -159,6 +164,8 @@ let selectedPhotoFile = null;
 let selectedPhotoPreviewUrl = null;
 const mediaObjectUrls = new Set();
 let editingMessageId = null;
+let editingMessageReply = null;
+let replyingTo = null;
 let presenceTimer = null;
 let presenceSyncBusy = false;
 const readMarkedIds = new Set();
@@ -230,6 +237,7 @@ function showGate(){
   stopPolling();
   stopPresence();
   cancelEdit();
+  clearReply();
   input.value="";
 }
 function otherUser(name){return name==="Ko Ko"?"Chit Chit":"Ko Ko";}
@@ -290,6 +298,20 @@ function renderMessages(items){
     if(item.kind==="sticker") bubble.classList.add("sticker-bubble");
     const sender=document.createElement("div"); sender.className="sender"; sender.textContent=mine?"我 · "+(selectedName==="Ko Ko"?"HE":"SHE"):(item.sender==="Ko Ko"?"HE":"SHE");
     bubble.appendChild(sender);
+    if(item.reply){
+      const quote=document.createElement("button");
+      quote.type="button"; quote.className="message-reply-quote";
+      quote.setAttribute("aria-label","跳转到引用的消息");
+      const who=document.createElement("strong");who.textContent=(item.reply.sender==="Ko Ko"?"HE":"SHE")+" · 回复";
+      const snippet=document.createElement("span");snippet.textContent=String(item.reply.text||"消息").slice(0,120);
+      quote.append(who,snippet);
+      quote.addEventListener("click",()=>{
+        const match=[...messagesEl.querySelectorAll("[data-chat-message-id]")].find(el=>el.dataset.chatMessageId===item.reply.id);
+        if(match){match.scrollIntoView({block:"center",behavior:"smooth"});match.classList.add("highlight-replied");setTimeout(()=>match.classList.remove("highlight-replied"),1300);}
+        else toast("这条引用的消息不在当前列表中 ♡");
+      });
+      bubble.appendChild(quote);
+    }
     if(item.kind==="sticker") bubble.appendChild(renderSticker(item.text));
     else if(item.kind==="image"){
       const media=document.createElement("div"); media.className="image-message";
@@ -297,24 +319,29 @@ function renderMessages(items){
       bubble.appendChild(media);
     } else {
       const t=document.createElement("div"); t.className="message-text"; t.textContent=item.text; bubble.appendChild(t);
-      if(mine){
-        const actions=document.createElement("div"); actions.className="message-actions";
-        const edit=document.createElement("button"); edit.type="button"; edit.className="message-edit-button"; edit.textContent="Edit"; edit.setAttribute("aria-label","Edit this message");
-        edit.addEventListener("click",()=>beginEdit(item));
-        actions.appendChild(edit);
-        bubble.appendChild(actions);
-      }
+
     }
     const meta=document.createElement("div"); meta.className="message-meta-row";
     const tm=document.createElement("div"); tm.className="message-time"; tm.textContent=formatTime(item.created_at); meta.appendChild(tm);
     if(item.edited_at){ const ed=document.createElement("span"); ed.className="message-edited"; ed.textContent="edited"; meta.appendChild(ed); }
     const age=document.createElement("span"); age.className="message-age"; age.textContent=expiryLabel(item.expires_at); meta.appendChild(age);
     bubble.appendChild(meta);
+    const actions=document.createElement("div");actions.className="message-actions enhanced-message-actions";
+    const replyBtn=document.createElement("button");replyBtn.type="button";replyBtn.className="message-reply-button";
+    replyBtn.textContent="↩ 回复";replyBtn.setAttribute("aria-label", "回复"+(mine?"自己":"对方")+"的消息");
+    replyBtn.addEventListener("click",()=>beginReply(item));actions.appendChild(replyBtn);
+    if(mine&&item.kind==="text"){
+      const editBtn=document.createElement("button");editBtn.type="button";editBtn.className="message-edit-button";
+      editBtn.textContent="✎ 编辑";editBtn.setAttribute("aria-label","编辑这条消息");
+      editBtn.addEventListener("click",()=>beginEdit(item));actions.appendChild(editBtn);
+    }
+    bubble.appendChild(actions);
     if(mine){
       const read=document.createElement("div"); read.className=`message-read-status ${item.seen_at?"is-seen":"is-sent"}`;
       read.textContent=item.seen_at?`Seen ♡ · ${formatSeenTime(item.seen_at)}`:"Sent · waiting to be seen";
       bubble.appendChild(read);
     }
+    row.dataset.chatMessageId=item.id;
     row.appendChild(bubble); messagesEl.appendChild(row);
   }
   requestAnimationFrame(()=>{ messagesEl.scrollTop = messagesEl.scrollHeight; });
@@ -491,6 +518,14 @@ async function encryptBinary(buffer){
 // Strip image metadata, resize large mobile photos and prefer compact WebP/JPEG.
 // Output is encrypted before it ever reaches Supabase Storage.
 async function compressImage(file){
+  if(file.type==="image/gif" || /\.gif$/i.test(file.name||"")){
+    if(file.size>2*1024*1024)throw new Error("GIF 最大支持 2 MB，请选择较小的动图。");
+    // Re-encoding with canvas would destroy animation; preserve GIF bytes and encrypt them directly.
+    const magic=new Uint8Array(await file.slice(0,6).arrayBuffer());
+    const sig=String.fromCharCode(...magic);
+    if(sig!=="GIF87a"&&sig!=="GIF89a")throw new Error("所选文件不是有效的 GIF 动图。");
+    return new File([file],`our-gif-${Date.now()}.gif`,{type:"image/gif"});
+  }
   const MAX_ORIGINAL = 25 * 1024 * 1024;
   const TARGET = 750 * 1024;
   const MAX_OUTPUT = 1250 * 1024;
@@ -552,6 +587,7 @@ function clearSelectedPhoto(){
   if(photoPreviewImg) photoPreviewImg.removeAttribute("src");
   photoPreview?.classList.add("hidden");
   if(photoInput) photoInput.value="";
+  if(gifInput) gifInput.value="";
   if(input) input.placeholder="想和 TA 说些什么…";
   updateSendButton();
 }
@@ -560,13 +596,13 @@ function updateSendButton(){
   if(!sendBtn) return;
   const hasText=Boolean(input?.value.trim());
   const hasPhoto=Boolean(selectedPhotoFile);
-  sendBtn.textContent=hasPhoto ? (hasText?"Send photo + note ♡":"Send photo ♡") : "Send ♡";
+  sendBtn.textContent=hasPhoto?(selectedPhotoFile.type==="image/gif"?"发送 GIF ♡":"发送照片 ♡"):(editingMessageId?"保存修改 ♡":(replyingTo?"回复 ♡":"发送 ♡"));
   sendBtn.disabled=!hasText && !hasPhoto;
 }
 
 async function choosePhoto(file){
   if(editingMessageId) cancelEdit();
-  if(!file || !file.type.startsWith("image/")) return;
+  if(!file || (!file.type.startsWith("image/")&&!/\.gif$/i.test(file.name||""))) return;
   try{
     const prepared=await compressImage(file);
     if(selectedPhotoPreviewUrl) URL.revokeObjectURL(selectedPhotoPreviewUrl);
@@ -577,20 +613,22 @@ async function choosePhoto(file){
     const beforeKB=Math.round(file.size/1024);
     const afterKB=Math.max(1,Math.round(prepared.size/1024));
     const saved=file.size>0?Math.max(0,Math.round((1-prepared.size/file.size)*100)):0;
-    photoPreviewMeta.textContent=`已压缩 ${beforeKB} KB → ${afterKB} KB · 节省 ${saved}% · 发送前加密`;
+    photoPreviewMeta.textContent=prepared.type==="image/gif"?
+      `GIF 动画保留 · ${afterKB} KB · 端到端加密 · 30 天保存`:
+      `已压缩 ${beforeKB} KB → ${afterKB} KB · 节省 ${saved}% · 发送前加密`;
     photoPreview.classList.remove("hidden");
-    input.placeholder="Add a little note with this photo…";
+    input.placeholder=prepared.type==="image/gif"?"为 GIF 留一句话…":"给照片加一句话…";
     input.focus();
     updateSendButton();
   }catch(error){
     console.error(error);
-    toast(error.message||"Could not prepare this photo.");
+    toast(error.message||"无法处理这张图片或 GIF。");
     clearSelectedPhoto();
   }
 }
 
 async function savePhotoBlob(blob,mime,name){
-  const ext=mime.includes("png")?"png":mime.includes("jpeg")||mime.includes("jpg")?"jpg":"webp";
+  const ext=mime.includes("gif")?"gif":mime.includes("png")?"png":mime.includes("jpeg")||mime.includes("jpg")?"jpg":"webp";
   const safeName=(name||`always-yours-${Date.now()}.${ext}`).replace(/[^a-zA-Z0-9._-]+/g,"-");
   const file=new File([blob],safeName,{type:mime||blob.type||"image/webp"});
   try{
@@ -621,7 +659,7 @@ async function hydrateImageMessage(container,item){
     const url=URL.createObjectURL(blob); mediaObjectUrls.add(url);
     loading.remove();
     const frame=document.createElement("div"); frame.className="image-frame";
-    const img=document.createElement("img"); img.className="message-image"; img.alt=item.name||"Shared photo"; img.loading="lazy"; img.src=url;
+    const img=document.createElement("img"); img.className="message-image"; img.alt=item.mime==="image/gif"?"动画 GIF":"收到的照片"; img.loading="lazy"; img.src=url;
     img.addEventListener("click",()=>openPhotoViewer({url,blob,name:item.name||"always-yours-photo.webp",mime:item.mime||"image/webp"}));
     frame.appendChild(img); container.appendChild(frame);
     if(item.text){ const cap=document.createElement("div"); cap.className="image-caption"; cap.textContent=item.text; container.appendChild(cap); }
@@ -652,7 +690,11 @@ async function decodeItems(raw){
         media_key:payload.mediaKey || item.media_key || "",
         image_iv:payload.imageIv || "",
         mime:payload.mime || "image/webp",
-        name:payload.name || "always-yours-photo.webp"
+        name:payload.name || "always-yours-photo.webp",
+        reply:payload.reply && typeof payload.reply==="object" && /^[a-f0-9-]{36}$/i.test(payload.reply.id||"") ? {
+          id:payload.reply.id, sender:payload.reply.sender==="Ko Ko"?"Ko Ko":"Chit Chit",
+          kind:String(payload.reply.kind||"text"),text:String(payload.reply.text||"").slice(0,120)
+        }:null
       });
     }catch{}
   }
@@ -763,9 +805,33 @@ async function connectRoom(secret){
   }catch(error){console.error(error);setStatus("设备保存失败。请开启浏览器存储后重试。");}
 }
 
+function replySummary(item){
+  const preview=item.kind==="image"?(item.mime==="image/gif"?"🎞️ GIF 动图":"📷 照片")+(item.text?" · "+item.text:"") : String(item.text||"消息");
+  return {id:item.id,sender:item.sender,kind:item.kind,text:preview.slice(0,120)};
+}
+function clearReply(){
+  replyingTo=null;
+  replyPreview?.classList.add("hidden");
+  updateSendButton();
+}
+function beginReply(item){
+  if(!item||!item.id)return;
+  if(editingMessageId)cancelEdit();
+  replyingTo=replySummary(item);
+  if(replyPreviewLabel)replyPreviewLabel.textContent=`↩ 回复 ${item.sender==="Ko Ko"?"HE · Ko Ko":"SHE · Chit Chit"}`;
+  if(replyPreviewText)replyPreviewText.textContent=replyingTo.text;
+  replyPreview?.classList.remove("hidden");
+  input.placeholder="写下你的回复…";
+  input.focus();
+  requestAnimationFrame(()=>document.querySelector(".composer-wrap")?.scrollIntoView({behavior:"smooth",block:"end"}));
+}
+$("cancelReplyBtn")?.addEventListener("click",clearReply);
+
 function beginEdit(item){
   if(!item || item.kind!=="text" || !userIsMine(item.sender)) return;
+  clearReply();
   editingMessageId=item.id;
+  editingMessageReply=item.reply||null;
   ensureEditBar();
   input.value=item.text||"";
   input.style.height="auto";
@@ -775,14 +841,15 @@ function beginEdit(item){
     const label=editBar.querySelector("#editBarText");
     if(label) label.textContent=(item.text||"").slice(0,80);
   }
-  sendBtn.textContent="Save edit ♡";
+  sendBtn.textContent="保存修改 ♡";
   sendBtn.disabled=!String(input.value||"").trim();
-  input.placeholder="Edit your message…";
+  input.placeholder="编辑这条消息…";
   input.focus();
   requestAnimationFrame(()=>{ document.querySelector(".composer-wrap")?.scrollIntoView({behavior:"smooth",block:"end"}); });
 }
 function cancelEdit(){
   editingMessageId=null;
+  editingMessageReply=null;
   if(editBar) editBar.classList.add("hidden");
   if(input) input.placeholder="想和 TA 说些什么…";
   updateSendButton();
@@ -795,7 +862,7 @@ async function editMessage(){
   if(text.length>2000){ toast("Message is too long."); return; }
   sendBtn.disabled=true;
   try{
-    const encrypted=await encryptPayload({kind:"text",text});
+    const encrypted=await encryptPayload({kind:"text",text,reply:editingMessageReply||undefined});
     await apiEditMessage(id,encrypted);
     cancelEdit();
     input.value="";
@@ -827,6 +894,7 @@ async function sendMessage(kind="text", value=input.value){
       await apiUploadMedia(encryptedImage.ciphertext,mediaKey);
       const encryptedMessage=await encryptPayload({
         kind:"image",
+        reply:replyingTo||undefined,
         text:textValue,
         mediaKey,
         imageIv:encryptedImage.iv,
@@ -836,12 +904,13 @@ async function sendMessage(kind="text", value=input.value){
       await apiSendMessage({id:crypto.randomUUID(),sender:selectedName,media_key:mediaKey,...encryptedMessage});
       clearSelectedPhoto();
     }else{
-      const encrypted=await encryptPayload({kind,text:textValue});
+      const encrypted=await encryptPayload({kind,text:textValue,reply:replyingTo||undefined});
       await apiSendMessage({id:crypto.randomUUID(),sender:selectedName,...encrypted});
       input.value="";
       input.style.height="auto";
       try{localStorage.removeItem("alwaysYoursDraft")}catch{}
     }
+    clearReply();
     stickerPanel.classList.add("hidden");
     if(emojiPanel) emojiPanel.classList.add("hidden");
     $("stickerBtn")?.setAttribute("aria-expanded","false");
@@ -881,6 +950,8 @@ $("resetDeviceBtn").addEventListener("click",async()=>{
 });
 sendBtn.addEventListener("click",()=>editingMessageId?editMessage():sendMessage());
 photoBtn?.addEventListener("click",()=>photoInput?.click());
+gifBtn?.addEventListener("click",()=>gifInput?.click());
+gifInput?.addEventListener("change",()=>{const file=gifInput.files?.[0];if(file)choosePhoto(file);});
 photoInput?.addEventListener("change",()=>{ const file=photoInput.files?.[0]; if(file) choosePhoto(file); });
 removePhotoBtn?.addEventListener("click",clearSelectedPhoto);
 updateSendButton();

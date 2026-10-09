@@ -88,6 +88,11 @@
         <div id="newMessageHint" class="new-message-hint hidden" aria-live="polite">收到新消息 ♡</div>
         <div id="emojiPanel" class="emoji-panel hidden" aria-label="Emoji picker"></div>
         <div id="stickerPanel" class="sticker-panel hidden" aria-label="Stickers"></div>
+        <div id="replyPreview" class="reply-compose-preview hidden" aria-live="polite">
+          <div class="reply-compose-icon">↩</div>
+          <div class="reply-compose-content"><strong id="replyPreviewLabel">回复</strong><span id="replyPreviewText"></span></div>
+          <button id="cancelReplyBtn" type="button" aria-label="取消回复">×</button>
+        </div>
         <div class="composer-heading">
           <label for="messageInput">写给 TA 的悄悄话 <span aria-hidden="true">♡</span></label>
           <span>只属于我们的小对话</span>
@@ -105,7 +110,9 @@
           <button id="emojiBtn" class="tool-button" type="button" aria-label="选择 Emoji 表情" title="选择 Emoji 表情" aria-expanded="false">☺</button>
           <button id="stickerBtn" class="tool-button" type="button" aria-label="发送甜蜜贴纸" title="甜蜜贴纸" aria-expanded="false">♡</button>
           <button id="photoBtn" class="tool-button photo-tool-button" type="button" aria-label="选择照片" title="选择照片">▧</button>
-          <input id="photoInput" class="photo-input" type="file" accept="image/*">
+          <input id="photoInput" class="photo-input" type="file" accept="image/png,image/jpeg,image/webp,image/heic,image/heif">
+          <button id="gifBtn" class="tool-button gif-tool-button" type="button" aria-label="上传自己的 GIF 动图" title="发送自己的 GIF 动图">GIF</button>
+          <input id="gifInput" class="photo-input" type="file" accept="image/gif,.gif">
           <div class="tool-spacer"></div>
           <span id="connectionState" class="connection-state">连接中…</span>
         </div>

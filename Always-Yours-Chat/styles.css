@@ -937,3 +937,37 @@ body::before,body::after{opacity:.62;filter:blur(.1px)}
  .sticker.compact-sticker{min-height:53px;height:53px}
 }
 @media(prefers-reduced-motion:reduce){.sticker-word,.sticker.compact-sticker{transition:none}}
+
+/* v24: obvious edit and reply affordances, compact animated feelings, encrypted personal GIFs */
+.enhanced-message-actions{position:static!important;display:flex!important;flex-wrap:wrap;gap:7px;margin-top:10px!important;opacity:1!important;transform:none!important;justify-content:flex-end!important;visibility:visible!important}
+.enhanced-message-actions button{display:inline-flex!important;align-items:center;justify-content:center;min-height:29px!important;min-width:65px;border-radius:999px!important;border:1px solid #dcb6d5!important;background:rgba(255,255,255,.93)!important;color:#815377!important;font-size:12px!important;font-weight:800!important;line-height:1.2;padding:6px 11px!important;letter-spacing:0!important;opacity:1!important;cursor:pointer;box-shadow:0 3px 9px rgba(128,81,128,.07)}
+.enhanced-message-actions .message-edit-button{background:#f4d9ec!important;border-color:#d19cc4!important;color:#793b72!important}
+.enhanced-message-actions button:hover,.enhanced-message-actions button:focus-visible{background:#fff0f8!important;outline:2px solid rgba(179,100,158,.23);outline-offset:2px}
+.message-reply-quote{display:flex;flex-direction:column;gap:4px;width:100%;min-width:0;max-width:100%;margin:3px 0 10px;padding:9px 11px;border-radius:11px;border:0;border-left:3px solid #c47faf;background:rgba(255,255,255,.7);color:#725873;text-align:left;cursor:pointer;position:relative;z-index:1}
+.message-reply-quote strong{font-size:11px;color:#ac6498}
+.message-reply-quote span{font-size:12px;line-height:1.5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;font-weight:500}
+.reply-compose-preview{display:flex;align-items:center;gap:11px;margin-bottom:9px;padding:10px 12px;border-radius:14px;border:1px solid rgba(212,149,196,.58);background:linear-gradient(110deg,rgba(252,232,245,.97),rgba(246,239,254,.98));min-width:0}
+.reply-compose-preview.hidden{display:none!important}
+.reply-compose-icon{font-size:22px;color:#a7659b;font-weight:900}
+.reply-compose-content{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.reply-compose-content strong{color:#945485;font-size:12px}
+.reply-compose-content span{color:#856b81;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.reply-compose-preview button{flex:none;border:1px solid #e2b4d6;width:29px;height:29px;border-radius:50%;color:#975b90;font-size:21px;background:white;cursor:pointer}
+.message-row.highlight-replied .message-bubble{outline:3px solid #dfa2c8;outline-offset:3px}
+.sticker-message{font-family:inherit!important;font-size:16px!important;font-weight:550;line-height:1.6!important;padding:2px 0!important;white-space:normal;word-break:break-word;animation:sticker-pop-in .4s cubic-bezier(.2,1.4,.4,1) both}
+.sticker-row .message-bubble{padding:12px 15px!important;max-width:min(77%,540px)!important}
+.sticker-row .message-actions{margin-top:7px!important}
+.sticker.compact-sticker{animation:little-heart-float 3s ease-in-out infinite}
+.sticker.compact-sticker:nth-child(2n){animation-delay:-1.1s}
+.sticker.compact-sticker:nth-child(3n){animation-delay:-1.9s}
+.emoji-choice{transition:transform .22s ease!important;transform-origin:center}
+.emoji-choice:hover,.emoji-choice:focus-visible{transform:scale(1.17) rotate(-7deg)!important}
+.emoji-choice:active,.sticker.compact-sticker:active{animation:sticker-pop-in .35s ease!important}
+@keyframes sticker-pop-in{0%{opacity:.65;transform:scale(.78)}70%{transform:scale(1.045)}100%{opacity:1;transform:scale(1)}}
+@keyframes little-heart-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+.gif-tool-button{font-size:11px!important;font-weight:900!important;letter-spacing:.02em;width:44px!important;height:34px!important;color:#995a91!important}
+.gif-tool-button:hover{background:#fee7f3!important}
+.image-message .message-image[src^="blob:"]{object-fit:contain}
+.message-reply-button:focus-visible{outline:2px solid #af75a0;outline-offset:3px}
+@media(max-width:760px){.enhanced-message-actions button{min-height:32px!important;font-size:12px!important;padding:6px 10px!important}.message-reply-quote{padding:8px 10px;margin-bottom:8px}.sticker-message{font-size:15px!important}.gif-tool-button{width:40px!important}}
+@media(prefers-reduced-motion:reduce){.sticker-message,.sticker.compact-sticker,.emoji-choice{animation:none!important;transition:none!important;transform:none!important}}
