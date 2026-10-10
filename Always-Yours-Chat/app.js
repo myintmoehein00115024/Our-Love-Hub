@@ -12,6 +12,13 @@ let lastForegroundSync=0;
 // recent successful encrypted-message sync; any old heartbeat expires server-side.
 const presenceTabId=b64(crypto.getRandomValues(new Uint8Array(16)));
 let presenceTimer=null,presenceBusy=null,presenceLastPublished=false;
+// R31: keep per-tab presence events strictly increasing. A delayed 'online'
+// request must never overwrite a newer 'away' request on the server.
+let presenceEventClock=0,presencePostInFlight=false,lastPresencePollAt=0;
+function nextPresenceEventMs(){
+ presenceEventClock=Math.max(Date.now(),presenceEventClock+1);
+ return presenceEventClock;
+}
 function setPartnerPresence(message,tone='unknown'){
  const node=$('partnerPresence'),dot=$('partnerPresenceDot');if(!node||!dot)return;
  node.textContent=message;dot.dataset.state=tone;
@@ -44,6 +51,7 @@ async function pollPartnerPresence(){
  if(presenceBusy||!state.role||$('chat').classList.contains('hidden')||document.hidden)return;
  if(!navigator.onLine){setPartnerPresence('网络断开 · 在线状态未知');return;}
  const role=state.role,fp=state.fp,epoch=state.authEpoch;
+ lastPresencePollAt=Date.now();
  const current=()=>presenceIdentityValid(role,fp,epoch)&&!document.hidden;
  const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),12000);
  const work=(async()=>{
@@ -51,8 +59,12 @@ async function pollPartnerPresence(){
    // Browser online status is not enough: only an authenticated foreground sync
    // makes us available to the other person.
    if(chatForegroundFocused()&&lastForegroundSync>0&&Date.now()-lastForegroundSync<20000){
-    await request('/presence','POST',{tabId:presenceTabId,visible:true,eventMs:Date.now()},controller.signal);
-    if(current())presenceLastPublished=true;
+    const eventMs=nextPresenceEventMs();
+    presencePostInFlight=true;
+    try{
+     await request('/presence','POST',{tabId:presenceTabId,visible:true,eventMs},controller.signal);
+     if(current()&&chatForegroundFocused())presenceLastPublished=true;
+    }finally{presencePostInFlight=false;}
    }
    const response=await request('/presence','GET',null,controller.signal);
    if(!current())return;
@@ -65,15 +77,17 @@ async function pollPartnerPresence(){
  try{await work;}finally{clearTimeout(timeout);if(presenceBusy===work)presenceBusy=null;}
 }
 function publishPresenceAway(){
- if(!presenceLastPublished||!state.role||!state.fp||!navigator.onLine)return;
+ if((!presenceLastPublished&&!presencePostInFlight)||!state.role||!state.fp||!navigator.onLine)return Promise.resolve();
  presenceLastPublished=false;
- // Best effort on page hide; browsers may suspend requests. Expiry is mandatory
- // on the server, so the badge never depends on this request succeeding.
- void request('/presence','POST',{tabId:presenceTabId,visible:false,eventMs:Date.now()}).catch(()=>{});
+ // R31: send an away event even while online POST is awaiting a response.
+ // The newer eventMs wins regardless of network arrival order. Browsers may
+ // suspend background requests, so the 55-second server expiry remains a fallback.
+ return request('/presence','POST',{tabId:presenceTabId,visible:false,
+   eventMs:nextPresenceEventMs()}).catch(()=>{});
 }
 function stopPresencePolling(){
  clearInterval(presenceTimer);presenceTimer=null;
- presenceBusy=null;presenceLastPublished=false;
+ presenceBusy=null;presenceLastPublished=false;presencePostInFlight=false;lastPresencePollAt=0;
  setPartnerPresence('在线状态等待连接','unknown');
 }
 function startPresencePolling(){
@@ -423,6 +437,10 @@ function markForegroundSynced(){
  if(!chatForegroundFocused())return;
  lastForegroundSync=Date.now();
  syncSWChatReadiness();
+ // R31: on foreground return don't wait an entire 18-second polling cycle.
+ // Throttle to avoid adding a presence request on every 5-second refresh.
+ if(presenceTimer&&!presenceBusy&&Date.now()-lastPresencePollAt>10000)
+  void pollPartnerPresence();
 }
 const v2Broadcast='BroadcastChannel' in window?new BroadcastChannel('ay-v2-chat'):null;
 let newWhileAway=0;
@@ -964,7 +982,7 @@ $('deviceApproval').addEventListener('keydown',e=>{
 // acknowledgement is missing. Do not erase its original UUID / ciphertext on
 // an accidental HE/SHE switch. Explicit two-click opt-out remains available.
 let exitConfirmState=null;
-$('exit').addEventListener('click',()=>{
+$('exit').addEventListener('click',async()=>{
  const pending=state.pendingSend;
  const atRisk=!!(pending&&pending.attempts>0&&
    sendContext(pending.role,pending.fp,pending.epoch));
@@ -983,6 +1001,12 @@ $('exit').addEventListener('click',()=>{
  }
  exitConfirmState=null;
  $('exit').textContent='⇄ 切换 HE / SHE';
+ // R31: a same-tab HE/SHE switch does not fire pagehide. Give the signed
+ // offline report a short chance to reach the server before resetting identity.
+ // Never block the user indefinitely on a lost network connection.
+ const exitButton=$('exit');exitButton.disabled=true;
+ try{await Promise.race([publishPresenceAway(),new Promise(r=>setTimeout(r,1200))]);}
+ finally{exitButton.disabled=false;}
  try{localStorage.removeItem('ay-secure-role-v1');}catch{}
  clearPrivateView();state.role=null;state.fp=null;state.identity=null;clearComposerMode();attachmentReset();
  $('gateStatus').textContent='选择身份后，将自动检查本机授权状态。';
