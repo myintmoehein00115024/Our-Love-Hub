@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow,noarchive">
 <meta name="referrer" content="no-referrer">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-VXqoCcBbhq4BqAcVPdkxXrrtZHZ03QvhX7xbivIN1Vg='; style-src 'unsafe-inline'; connect-src https://zegjegutcigbydtzggur.supabase.co; base-uri 'none'; object-src 'none'; form-action 'none'; img-src 'self' data:; upgrade-insecure-requests">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-7Lc5dXoM7R9g52em1xoWtluZSSGlHbSbIbrlg9nQ/q0='; style-src 'unsafe-inline'; connect-src https://zegjegutcigbydtzggur.supabase.co; base-uri 'none'; object-src 'none'; form-action 'none'; img-src 'self' data:; upgrade-insecure-requests">
 <meta name="theme-color" content="#f9ebf7">
 <title>设备授权管理 ♡ Our Love Hub</title>
 <style>
@@ -42,13 +42,13 @@
 <h1>设备授权管理 ♡</h1>
 <p>在这里安全管理 HE / SHE 的设备：核对指纹、批准申请、备注昵称、查看已记录的申请 IP，以及解除设备授权。所有更改均在服务器验证管理员口令。</p>
 <label for="token">管理员授权口令（至少 10 位）</label>
-<input id="token" class="field" type="password" minlength="10" maxlength="256" autocomplete="new-password" spellcheck="false" placeholder="不会保存，5 分钟无操作自动锁定" aria-describedby="privacy" />
+<input id="token" class="field" type="password" minlength="10" maxlength="256" autocomplete="new-password" spellcheck="false" placeholder="不保存，5 分钟无操作或切换后台会锁定" aria-describedby="privacy" />
 <div class="actions"><button type="button" id="toggle">显示 / 隐藏口令</button><button class="primary" type="button" id="refresh">查看设备授权记录 ↻</button><button type="button" id="auditBtn">查看操作记录</button></div>
 <div class="hero-note">IP 仅供辅助识别，不等于设备所在地；VPN、运营商网络可能改变 IP。只有升级后新申请且服务器成功记录的设备才显示申请 IP（网络转发标头可能不可靠，只作辅助线索，绝不用于授权）。解除授权将立即阻止新版 Chat V2 继续访问，但旧版聊天 API 尚未完全隔离。</div>
 <div id="status" class="status" role="status" aria-live="polite">尚未读取授权记录。请使用您在 Supabase 设置的原始管理员口令，而非摘要。</div>
 <section id="results" aria-live="polite"></section>
 <section id="audit" class="panel" hidden aria-live="polite"></section>
-<p class="hint" id="privacy">安全提示：管理员口令只在本页面的短时会话内使用，不保存到浏览器存储或 GitHub；无操作 5 分钟自动清空口令和设备列表。只批准通过独立渠道核实过指纹的设备。解除授权不会删除既有聊天数据，也不能远程抹除设备曾保存的内容。旧版聊天 API 的安全隔离仍需继续处理。<strong>不要在公共设备操作。</strong></p>
+<p class="hint" id="privacy">安全提示：管理员口令只在本页面的短时会话内使用，显示口令 10 秒后自动隐藏，不保存到浏览器存储或 GitHub；无操作 5 分钟、切换到后台或离开页面时自动清空口令和设备列表。只批准通过独立渠道核实过指纹的设备。解除授权不会删除既有聊天数据，也不能远程抹除设备曾保存的内容。旧版聊天 API 的安全隔离仍需继续处理。<strong>不要在公共设备操作。</strong></p>
 </main>
 <script>
 'use strict';
@@ -58,36 +58,77 @@ const refresh=document.getElementById('refresh'),toggle=document.getElementById(
 const audit=document.getElementById('audit'),auditBtn=document.getElementById('auditBtn');
 if(window.top===window.self)document.documentElement.style.visibility='visible';
 let busy=false,serial=0,lastActivity=Date.now();
+// An incrementing security epoch prevents any request started before a lock
+// from writing sensitive data back into the DOM after locking.
+let securityEpoch=0,activeRequest=null,revealTimer=null;
 const MAX_IDLE_MS=5*60*1000;
 function activity(){lastActivity=Date.now();}
-function lockAdmin(){
+function lockAdmin(reason='出于安全考虑，管理员会话已锁定。请重新输入管理员口令。'){
+ securityEpoch++;
+ if(activeRequest){activeRequest.abort();activeRequest=null;}
+ if(revealTimer){clearTimeout(revealTimer);revealTimer=null;}
  input.value='';input.type='password';results.replaceChildren();audit.replaceChildren();audit.hidden=true;
- note('出于安全考虑，管理员会话已锁定。请重新输入管理员口令。');
+ note(reason);
 }
-function checkIdle(){if(Date.now()-lastActivity>=MAX_IDLE_MS&&(input.value||results.children.length||!audit.hidden))lockAdmin();}
+function checkIdle(){
+ if(Date.now()-lastActivity>=MAX_IDLE_MS&&(input.value||results.children.length||!audit.hidden)){
+  lockAdmin();return true;
+ }
+ return false;
+}
 setInterval(checkIdle,15000);
 window.addEventListener('focus',checkIdle);
+window.addEventListener('pageshow',e=>{if(e.persisted)lockAdmin();});
+document.addEventListener('visibilitychange',()=>{
+ if(document.hidden&&(input.value||results.children.length||!audit.hidden))
+  lockAdmin('页面切换到后台，管理员资料已自动锁定。请重新输入口令。');
+});
 document.addEventListener('pointerdown',activity,{passive:true});
+document.addEventListener('keydown',activity);
 input.addEventListener('input',activity);
+input.addEventListener('blur',()=>{input.type='password';});
 function note(message,kind=''){status.textContent=message;status.className='status '+kind;}
 function node(tag,cls,text){const e=document.createElement(tag);if(cls)e.className=cls;if(text!==undefined)e.textContent=text;return e;}
 function validDevice(d){return ['Ko Ko','Chit Chit'].includes(d.user_name)&&/^[A-Za-z0-9_-]{43}$/.test(d.fingerprint||'');}
 function showTime(ms){const n=Number(ms);return Number.isFinite(n)&&n>0?new Date(n).toLocaleString():'暂无';}
 async function request(url,body){
- checkIdle();const adminToken=input.value;activity();
+ if(checkIdle())throw new Error('管理员会话超时，请重新输入口令。');
+ const adminToken=input.value;
  if(adminToken.length<10)throw new Error('请输入至少 10 位管理员口令。');
- const response=await fetch(url,{method:'POST',mode:'cors',cache:'no-store',referrerPolicy:'no-referrer',headers:{'Content-Type':'application/json'},body:JSON.stringify({adminToken,...body})});
- let json={};try{json=await response.json();}catch{}
- if(!response.ok||!json.ok){if(response.status===401||response.status===403){input.value='';results.replaceChildren();audit.replaceChildren();audit.hidden=true;}throw new Error(json.error||`请求失败 (${response.status})`);}
- return json;
+ const epoch=securityEpoch;
+ const controller=new AbortController();
+ activeRequest=controller;
+ try{
+  const response=await fetch(url,{
+   method:'POST',mode:'cors',cache:'no-store',referrerPolicy:'no-referrer',
+   headers:{'Content-Type':'application/json'},body:JSON.stringify({adminToken,...body}),
+   signal:controller.signal
+  });
+  let json={};try{json=await response.json();}catch{}
+  if(epoch!==securityEpoch || controller.signal.aborted)
+   throw new Error('管理员会话已锁定，过期请求已丢弃。');
+  if(!response.ok||!json.ok){
+   if(response.status===401||response.status===403)lockAdmin('管理员验证失败，会话已锁定。请检查口令。');
+   if(response.status===429)throw new Error('安全请求次数已达到限制。请约 15 分钟后重试，不要连续点击。');
+   throw new Error(json.error||`请求失败 (${response.status})`);
+  }
+  return json;
+ }catch(e){
+  if(epoch!==securityEpoch || controller.signal.aborted)
+   throw new Error('管理员会话已锁定，过期请求已丢弃。');
+  throw e;
+ }finally{
+  if(activeRequest===controller)activeRequest=null;
+ }
 }
 const admin=(action,payload={})=>request(ADMIN_API+'/'+action,payload);
 async function runTask(fn){
  if(busy)return;
- busy=true;refresh.disabled=true;
+ const epoch=securityEpoch;
+ busy=true;refresh.disabled=true;auditBtn.disabled=true;
  try{await fn();}
- catch(e){note(e&&e.message?e.message:'操作失败，请稍后重试','error');}
- finally{busy=false;refresh.disabled=false;}
+ catch(e){if(epoch===securityEpoch)note(e&&e.message?e.message:'操作失败，请稍后重试','error');}
+ finally{busy=false;refresh.disabled=false;auditBtn.disabled=false;}
 }
 async function load(){
  return runTask(async()=>{
@@ -205,7 +246,11 @@ function showAudit(){
 }
 refresh.addEventListener('click',load);
 auditBtn.addEventListener('click',showAudit);
-toggle.addEventListener('click',()=>{input.type=input.type==='password'?'text':'password';});
+toggle.addEventListener('click',()=>{
+ if(revealTimer){clearTimeout(revealTimer);revealTimer=null;}
+ input.type=input.type==='password'?'text':'password';
+ if(input.type==='text')revealTimer=setTimeout(()=>{input.type='password';revealTimer=null;},10000);
+});
 input.addEventListener('keydown',e=>{if(e.key==='Enter')load();});
 window.addEventListener('pagehide',()=>{lockAdmin();});
 </script></body></html>
