@@ -57,7 +57,7 @@ async function login(force=false){
  const proof=b64(await crypto.subtle.sign({name:'ECDSA',hash:'SHA-256'},state.identity.privateKey,payload));
  const x=await jsonFetch(AUTH_BASE+'/api/v2/device/verify',{user_name:role,challengeId:c.challengeId,signature:proof});
  if(!x.deviceVerified||!x.accessToken||x.fingerprint!==fp)throw new Error('服务器未批准当前设备');
- state.session=x.accessToken;state.expires=Date.now()+Math.min(600,Number(x.expiresInSeconds)||600)*1000;
+ state.session=x.accessToken;state.expires=Date.now()+Math.min(600,Number(x.expiresInSeconds)||600)*1000;syncSWChatReadiness();
 }
 async function request(path,method='GET',payload=null){
  await login();
@@ -203,11 +203,24 @@ function clearPrivateView(){
  $('photoViewer').classList.add('hidden');$('viewerImage').removeAttribute('src');
  viewerState.uri='';viewerState.pointers.clear();
  $('chat').classList.add('hidden');$('gate').classList.remove('hidden');document.body.classList.remove('chatMode');
+ syncSWChatReadiness();
 }
 function lockRevokedDevice(){
  clearPrivateView();state.role=null;state.identity=null;state.fp=null;
  try{localStorage.removeItem('ay-secure-role-v1');}catch{}
  $('gateStatus').textContent='服务器已拒绝此设备的授权：聊天已锁定。请联系管理员核对设备状态。';
+}
+// R13: Never suppress OS notifications for a device that has not finished
+// entering an authenticated, decryptable Chat V2 view.
+function v2ChatActiveForPush(){
+ return !!(state.role&&state.identity?.privateKey&&state.encryption?.privateKey&&
+  state.session&&state.expires>Date.now()&&navigator.onLine&&!document.hidden&&
+  document.hasFocus()&&!$('chat').classList.contains('hidden'));
+}
+function syncSWChatReadiness(){
+ try{navigator.serviceWorker?.controller?.postMessage({
+   type:'ay-v2-chat-readiness',ready:v2ChatActiveForPush()
+ });}catch{}
 }
 function soundOn(){return localStorage.getItem('ay-v2-sound')==='1';}
 async function enableSound(){
@@ -244,7 +257,7 @@ async function enablePush(){
  if(ios&&!standalone)throw new Error('iPhone / iPad 请先用 Safari「分享 → 添加到主屏幕」，从主屏幕打开 Our Love Hub 后再开启通知。网页声音可单独开启。');
  const permission=Notification.permission==='granted'?'granted':await Notification.requestPermission();
  if(permission!=='granted')throw new Error('系统通知权限未允许；可在系统设置中修改。网页提示音可单独开启。');
- const registration=await navigator.serviceWorker.register('./sw.js?v=20261010-r3',{scope:'./',updateViaCache:'none'});
+ const registration=await navigator.serviceWorker.register('./sw.js?v=20261010-push-r13',{scope:'./',updateViaCache:'none'});
  await navigator.serviceWorker.ready;
  const cfg=await request('/push/config');
  if(!cfg.configured||!cfg.publicKey)throw new Error('Supabase 推送配置尚未完成');
@@ -510,7 +523,7 @@ function closeApproval(){
 async function chooseRole(role,apply=false){
  if(state.busy)return;
  const isSamePending=state.role===role&&!$('deviceApproval').classList.contains('hidden');
- state.busy=true;clearInterval(state.timer);state.session=null;state.encryption=null;state.role=role;lastPaint='';haveSnapshot=false;seenMessages=new Set();state.decryptedMap=new Map();state.pendingSend=null;newWhileAway=0;readQueue.clear();
+ state.busy=true;clearInterval(state.timer);state.session=null;state.encryption=null;state.role=role;syncSWChatReadiness();lastPaint='';haveSnapshot=false;seenMessages=new Set();state.decryptedMap=new Map();state.pendingSend=null;newWhileAway=0;readQueue.clear();
  if(!isSamePending)openApproval(role);
  $('approvalRetry').disabled=true;
  $('approvalApply').classList.add('hidden');
@@ -545,11 +558,11 @@ async function chooseRole(role,apply=false){
   await login();await setupEncryption();
   try{localStorage.setItem('ay-secure-role-v1',role);}catch{}
   $('deviceApproval').classList.add('hidden');
-  $('gate').classList.add('hidden');$('chat').classList.remove('hidden');document.body.classList.add('chatMode');
+  $('gate').classList.add('hidden');$('chat').classList.remove('hidden');document.body.classList.add('chatMode');syncSWChatReadiness();
   $('who').textContent=(role==='Ko Ko'?'HE · Ko Ko':'SHE · Chit Chit')+' · 已验证设备';if(soundOn()){$('sound').textContent='♪ 重启声音';$('sound').title='浏览器重开后须手动点击，才能重新播放网页提示音';}
   $('messages').replaceChildren();if('Notification' in window&&Notification.permission==='granted'){request('/push/status').then(d=>{if(d.registered)$('notify').textContent='🔔 已开启';}).catch(()=>{});}await refresh();state.timer=setInterval(refresh,5000);
  }catch(e){
-  $('chat').classList.add('hidden');$('gate').classList.remove('hidden');document.body.classList.remove('chatMode');
+  $('chat').classList.add('hidden');$('gate').classList.remove('hidden');document.body.classList.remove('chatMode');syncSWChatReadiness();
   const message=e?.message||'未知错误';
   if(approvalVerified){
    approvalText('服务器确认已批准本机，但安全登录尚未完成：'+message+'\n请刷新测试页后点击「重新检查授权」。不需要重复申请或修改管理员审批。','登录验证失败');
@@ -708,5 +721,23 @@ $('testPush').addEventListener('click',async()=>{
 if(navigator.serviceWorker)navigator.serviceWorker.addEventListener('message',event=>{
  if(event.data?.type==='ay-v2-new-message')refresh();
 });
-document.addEventListener('visibilitychange',()=>{if(!document.hidden&&state.role){if(readQueue.size)markVisibleRead([...readQueue][0]);refresh();}});
+document.addEventListener('visibilitychange',()=>{
+ syncSWChatReadiness();
+ if(!document.hidden&&state.role){if(readQueue.size)markVisibleRead([...readQueue][0]);refresh();}
+});
+window.addEventListener('focus',syncSWChatReadiness);
+window.addEventListener('blur',syncSWChatReadiness);
+window.addEventListener('pagehide',()=>{
+ try{navigator.serviceWorker?.controller?.postMessage({type:'ay-v2-chat-readiness',ready:false});}catch{}
+});
+window.addEventListener('offline',syncSWChatReadiness);
+window.addEventListener('online',syncSWChatReadiness);
+if('serviceWorker' in navigator){
+ navigator.serviceWorker.addEventListener('controllerchange',syncSWChatReadiness);
+ // Register an updated SW without asking for push permission or changing the subscription.
+ navigator.serviceWorker.register('./sw.js?v=20261010-push-r13',{
+   scope:'./',updateViaCache:'none'
+ }).then(syncSWChatReadiness).catch(()=>{});
+ setInterval(syncSWChatReadiness,10000);
+}
 try{const previous=localStorage.getItem('ay-secure-role-v1');if(previous==='Ko Ko'||previous==='Chit Chit'){setTimeout(()=>chooseRole(previous),200);}}catch{}
