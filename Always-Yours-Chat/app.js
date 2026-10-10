@@ -124,29 +124,53 @@ async function decryptMessage(m){
  const plain=await crypto.subtle.decrypt({name:'AES-GCM',iv:un64(m.iv),additionalData:te.encode('AY-SAFE-TEXT-V1\n'+m.id)},key,un64(m.ciphertext));
  return td.decode(plain);
 }
+// R12: message keys never leave the device unencrypted. Errors are isolated per
+// message/recipient so one malformed historical envelope cannot stop all others.
 async function shareVisibleHistory(){
  if(!state.role||!state.encryption)throw new Error('请先用已授权设备进入聊天');
+ const selectedRole=state.role,selectedFp=state.fp;
  const keys=await loadKeys(),data=await request('/messages');
- let shared=0,missing=0;
+ let shared=0,messages=0,failed=0,unreadable=0;
  for(const m of data.messages||[]){
+  if(selectedRole!==state.role||selectedFp!==state.fp||$('chat').classList.contains('hidden'))
+   throw new Error('设备身份已变化，同步已停止');
   const absent=keys.filter(k=>!m.envelopes?.[k.fingerprint]);
   if(!absent.length)continue;
-  const ownEnv=m.envelopes?.[state.fp];if(!ownEnv)continue;
-  const sourcePub=await crypto.subtle.importKey('jwk',ownEnv.ephemeralPublicKey||m.ephemeral_public_key,{name:'ECDH',namedCurve:'P-256'},false,[]);
-  const oldWrap=await deriveWrap(state.encryption.privateKey,sourcePub,m.id,state.fp);
-  const contentBytes=new Uint8Array(await crypto.subtle.decrypt({name:'AES-GCM',iv:un64(ownEnv.iv),additionalData:te.encode('AY-WRAP|'+m.id+'|'+state.fp)},oldWrap,un64(ownEnv.ciphertext)));
+  const ownEnv=m.envelopes?.[selectedFp];if(!ownEnv)continue;
+  let contentBytes;
+  try{
+   const sourcePub=await crypto.subtle.importKey('jwk',ownEnv.ephemeralPublicKey||m.ephemeral_public_key,{name:'ECDH',namedCurve:'P-256'},false,[]);
+   const oldWrap=await deriveWrap(state.encryption.privateKey,sourcePub,m.id,selectedFp);
+   contentBytes=new Uint8Array(await crypto.subtle.decrypt({name:'AES-GCM',iv:un64(ownEnv.iv),additionalData:te.encode('AY-WRAP|'+m.id+'|'+selectedFp)},oldWrap,un64(ownEnv.ciphertext)));
+  }catch(e){unreadable++;continue;}
+  let anyShared=false;
   for(const k of absent){
-   const fresh=await crypto.subtle.generateKey({name:'ECDH',namedCurve:'P-256'},true,['deriveBits']);
-   const p=await crypto.subtle.exportKey('jwk',fresh.publicKey);
-   const pub=await crypto.subtle.importKey('jwk',k.enc_public_key,{name:'ECDH',namedCurve:'P-256'},false,[]);
-   const wrap=await deriveWrap(fresh.privateKey,pub,m.id,k.fingerprint),iv=crypto.getRandomValues(new Uint8Array(12));
-   const sealed=b64(await crypto.subtle.encrypt({name:'AES-GCM',iv,additionalData:te.encode('AY-WRAP|'+m.id+'|'+k.fingerprint)},wrap,contentBytes));
-   await request('/messages/grant','POST',{id:m.id,fingerprint:k.fingerprint,envelope:{iv:b64(iv),ciphertext:sealed,ephemeralPublicKey:{kty:'EC',crv:'P-256',x:p.x,y:p.y}}});
-   shared++;
+   try{
+    const fresh=await crypto.subtle.generateKey({name:'ECDH',namedCurve:'P-256'},true,['deriveBits']);
+    const p=await crypto.subtle.exportKey('jwk',fresh.publicKey);
+    const pub=await crypto.subtle.importKey('jwk',k.enc_public_key,{name:'ECDH',namedCurve:'P-256'},false,[]);
+    const wrap=await deriveWrap(fresh.privateKey,pub,m.id,k.fingerprint),iv=crypto.getRandomValues(new Uint8Array(12));
+    const sealed=b64(await crypto.subtle.encrypt({name:'AES-GCM',iv,additionalData:te.encode('AY-WRAP|'+m.id+'|'+k.fingerprint)},wrap,contentBytes));
+    const res=await request('/messages/grant','POST',{id:m.id,fingerprint:k.fingerprint,envelope:{iv:b64(iv),ciphertext:sealed,ephemeralPublicKey:{kty:'EC',crv:'P-256',x:p.x,y:p.y}}});
+    if(res.shared){shared++;anyShared=true;}
+   }catch(e){
+    // A revoked source must stop immediately rather than continuing with another recipient.
+    if(!state.role||state.role!==selectedRole||state.fp!==selectedFp||$('chat').classList.contains('hidden'))throw e;
+    failed++;
+   }
   }
-  missing++;
+  if(anyShared)messages++;
+  contentBytes.fill(0);
  }
- return {shared,messages:missing};
+ return {shared,messages,failed,unreadable,checked:(data.messages||[]).length};
+}
+async function showHistoryCoverage(){
+ const x=await request('/history/status');
+ if(!x.ok||!Number.isInteger(x.total)||!Number.isInteger(x.availableHere)||!Number.isInteger(x.noApprovedKey))
+  throw new Error('历史密钥检查结果无效');
+ const partial=x.truncated?'（仅检查最近1000条，非全部统计）':'';
+ status(`近30天加密消息 ${x.total} 条${partial} · 本机持有密钥封装 ${x.availableHere} 条 · 当前所有已批准设备均无密钥封装 ${x.noApprovedKey} 条。`+
+  (x.noApprovedKey?'这些记录只有曾获授权的旧设备可能协助恢复：原设备需重新申请获批、保留原本机私钥，再使用「同步新设备历史」。服务器不能替代设备解密。':'可以在拥有历史解密密钥的设备上选择「同步新设备历史」。'));
 }
 let lastPaint='',refreshBusy=false,haveSnapshot=false,seenMessages=new Set();
 const v2Broadcast='BroadcastChannel' in window?new BroadcastChannel('ay-v2-chat'):null;
@@ -657,11 +681,20 @@ $('notify').addEventListener('click',async()=>{
 $('syncHistory').addEventListener('click',async()=>{
  $('syncHistory').disabled=true;
  try{
-  status('正在为新设备重新封装旧消息密钥，请保持页面开启…');
+  status('正在为新设备安全补发历史消息的加密密钥，请保持页面开启…');
   const x=await shareVisibleHistory();
-  status(x.shared?`已经安全共享 ${x.messages} 条消息的 ${x.shared} 个设备解密凭证。请让新设备刷新聊天。`:'当前没有需要向新设备补发的可解密记录（最多检查最近80条）。');
- }catch(e){status('历史同步失败：'+e.message);}
+  const summary=x.shared?`已安全补发 ${x.messages} 条消息、${x.shared} 份设备密钥封装。`:'没有新的密钥封装需要补发。';
+  const issues=x.failed||x.unreadable?` 另有 ${x.failed} 次共享失败、${x.unreadable} 条在本机无法解密；未删除或覆盖消息。`:'';
+  status(summary+issues+' 本次最多检查最近80条；需要时可点「检查历史密钥覆盖」。');
+  lastPaint='';await refresh();
+ }catch(e){status('历史同步未完成：'+e.message);}
  finally{$('syncHistory').disabled=false;}
+});
+$('keyCoverage').addEventListener('click',async()=>{
+ $('keyCoverage').disabled=true;
+ try{status('正在安全检查历史消息密钥覆盖情况…');await showHistoryCoverage();}
+ catch(e){status('历史密钥检查失败：'+e.message);}
+ finally{$('keyCoverage').disabled=false;}
 });
 $('retrySync').addEventListener('click',async()=>{
  status('正在重新检查连接并同步最新消息…');lastPaint='';await refresh();
