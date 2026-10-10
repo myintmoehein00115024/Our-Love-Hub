@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow,noarchive">
 <meta name="referrer" content="no-referrer">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-7Lc5dXoM7R9g52em1xoWtluZSSGlHbSbIbrlg9nQ/q0='; style-src 'unsafe-inline'; connect-src https://zegjegutcigbydtzggur.supabase.co; base-uri 'none'; object-src 'none'; form-action 'none'; img-src 'self' data:; upgrade-insecure-requests">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-wrV0tjyH+Z+85l+I5eXzzjs6kLYy7A1JcBwNy+bjMPk='; style-src 'unsafe-inline'; connect-src https://zegjegutcigbydtzggur.supabase.co; base-uri 'none'; object-src 'none'; form-action 'none'; img-src 'self' data:; upgrade-insecure-requests">
 <meta name="theme-color" content="#f9ebf7">
 <title>设备授权管理 ♡ Our Love Hub</title>
 <style>
@@ -35,27 +35,129 @@
 .audit-entry{border-top:1px solid var(--line);padding:11px 2px;font-size:13px;line-height:1.65;overflow-wrap:anywhere}
 .audit-entry:first-of-type{border-top:0}
 .audit-meta{font-size:12px;color:var(--muted)}
+/* R8 — Our Love Hub custom confirmation and safe bulk action */
+.love-overlay[hidden],.love-toast[hidden],.love-check[hidden]{display:none!important}
+.love-overlay{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(52,33,58,.42);backdrop-filter:blur(11px);-webkit-backdrop-filter:blur(11px)}
+.love-dialog{width:min(100%,470px);max-height:min(84dvh,650px);overflow:auto;background:linear-gradient(160deg,#fffefd,#fff4fb 72%,#f2efff);border:1px solid #fff;border-radius:27px;box-shadow:0 22px 75px #37203e44;padding:clamp(22px,5vw,31px);animation:lovepop .18s ease-out}
+@keyframes lovepop{from{transform:translateY(11px) scale(.98);opacity:.5}to{transform:translateY(0) scale(1);opacity:1}}
+.love-symbol{font-family:Georgia,serif;color:#b57cb0;font-size:34px;line-height:1;text-align:center}.love-dialog h2{text-align:center;font-size:21px;margin:13px 0}.love-dialog p{font-size:14px;white-space:pre-line;overflow-wrap:anywhere;line-height:1.75;color:#796179;margin:8px 0 20px}
+.love-confirm-row{display:flex;gap:12px;margin-top:16px;align-items:center}.love-confirm-row button{flex:1}.love-confirm-row .danger{background:#a85475;color:#fff;border:0}.love-check{display:flex;align-items:flex-start;gap:10px;margin:0;padding:13px;border:1px solid #ecd4e5;border-radius:15px;background:#fff;font-size:13px;line-height:1.6}.love-check input{accent-color:#b36a9b;width:18px;height:18px;margin:2px 0 0;flex:none}
+.bulkbar{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin:11px 0;padding:12px;border:1px solid #ead2e8;border-radius:14px;background:#fff}.bulkbar .bulk-summary{font-size:13px;color:#876f87}.bulkbar .danger{min-height:41px;padding:9px 13px}
+.device-select{display:inline-flex;align-items:center;gap:9px;cursor:pointer;background:#faf2fa;padding:10px 12px;border-radius:10px;font-size:13px;margin:5px 0}.device-select input{width:18px;height:18px;accent-color:#ae73a9}
+.love-toast{position:fixed;right:18px;bottom:max(18px,env(safe-area-inset-bottom));z-index:1100;max-width:min(calc(100vw - 36px),450px);background:#fff8fc;border:1px solid #e5c5e2;color:#7e527a;box-shadow:0 12px 40px #673e6b2b;border-radius:15px;padding:13px 17px;font-size:13px;line-height:1.5}.love-toast.error{color:#98364d;background:#fff1f3;border-color:#edbdc7}
+body.love-dialog-open{overflow:hidden}@media(max-width:430px){.love-confirm-row{flex-direction:column-reverse}.love-confirm-row button{width:100%}.love-dialog{border-radius:23px}.bulkbar button{width:100%}}
+@media(prefers-reduced-motion:reduce){.love-dialog{animation:none}}
 </style>
 </head>
 <body><main>
 <header><span class="eyebrow">OUR LOVE HUB ♡ JUST THE TWO OF US</span><a href="../Always-Yours-Chat/">← 返回安全聊天</a></header>
 <h1>设备授权管理 ♡</h1>
-<p>在这里安全管理 HE / SHE 的设备：核对指纹、批准申请、备注昵称、查看已记录的申请 IP，以及解除设备授权。所有更改均在服务器验证管理员口令。</p>
+<p>在这里安全管理 HE / SHE 的设备：核对指纹、批准申请、备注昵称、查看已记录的申请 IP，以及单台或批量解除设备授权。所有更改均在服务器验证管理员口令，设备解除后可以重新申请。</p>
 <label for="token">管理员授权口令（至少 10 位）</label>
 <input id="token" class="field" type="password" minlength="10" maxlength="256" autocomplete="new-password" spellcheck="false" placeholder="不保存，5 分钟无操作或切换后台会锁定" aria-describedby="privacy" />
 <div class="actions"><button type="button" id="toggle">显示 / 隐藏口令</button><button class="primary" type="button" id="refresh">查看设备授权记录 ↻</button><button type="button" id="auditBtn">查看操作记录</button></div>
-<div class="hero-note">IP 仅供辅助识别，不等于设备所在地；VPN、运营商网络可能改变 IP。只有升级后新申请且服务器成功记录的设备才显示申请 IP（网络转发标头可能不可靠，只作辅助线索，绝不用于授权）。解除授权将立即阻止新版 Chat V2 继续访问，但旧版聊天 API 尚未完全隔离。</div>
+<div class="hero-note">IP 仅供辅助识别，不等于设备所在地；VPN、运营商网络可能改变 IP。只有升级后新申请且服务器成功记录的设备才显示申请 IP（网络转发标头可能不可靠，只作辅助线索，绝不用于授权）。解除授权将立即阻止新版 Chat V2 继续访问，设备可以重新提交新申请等待批准；旧版聊天 API 尚未完全隔离。</div>
 <div id="status" class="status" role="status" aria-live="polite">尚未读取授权记录。请使用您在 Supabase 设置的原始管理员口令，而非摘要。</div>
 <section id="results" aria-live="polite"></section>
 <section id="audit" class="panel" hidden aria-live="polite"></section>
-<p class="hint" id="privacy">安全提示：管理员口令只在本页面的短时会话内使用，显示口令 10 秒后自动隐藏，不保存到浏览器存储或 GitHub；无操作 5 分钟、切换到后台或离开页面时自动清空口令和设备列表。只批准通过独立渠道核实过指纹的设备。解除授权不会删除既有聊天数据，也不能远程抹除设备曾保存的内容。旧版聊天 API 的安全隔离仍需继续处理。<strong>不要在公共设备操作。</strong></p>
+<p class="hint" id="privacy">安全提示：管理员口令只在本页面的短时会话内使用，显示口令 10 秒后自动隐藏，不保存到浏览器存储或 GitHub；无操作 5 分钟、切换到后台或离开页面时自动清空口令和设备列表。只批准通过独立渠道核实过指纹的设备。解除授权不会删除既有聊天数据或设备密钥；同设备仍可再次申请，但必须重新批准。也不能远程抹除设备曾保存的内容。旧版聊天 API 的安全隔离仍需继续处理。<strong>不要在公共设备操作。</strong></p>
 </main>
+<div id="loveOverlay" class="love-overlay" hidden>
+  <div class="love-dialog" role="dialog" aria-modal="true" aria-labelledby="loveTitle" aria-describedby="loveDescription">
+    <div class="love-symbol" aria-hidden="true">♡</div>
+    <h2 id="loveTitle">确认操作</h2>
+    <p id="loveDescription"></p>
+    <label id="loveConfirmBox" class="love-check" hidden><input id="loveConfirmCheckbox" type="checkbox"/><span>我已核对所选设备，并确认批量解除授权。</span></label>
+    <div class="love-confirm-row"><button id="loveCancel" type="button">取消</button><button id="loveAccept" class="primary" type="button">确认</button></div>
+  </div>
+</div>
+<div class="love-toast" id="loveToast" role="status" aria-live="polite" hidden></div>
 <script>
 'use strict';
 const ADMIN_API='https://zegjegutcigbydtzggur.supabase.co/functions/v1/always-yours-device-admin';
 const input=document.getElementById('token'),status=document.getElementById('status'),results=document.getElementById('results');
 const refresh=document.getElementById('refresh'),toggle=document.getElementById('toggle');
 const audit=document.getElementById('audit'),auditBtn=document.getElementById('auditBtn');
+
+const loveOverlay=document.getElementById('loveOverlay'),loveTitle=document.getElementById('loveTitle'),loveDescription=document.getElementById('loveDescription');
+const loveAccept=document.getElementById('loveAccept'),loveCancel=document.getElementById('loveCancel');
+const loveConfirmBox=document.getElementById('loveConfirmBox'),loveConfirmCheckbox=document.getElementById('loveConfirmCheckbox');
+const loveToast=document.getElementById('loveToast');
+let dialogResolve=null,dialogPreviousFocus=null,toastTimer=null;
+let selectedBatch=new Set(),approvedDevices=[];
+function deviceKey(d){return d.user_name+'|'+d.fingerprint;}
+function closeLoveDialog(accepted=false){
+ if(!dialogResolve)return;
+ const resolve=dialogResolve;dialogResolve=null;loveOverlay.hidden=true;document.body.classList.remove('love-dialog-open');
+ loveConfirmCheckbox.checked=false;loveConfirmBox.hidden=true;
+ if(dialogPreviousFocus&&dialogPreviousFocus.isConnected)dialogPreviousFocus.focus({preventScroll:true});
+ resolve(accepted);
+}
+function confirmLoveAction({title,description,buttonText='确认',danger=false,bulk=false}){
+ if(dialogResolve)closeLoveDialog(false);
+ return new Promise(resolve=>{
+  dialogPreviousFocus=document.activeElement;
+  dialogResolve=resolve;
+  loveTitle.textContent=title;loveDescription.textContent=description;
+  loveAccept.textContent=buttonText;loveAccept.className=danger?'danger':'primary';
+  loveConfirmCheckbox.checked=false;loveConfirmBox.hidden=!bulk;loveAccept.disabled=!!bulk;
+  loveOverlay.hidden=false;document.body.classList.add('love-dialog-open');
+  loveCancel.focus({preventScroll:true});
+ });
+}
+loveConfirmCheckbox.addEventListener('change',()=>{loveAccept.disabled=!loveConfirmCheckbox.checked;});
+loveCancel.addEventListener('click',()=>closeLoveDialog(false));
+loveAccept.addEventListener('click',()=>{if(!loveAccept.disabled)closeLoveDialog(true);});
+loveOverlay.addEventListener('click',e=>{if(e.target===loveOverlay)closeLoveDialog(false);});
+loveOverlay.addEventListener('keydown',e=>{
+ if(e.key==='Escape'){e.preventDefault();closeLoveDialog(false);return;}
+ if(e.key==='Tab'){
+  const controls=[loveCancel,...(!loveConfirmBox.hidden?[loveConfirmCheckbox]:[]),loveAccept].filter(x=>!x.disabled);
+  const index=controls.indexOf(document.activeElement);
+  if(e.shiftKey&&index===0){e.preventDefault();controls[controls.length-1].focus();}
+  else if(!e.shiftKey&&index===controls.length-1){e.preventDefault();controls[0].focus();}
+ }
+});
+function flashLove(message,error=false){
+ if(toastTimer)clearTimeout(toastTimer);
+ loveToast.textContent=message;loveToast.className='love-toast'+(error?' error':'');loveToast.hidden=false;
+ toastTimer=setTimeout(()=>{loveToast.hidden=true;toastTimer=null;},4500);
+}
+function bulkToolbar(devices){
+ const bar=node('div','bulkbar');const count=node('span','bulk-summary');
+ const allButton=node('button','','全选 / 清除');allButton.type='button';
+ const batchButton=node('button','danger','批量解除授权');batchButton.type='button';
+ const sync=()=>{
+  count.textContent='已选择 '+selectedBatch.size+' / '+devices.length+' 台已授权设备';
+  batchButton.disabled=selectedBatch.size<2;
+  batchButton.textContent='批量解除授权（'+selectedBatch.size+'）';
+ };
+ allButton.addEventListener('click',()=>{
+  const every=devices.every(d=>selectedBatch.has(deviceKey(d)));
+  for(const d of devices){const key=deviceKey(d);if(every)selectedBatch.delete(key);else selectedBatch.add(key);}
+  results.querySelectorAll('input[data-device-select]').forEach(box=>{box.checked=selectedBatch.has(box.dataset.deviceSelect);});
+  sync();
+ });
+ batchButton.addEventListener('click',async()=>{
+  const targets=devices.filter(d=>selectedBatch.has(deviceKey(d)));
+  if(targets.length<2||targets.length>12){note('请一次选择 2–12 台已授权设备。','error');return;}
+  const he=targets.filter(d=>d.user_name==='Ko Ko').length;
+  const she=targets.length-he;
+  const ok=await confirmLoveAction({title:'批量解除设备授权',
+   description:'即将解除 '+targets.length+' 台设备的 Chat V2 授权（HE '+he+' 台，SHE '+she+' 台）。\n\n解除后不能继续读取新版聊天，但每台设备都能重新申请，仍需管理员再次批准。不会删除聊天记录或设备密钥。',
+   buttonText:'确认批量解除',danger:true,bulk:true});
+  if(!ok)return;
+  let success=false;
+  await runTask(async()=>{
+   const response=await admin('bulk-revoke',{devices:targets.map(d=>({user_name:d.user_name,fingerprint:d.fingerprint})),confirm:'BULK_REVOKE'});
+   success=true;note('已成功解除 '+response.revokedCount+' 台设备授权。'+(response.sessionWarning?'部分旧会话清理出现警告，请核对。':''),'ok');
+   flashLove('已批量解除 '+response.revokedCount+' 台设备授权');
+  });
+  if(success)await load();else {await load();note('批量操作未能完整成功，请核对上方各设备状态后重试。','error');}
+ });
+ bar.append(count,allButton,batchButton);sync();return {bar,sync};
+}
+
 if(window.top===window.self)document.documentElement.style.visibility='visible';
 let busy=false,serial=0,lastActivity=Date.now();
 // An incrementing security epoch prevents any request started before a lock
@@ -65,6 +167,8 @@ const MAX_IDLE_MS=5*60*1000;
 function activity(){lastActivity=Date.now();}
 function lockAdmin(reason='出于安全考虑，管理员会话已锁定。请重新输入管理员口令。'){
  securityEpoch++;
+ closeLoveDialog(false);selectedBatch.clear();approvedDevices=[];
+ loveToast.hidden=true;
  if(activeRequest){activeRequest.abort();activeRequest=null;}
  if(revealTimer){clearTimeout(revealTimer);revealTimer=null;}
  input.value='';input.type='password';results.replaceChildren();audit.replaceChildren();audit.hidden=true;
@@ -127,7 +231,7 @@ async function runTask(fn){
  const epoch=securityEpoch;
  busy=true;refresh.disabled=true;auditBtn.disabled=true;
  try{await fn();}
- catch(e){if(epoch===securityEpoch)note(e&&e.message?e.message:'操作失败，请稍后重试','error');}
+ catch(e){if(epoch===securityEpoch){const msg=e&&e.message?e.message:'操作失败，请稍后重试';note(msg,'error');flashLove(msg,true);}}
  finally{busy=false;refresh.disabled=false;auditBtn.disabled=false;}
 }
 async function load(){
@@ -135,6 +239,7 @@ async function load(){
   note('正在安全读取设备记录…');results.replaceChildren();
   const data=await admin('list');
   const all=Array.isArray(data.devices)?data.devices.filter(validDevice):[];
+  selectedBatch.clear();approvedDevices=all.filter(d=>d.status==='approved');
   const groups=[['pending','待审核设备'],['approved','已授权设备'],['revoked','已撤销设备']];
   if(!all.length){note('没有设备记录。请先在 Chat V2 申请设备。','ok');return;}
   const nums=groups.map(([key])=>all.filter(d=>d.status===key).length);
@@ -143,7 +248,9 @@ async function load(){
    const devices=all.filter(d=>d.status===key);
    if(!devices.length)continue;
    const panel=node('section','panel');panel.appendChild(node('h2','',`${label} · ${devices.length}`));
-   for(const d of devices)panel.appendChild(renderDevice(d));
+   const toolbar=key==='approved'?bulkToolbar(devices):null;
+   if(toolbar)panel.appendChild(toolbar.bar);
+   for(const d of devices)panel.appendChild(renderDevice(d,toolbar?.sync));
    results.appendChild(panel);
   }
  });
@@ -151,11 +258,11 @@ async function load(){
 async function perform(action,payload,successMessage){
  await runTask(async()=>{
   await admin(action,payload);
-  note(successMessage,'ok');
+  note(successMessage,'ok');flashLove(successMessage);
  });
  if(!busy&&status.classList.contains('ok'))await load();
 }
-function renderDevice(d){
+function renderDevice(d,onBatchChange){
  const card=node('article','item');
  const heading=node('div','item-head');
  const who=d.user_name==='Ko Ko'?'HE · Ko Ko':'SHE · Chit Chit';
@@ -173,6 +280,16 @@ function renderDevice(d){
  const ipText=typeof d.request_ip==='string'&&d.request_ip?d.request_ip:'暂无记录（旧设备或未获取到 IP）';
  ip.appendChild(node('div','ip-value',ipText));card.appendChild(ip);
  const row=node('div','row-actions');
+ if(d.status==='approved'){
+  const selectLabel=node('label','device-select');selectLabel.style.margin='5px 0';
+  const checkbox=node('input');checkbox.type='checkbox';checkbox.dataset.deviceSelect=deviceKey(d);
+  checkbox.setAttribute('aria-label','选择设备：'+displayName);
+  checkbox.addEventListener('change',()=>{
+   if(checkbox.checked)selectedBatch.add(deviceKey(d));else selectedBatch.delete(deviceKey(d));
+   onBatchChange?.();
+  });
+  selectLabel.append(checkbox,node('span','','加入批量选择'));card.appendChild(selectLabel);
+ }
  const copy=node('button','','复制完整指纹');copy.type='button';
  copy.addEventListener('click',async()=>{try{await navigator.clipboard.writeText(d.fingerprint);note('指纹已复制，请通过独立渠道核对。','ok');}catch{note('无法自动复制，请长按指纹手动复制。','error');}});
  row.appendChild(copy);
@@ -180,13 +297,13 @@ function renderDevice(d){
   const approve=node('button','approve','✓ 批准设备');approve.type='button';
   approve.addEventListener('click',async()=>{
    const suffix=d.fingerprint.slice(-8);
-   if(!confirm(`确认您已通过私下渠道核对 ${who} 的完整设备指纹？\n\n${d.fingerprint}`))return;
-   const typed=prompt(`请输入设备指纹的最后 8 位（区分大小写）：\n${suffix}`);
-   if(typed===null)return;
-   if(typed!==suffix){note('指纹核对失败，已取消操作。','error');return;}
+   const ok=await confirmLoveAction({title:'批准新设备',
+    description:who+' · '+displayName+'\n指纹尾号 '+suffix+'\n\n请确认已通过独立渠道核对完整设备指纹。批准后这台设备将获得 Chat V2 访问权限。',
+    buttonText:'确认批准设备'});
+   if(!ok)return;
    await runTask(async()=>{
     await admin('approve',{user_name:d.user_name,fingerprint:d.fingerprint,confirm:'APPROVE',fingerprintSuffix:suffix});
-    note('设备批准成功。','ok');
+    note('设备批准成功。','ok');flashLove('设备授权已批准 ♡');
    });
    if(!busy&&status.classList.contains('ok'))await load();
   });row.appendChild(approve);
@@ -195,13 +312,13 @@ function renderDevice(d){
   const revoke=node('button','danger','解除授权');revoke.type='button';
   revoke.addEventListener('click',async()=>{
    const suffix=d.fingerprint.slice(-8);
-   if(!confirm(`解除 ${who} ${rawName?'（'+rawName+'）':''} 的设备授权？\n\n指纹：${d.fingerprint}\n\n此设备会失去 Chat V2 访问权限；不会删除现有聊天或密钥。若这是最后一台已授权设备，之后需要重新申请。`))return;
-   const typed=prompt('为防误操作，请输入设备指纹最后 8 位：\n'+suffix);
-   if(typed===null)return;
-   if(typed!==suffix){note('二次确认未通过，没有解除授权。','error');return;}
+   const ok=await confirmLoveAction({title:'解除设备授权',
+    description:who+' · '+displayName+'\n指纹尾号 '+suffix+'\n\n解除后不能继续访问 Chat V2；之后同设备可以重新申请，由管理员再次批准。原有消息和设备密钥不会删除。',
+    buttonText:'确认解除授权',danger:true});
+   if(!ok)return;
    await runTask(async()=>{
     const response=await admin('revoke',{user_name:d.user_name,fingerprint:d.fingerprint,confirm:'REVOKE',fingerprintSuffix:suffix});
-    note(response.sessionWarning?'已解除 V2 授权；会话清理出现警告，但服务端设备状态已禁止访问。':'解除授权成功：Chat V2 将拒绝该设备后续请求。','ok');
+    note(response.sessionWarning?'已解除 V2 授权；会话清理出现警告，但服务端设备状态已禁止访问。':'解除授权成功。此设备可以重新提交申请，需管理员再次批准。','ok');flashLove('设备授权已解除');
    });
    if(!busy&&status.classList.contains('ok'))await load();
   });row.appendChild(revoke);
@@ -234,7 +351,7 @@ function showAudit(){
   const outcomes={started:'处理中',success:'成功',denied:'拒绝',conflict:'状态已变化',failed:'失败'};
   for(const e of events){
    const item=node('div','audit-entry');
-   item.appendChild(node('div','',`${labels[e.action]||'后台操作'} · ${outcomes[e.outcome]||'未知状态'}`));
+   item.appendChild(node('div','',`${e.detail&&e.detail.startsWith('bulk_')?'批量解除授权':(labels[e.action]||'后台操作')} · ${outcomes[e.outcome]||'未知状态'}`));
    const when=e.created_at?new Date(e.created_at).toLocaleString():'时间未知';
    const who=['Ko Ko','Chit Chit'].includes(e.user_name)?e.user_name:'未指定身份';
    item.appendChild(node('div','audit-meta',`${when} · ${who}${e.fingerprint_suffix?' · 指纹尾号 '+e.fingerprint_suffix:''}`));

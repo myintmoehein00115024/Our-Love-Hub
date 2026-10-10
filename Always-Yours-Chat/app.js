@@ -503,7 +503,9 @@ async function chooseRole(role,apply=false){
    if(deviceState==='pending'){
     approvalText('申请已提交，正在等待管理员确认。\n请将设备指纹交给管理员核对，批准后点击「重新检查授权」。','待管理员审批');
    }else if(deviceState==='revoked'){
-    approvalText('这台设备的授权已被撤销，无法进入聊天。请联系管理员处理。','已撤销');
+    approvalText('这台设备先前的授权已解除。您可以用本机原有私钥重新提交设备申请，管理员重新批准后即可恢复 Chat V2 访问。\n在等待批准期间无法访问私人消息。','可重新申请');
+    $('approvalApply').classList.remove('hidden');
+    $('approvalApply').disabled=false;
    }else if(deviceState==='unregistered'){
     approvalText('本机尚未提交授权申请。点击「申请本机设备授权」，由管理员在独立页面批准后，再返回检查。','未申请');
     $('approvalApply').classList.remove('hidden');
