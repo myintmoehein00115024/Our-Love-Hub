@@ -4,7 +4,7 @@ const AUTH_BASE='https://zegjegutcigbydtzggur.supabase.co/functions/v1/always-yo
 const API_BASE='https://zegjegutcigbydtzggur.supabase.co/functions/v1/always-yours-secure-v2';
 const AUTH_DB='always-yours-identity-keys-v1',ENC_DB='always-yours-secure-encryption-v1';
 const $=id=>document.getElementById(id),te=new TextEncoder(),td=new TextDecoder();
-const state={role:null,identity:null,fp:null,session:null,expires:0,encryption:null,keys:[],busy:false,timer:null};
+const state={role:null,identity:null,fp:null,session:null,expires:0,encryption:null,keys:[],busy:false,timer:null,replyTo:null,editingId:null,attachment:null,decryptedMap:new Map()};
 let lastApprovalFocus=null;
 const validB64=/^[A-Za-z0-9_-]+$/;
 function b64(bytes){const v=bytes instanceof Uint8Array?bytes:new Uint8Array(bytes);let s='';for(const c of v)s+=String.fromCharCode(c);return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');}
@@ -92,10 +92,10 @@ async function deriveWrap(privateKey,publicKey,id,fp){
  const hk=await crypto.subtle.importKey('raw',bits,'HKDF',false,['deriveKey']);
  return crypto.subtle.deriveKey({name:'HKDF',hash:'SHA-256',salt:te.encode('AY-SAFE-V2'),info:te.encode(id+'|'+fp)},hk,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);
 }
-async function encryptMessage(text){
+async function encryptMessage(text,idOverride=null){
  const keys=await loadKeys();
  if(!keys.some(k=>k.user_name==='Ko Ko')||!keys.some(k=>k.user_name==='Chit Chit'))throw new Error('请先让 HE 和 SHE 两边的已批准设备各进入本测试页面一次，以登记加密公钥。');
- const id=crypto.randomUUID(),contentKeyBytes=crypto.getRandomValues(new Uint8Array(32));
+ const id=idOverride||crypto.randomUUID(),contentKeyBytes=crypto.getRandomValues(new Uint8Array(32));
  const contentKey=await crypto.subtle.importKey('raw',contentKeyBytes,'AES-GCM',false,['encrypt']);
  const iv=crypto.getRandomValues(new Uint8Array(12)),data=te.encode(text);
  const ciphertext=b64(await crypto.subtle.encrypt({name:'AES-GCM',iv,additionalData:te.encode('AY-SAFE-TEXT-V1\n'+id)},contentKey,data));
@@ -144,64 +144,165 @@ async function shareVisibleHistory(){
  return {shared,messages:missing};
 }
 let lastPaint='',refreshBusy=false,haveSnapshot=false,seenMessages=new Set();
-let notificationAudio=null;
+const v2Broadcast='BroadcastChannel' in window?new BroadcastChannel('ay-v2-chat'):null;
+let notificationAudio=null,readObserver=null,readQueue=new Set(),readFlushBusy=false;
+function soundOn(){return localStorage.getItem('ay-v2-sound')==='1';}
+async function enableSound(){
+ const C=window.AudioContext||window.webkitAudioContext;
+ if(!C)throw new Error('本浏览器不支持网页提示音');
+ if(!notificationAudio)notificationAudio=new C();
+ if(notificationAudio.state!=='running')await notificationAudio.resume();
+ if(notificationAudio.state!=='running')throw new Error('浏览器暂未解锁音频，请再点击一次');
+ localStorage.setItem('ay-v2-sound','1');$('sound').textContent='♪ 已开启';
+ playHeartNote();status('已开启页面内提示音。关闭网页后需另外开启系统通知。');
+}
 function playHeartNote(){
  try{
-   if(!localStorage.getItem('ay-v2-sound'))return;
-   const C=window.AudioContext||window.webkitAudioContext;if(!C)return;
-   if(!notificationAudio)notificationAudio=new C();
-   if(notificationAudio.state!=='running')return;
-   const t=notificationAudio.currentTime;
-   for(const [delay,freq] of [[0,659.25],[0.13,783.99]]){
-     const o=notificationAudio.createOscillator(),g=notificationAudio.createGain();
-     o.type='sine';o.frequency.value=freq;g.gain.setValueAtTime(0.0001,t+delay);
-     g.gain.exponentialRampToValueAtTime(0.06,t+delay+0.015);
-     g.gain.exponentialRampToValueAtTime(0.0001,t+delay+0.17);
-     o.connect(g).connect(notificationAudio.destination);o.start(t+delay);o.stop(t+delay+0.2);
-   }
-   if(navigator.vibrate)navigator.vibrate([70,45,70]);
+  if(!soundOn()||!notificationAudio||notificationAudio.state!=='running')return;
+  const t=notificationAudio.currentTime;
+  for(const [delay,freq] of [[0,659.25],[0.14,783.99]]){
+   const o=notificationAudio.createOscillator(),g=notificationAudio.createGain();
+   o.type='sine';o.frequency.value=freq;
+   g.gain.setValueAtTime(0.0001,t+delay);
+   g.gain.exponentialRampToValueAtTime(.05,t+delay+.02);
+   g.gain.exponentialRampToValueAtTime(.0001,t+delay+.18);
+   o.connect(g).connect(notificationAudio.destination);o.start(t+delay);o.stop(t+delay+.2);
+  }
+  if(navigator.vibrate)navigator.vibrate([55,40,55]);
  }catch{}
 }
 async function enablePush(){
- if(!state.role)throw new Error('请先进入已授权的聊天');
- if(!('serviceWorker' in navigator)||!('PushManager' in window)||!('Notification' in window))throw new Error('当前浏览器不支持后台通知');
- if(notificationAudio===null){const C=window.AudioContext||window.webkitAudioContext;if(C)notificationAudio=new C();}
- if(notificationAudio?.state==='suspended')await notificationAudio.resume();
- localStorage.setItem('ay-v2-sound','1');
+ if(!state.role)throw new Error('请先进入已授权聊天');
+ if(!('serviceWorker' in navigator)||!('PushManager' in window)||!('Notification' in window))
+  throw new Error('本浏览器不支持后台推送；您仍可单独开启「网页声音」。');
+ const ua=navigator.userAgent||'';
+ const ios=/iPad|iPhone|iPod/.test(ua)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+ const standalone=window.navigator.standalone===true||matchMedia('(display-mode: standalone)').matches;
+ if(ios&&!standalone)throw new Error('iPhone / iPad 请先用 Safari「分享 → 添加到主屏幕」，从主屏幕打开 Our Love Hub 后再开启通知。网页声音可单独开启。');
  const permission=Notification.permission==='granted'?'granted':await Notification.requestPermission();
- if(permission!=='granted')throw new Error('尚未获得系统通知权限。iPhone/iPad 请从 Safari「添加到主屏幕」，从主屏幕打开后再开启。');
- const registration=await navigator.serviceWorker.register('./sw.js',{scope:'./',updateViaCache:'none'});
+ if(permission!=='granted')throw new Error('系统通知权限未允许；可在系统设置中修改。网页提示音可单独开启。');
+ const registration=await navigator.serviceWorker.register('./sw.js?v=20261010-r2',{scope:'./',updateViaCache:'none'});
  await navigator.serviceWorker.ready;
  const cfg=await request('/push/config');
- if(!cfg.configured||!cfg.publicKey)throw new Error('服务器推送配置尚未就绪');
- const sub=await registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:un64(cfg.publicKey)});
+ if(!cfg.configured||!cfg.publicKey)throw new Error('Supabase 推送配置尚未完成');
+ const options={userVisibleOnly:true,applicationServerKey:un64(cfg.publicKey)};
+ const sub=await registration.pushManager.getSubscription()||await registration.pushManager.subscribe(options);
  await request('/push/subscribe','POST',{subscription:sub.toJSON()});
- $('notify').textContent='🔔 已开启';
- status('手机通知已订阅 · 页面内轻柔提示音已开启');
+ $('notify').textContent='🔔 已订阅';
+ status('系统通知已订阅。请用「测试铃铛」验证锁屏推送。网页声音需单独开启。');
 }
-
+function decodePayload(plain){
+ if(!plain.startsWith('AYV2:'))return {t:'text',body:plain};
+ try{
+  const p=JSON.parse(plain.slice(5));
+  if(!p||!['text','emoji','image','gif'].includes(p.t))throw Error();
+  return p;
+ }catch{return {t:'text',body:'[暂时无法识别的消息格式]'};}
+}
+function summaryOf(p){
+ if(!p)return '一条消息';
+ if(p.t==='image')return '📷 '+(p.body||'照片');
+ if(p.t==='gif')return 'GIF '+(p.body||'动图');
+ return String(p.body||'').slice(0,48);
+}
+function replyToMessage(id){
+ const p=state.decryptedMap.get(id);if(!p)return;
+ state.replyTo=id;state.editingId=null;$('replyPreview').classList.remove('hidden');
+ $('replyPreviewText').textContent='↩ 回复：'+summaryOf(p);$('send').textContent='发送 ♡';
+ $('message').focus();
+}
+function editMessage(id){
+ const p=state.decryptedMap.get(id);
+ if(!p||p.t!=='text')return status('目前仅支持编辑文字消息');
+ state.editingId=id;state.replyTo=p.replyTo||null;
+ $('replyPreview').classList.remove('hidden');$('replyPreviewText').textContent='✎ 正在编辑自己的消息';
+ $('message').value=p.body||'';$('send').textContent='保存 ♡';$('message').focus();
+}
+function clearComposerMode(){
+ state.replyTo=null;state.editingId=null;
+ $('replyPreview').classList.add('hidden');$('replyPreviewText').textContent='';
+ $('send').textContent='发送 ♡';
+}
+function attachmentReset(){state.attachment=null;$('attachmentInfo').classList.add('hidden');$('attachmentInfo').textContent='';$('gifInput').value='';$('photoInput').value='';}
+function renderMessageBody(element,p){
+ if(p.t==='emoji'){
+  const em=document.createElement('span');em.className='emojiMotion';em.textContent=String(p.body||'💗').slice(0,12);element.append(em);
+ }else if(p.t==='image'||p.t==='gif'){
+  const uri=String(p.data||'');const ok=p.t==='image'?/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(uri):/^data:image\/gif;base64,[A-Za-z0-9+/=]+$/.test(uri);
+  if(ok&&uri.length<=350000){const im=document.createElement('img');im.className='chatMedia';im.alt=p.t==='gif'?'发送的 GIF 动图':'发送的照片';im.loading='lazy';im.src=uri;element.append(im);}
+  else element.textContent='[媒体文件格式不正确]';
+  if(p.body){const caption=document.createElement('div');caption.className='captionText';caption.textContent=String(p.body).slice(0,150);element.append(caption);}
+ }else element.textContent=String(p.body??'');
+}
+async function markVisibleRead(id){
+ if(document.hidden||!state.role)return;
+ readQueue.add(id);if(readFlushBusy)return;
+ readFlushBusy=true;
+ try{
+  await new Promise(resolve=>setTimeout(resolve,200));
+  if(document.hidden)return;
+  const ids=[...readQueue].slice(0,80);readQueue.clear();
+  if(ids.length){const x=await request('/messages/read','POST',{ids});if(x.seen){lastPaint='';}}
+ }catch(e){console.warn('Read receipt not saved',e.message);}finally{readFlushBusy=false;}
+}
+function observeRead(b,id){
+ if(!('IntersectionObserver' in window)){if(!document.hidden)markVisibleRead(id);return;}
+ if(!readObserver)readObserver=new IntersectionObserver(entries=>{
+  if(document.hidden)return;
+  for(const e of entries)if(e.isIntersecting&&e.intersectionRatio>=.5){
+   readObserver.unobserve(e.target);markVisibleRead(e.target.dataset.mid);
+  }
+ },{root:$('messages'),threshold:[0,.5]});
+ b.dataset.mid=id;readObserver.observe(b);
+}
 async function refresh(){
  if(!state.role||refreshBusy||document.hidden)return;refreshBusy=true;
  try{
   const data=await request('/messages');
-  const signature=JSON.stringify((data.messages||[]).map(m=>m.id));
+  const arr=data.messages||[],signature=JSON.stringify(arr.map(m=>[m.id,m.read_at,m.edited_at]));
   if(signature===lastPaint)return;
-  const incoming=(data.messages||[]).filter(m=>m.sender!==state.role&&haveSnapshot&&!seenMessages.has(m.id));
-  for(const m of data.messages||[])seenMessages.add(m.id);
+  const incoming=arr.filter(m=>m.sender!==state.role&&haveSnapshot&&!seenMessages.has(m.id));
+  for(const m of arr)seenMessages.add(m.id);
   if(incoming.length&&document.visibilityState==='visible')playHeartNote();
   haveSnapshot=true;
+  const parsed=[];state.decryptedMap=new Map();
+  for(const m of arr){
+   let p;
+   try{p=decodePayload(await decryptMessage(m));}
+   catch{p={t:'text',body:'[本设备暂时无法解密这条消息]'};}
+   state.decryptedMap.set(m.id,p);parsed.push({m,p});
+  }
   const elements=[];
-  for(const m of data.messages||[]){
-   const b=document.createElement('div');b.className='bubble'+(m.sender===state.role?' own':'');
-   const content=document.createElement('div');content.className='msg';
-   try{content.textContent=await decryptMessage(m);}catch{content.textContent='[此设备无法解密的消息]';}
-   const meta=document.createElement('div');meta.className='meta';meta.textContent=new Date(m.created_at).toLocaleString('zh-CN',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
-   b.append(content,meta);elements.push(b);
+  for(const {m,p} of parsed){
+   const own=m.sender===state.role;
+   const wrap=document.createElement('div');wrap.className='messageRow'+(own?' mine':'');
+   const b=document.createElement('div');b.className='bubble'+(own?' own':'');
+   if(p.replyTo){
+    const q=document.createElement('div');q.className='replyQuote';
+    q.textContent='↩ '+summaryOf(state.decryptedMap.get(p.replyTo));b.append(q);
+   }
+   const content=document.createElement('div');content.className='msg';renderMessageBody(content,p);
+   const meta=document.createElement('div');meta.className='meta';
+   const when=new Date(m.created_at).toLocaleString('zh-CN',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
+   meta.textContent=when+(m.edited_at?' · 已编辑':'')+(own?'  '+(m.read_at?'✓✓':'✓'):'');
+   if(own){const ticks=document.createElement('span');ticks.className='ticks'+(m.read_at?' read':'');ticks.textContent='';meta.append(ticks);}
+   b.append(content,meta);
+   const actions=document.createElement('div');actions.className='msgActions';
+   const reply=document.createElement('button');reply.type='button';reply.title='回复此消息';reply.textContent='↩';reply.setAttribute('aria-label','回复此消息');reply.addEventListener('click',()=>replyToMessage(m.id));actions.append(reply);
+   if(own&&p.t==='text'){
+    const edit=document.createElement('button');edit.type='button';edit.textContent='✎';edit.title='编辑消息';edit.setAttribute('aria-label','编辑消息');edit.addEventListener('click',()=>editMessage(m.id));actions.append(edit);
+   }
+   wrap.append(actions,b);elements.push(wrap);
+   if(!own&&!m.read_at&&!String(p.body||'').startsWith('[本设备暂时无法解密')) {b.dataset.needsRead='1';b.dataset.mid=m.id;}
   }
   if(!elements.length){const empty=document.createElement('div');empty.className='system';empty.textContent='等待属于你们的第一条加密消息 ♡';elements.push(empty);}
   const box=$('messages'),wasBottom=(box.scrollHeight-box.scrollTop-box.clientHeight)<150;
+  if(readObserver){readObserver.disconnect();readObserver=null;}
   box.replaceChildren(...elements);if(wasBottom)box.scrollTop=box.scrollHeight;
-  lastPaint=signature;status('设备已授权 · 新消息已启用端到端加密');
+  box.querySelectorAll('[data-needs-read]').forEach(b=>observeRead(b,b.dataset.mid||b.closest('.messageRow')?.dataset.mid));
+  lastPaint=signature;
+  status('设备已授权 · 新消息保持端到端加密 · 单勾未读 / 双勾已读');
+  try{v2Broadcast?.postMessage({type:'changed'});}catch{}
  }catch(e){status('读取失败：'+e.message);}
  finally{refreshBusy=false;}
 }
@@ -231,7 +332,7 @@ function closeApproval(){
 async function chooseRole(role,apply=false){
  if(state.busy)return;
  const isSamePending=state.role===role&&!$('deviceApproval').classList.contains('hidden');
- state.busy=true;clearInterval(state.timer);state.session=null;state.encryption=null;state.role=role;lastPaint='';haveSnapshot=false;seenMessages=new Set();
+ state.busy=true;clearInterval(state.timer);state.session=null;state.encryption=null;state.role=role;lastPaint='';haveSnapshot=false;seenMessages=new Set();state.decryptedMap=new Map();
  if(!isSamePending)openApproval(role);
  $('approvalRetry').disabled=true;
  $('approvalApply').classList.add('hidden');
@@ -265,7 +366,7 @@ async function chooseRole(role,apply=false){
   try{localStorage.setItem('ay-secure-role-v1',role);}catch{}
   $('deviceApproval').classList.add('hidden');
   $('gate').classList.add('hidden');$('chat').classList.remove('hidden');
-  $('who').textContent=(role==='Ko Ko'?'HE · Ko Ko':'SHE · Chit Chit')+' · 已验证设备';
+  $('who').textContent=(role==='Ko Ko'?'HE · Ko Ko':'SHE · Chit Chit')+' · 已验证设备';if(soundOn())$('sound').textContent='♪ 已开启';
   $('messages').replaceChildren();if('Notification' in window&&Notification.permission==='granted'){request('/push/status').then(d=>{if(d.registered)$('notify').textContent='🔔 已开启';}).catch(()=>{});}await refresh();state.timer=setInterval(refresh,5000);
  }catch(e){
   $('chat').classList.add('hidden');$('gate').classList.remove('hidden');
@@ -303,18 +404,88 @@ $('deviceApproval').addEventListener('keydown',e=>{
 });
 $('exit').addEventListener('click',()=>{
  try{localStorage.removeItem('ay-secure-role-v1');}catch{}
- clearInterval(state.timer);state.role=null;state.session=null;state.identity=null;state.encryption=null;haveSnapshot=false;seenMessages=new Set();
+ clearInterval(state.timer);state.role=null;state.session=null;state.identity=null;state.encryption=null;haveSnapshot=false;seenMessages=new Set();clearComposerMode();attachmentReset();
  $('chat').classList.add('hidden');$('gate').classList.remove('hidden');
  $('gateStatus').textContent='选择身份后，将自动检查本机授权状态。';
 });
 $('composer').addEventListener('submit',async e=>{
- e.preventDefault();if(state.busy||!state.role)return;const input=$('message'),message=input.value.trim();if(!message)return;
- state.busy=true;$('send').disabled=true;try{const payload=await encryptMessage(message);await request('/messages','POST',payload);input.value='';lastPaint='';await refresh();}catch(err){status('发送失败：'+err.message);}finally{state.busy=false;$('send').disabled=false;refresh();}
+ e.preventDefault();if(state.busy||!state.role)return;
+ const input=$('message'),message=input.value.trim();
+ if(!message&&!state.attachment)return;
+ state.busy=true;$('send').disabled=true;
+ try{
+  let content;
+  if(state.editingId){
+   content={t:'text',body:message,replyTo:state.replyTo||null};
+   const payload=await encryptMessage('AYV2:'+JSON.stringify(content),state.editingId);
+   await request('/messages/edit','POST',payload);
+  }else{
+   content=state.attachment?{...state.attachment,body:message.slice(0,150),replyTo:state.replyTo||null}:{t:'text',body:message,replyTo:state.replyTo||null};
+   const payload=await encryptMessage('AYV2:'+JSON.stringify(content));
+   await request('/messages','POST',payload);
+  }
+  input.value='';attachmentReset();clearComposerMode();lastPaint='';await refresh();
+ }catch(err){status('发送失败：'+err.message);}
+ finally{state.busy=false;$('send').disabled=false;refresh();}
+});
+function setAttachment(att,display){
+ state.attachment=att;clearComposerMode();$('attachmentInfo').classList.remove('hidden');$('attachmentInfo').textContent=display;
+ $('message').focus();
+}
+$('replyCancel').addEventListener('click',clearComposerMode);
+$('attachmentClear').addEventListener('click',attachmentReset);
+$('photoOpen').addEventListener('click',()=>$('photoInput').click());
+$('gifOpen').addEventListener('click',()=>$('gifInput').click());
+$('emojiOpen').addEventListener('click',()=>$('emojiPanel').classList.toggle('hidden'));
+document.querySelectorAll('.emojiPick').forEach(b=>b.addEventListener('click',async()=>{
+ $('emojiPanel').classList.add('hidden');
+ const text=b.textContent||'💗';
+ if(state.busy)return;
+ state.busy=true;
+ try{
+  const packet=await encryptMessage('AYV2:'+JSON.stringify({t:'emoji',body:text,replyTo:state.replyTo||null}));
+  await request('/messages','POST',packet);clearComposerMode();lastPaint='';await refresh();
+ }catch(e){status('心动贴纸发送失败：'+e.message);}finally{state.busy=false;}
+}));
+function readFileData(file){return new Promise((resolve,reject)=>{const r=new FileReader();r.onerror=()=>reject(Error('本机无法读取所选文件'));r.onload=()=>resolve(r.result);r.readAsDataURL(file);});}
+$('gifInput').addEventListener('change',async e=>{
+ const file=e.target.files?.[0];if(!file)return;
+ try{
+  if(file.type!=='image/gif'||!/\.gif$/i.test(file.name))throw Error('请选择真正的 .gif 动图');
+  if(file.size>175*1024)throw Error('请选用不超过 175 KB 的 GIF，以减少加密聊天占用容量');
+  const uri=await readFileData(file);
+  if(!/^data:image\/gif;base64,[A-Za-z0-9+/=]+$/.test(uri))throw Error('GIF 格式验证失败');
+  setAttachment({t:'gif',data:uri},'GIF 已准备 · '+Math.ceil(file.size/1024)+' KB');
+ }catch(err){status(err.message);attachmentReset();}
+});
+$('photoInput').addEventListener('change',async e=>{
+ const file=e.target.files?.[0];if(!file)return;
+ try{
+  if(!file.type.startsWith('image/')||file.type==='image/svg+xml')throw Error('请选用照片文件');
+  if(file.size>15*1024*1024)throw Error('图片超过15MB，建议先缩小');
+  const blob=URL.createObjectURL(file);
+  try{
+   const img=new Image();await new Promise((resolve,reject)=>{img.onload=resolve;img.onerror=()=>reject(Error('无法读取图片'));img.src=blob;});
+   let result='';
+   for(const width of [960,780,600,480,360]){
+    const ratio=Math.min(1,width/Math.max(img.naturalWidth,img.naturalHeight));
+    const canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(img.naturalWidth*ratio));canvas.height=Math.max(1,Math.round(img.naturalHeight*ratio));
+    canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
+    for(const quality of [.72,.58,.43]){result=canvas.toDataURL('image/jpeg',quality);if(result.length<160000)break;}
+    if(result.length<160000)break;
+   }
+   if(!/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(result)||result.length>=160000)throw Error('图片压缩失败，请选择更小的照片');
+   setAttachment({t:'image',data:result},'照片已压缩 · 约 '+Math.round(result.length*.75/1024)+' KB');
+  }finally{URL.revokeObjectURL(blob);}
+ }catch(err){status(err.message);attachmentReset();}
 });
 $('message').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();$('composer').requestSubmit();}});
+$('sound').addEventListener('click',async()=>{
+ $('sound').disabled=true;try{await enableSound();}catch(e){status('网页提示音：'+e.message);}finally{$('sound').disabled=false;}
+});
 $('notify').addEventListener('click',async()=>{
  $('notify').disabled=true;
- try{await enablePush();playHeartNote();}catch(e){status('开启提醒失败：'+e.message);}
+ try{await enablePush();}catch(e){status('开启提醒失败：'+e.message);}
  finally{$('notify').disabled=false;}
 });
 $('syncHistory').addEventListener('click',async()=>{

@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#f8eafa"><meta name="robots" content="noindex,nofollow"><title>Always Yours ♡ Our Love Hub</title><link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="../assets/apple-touch-icon.png"><link rel="icon" href="../assets/favicon-32.png"><link rel="stylesheet" href="styles.css?v=20261010"></head><body>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#f8eafa"><meta name="robots" content="noindex,nofollow"><title>Always Yours ♡ Our Love Hub</title><link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="../assets/apple-touch-icon.png"><link rel="icon" href="../assets/favicon-32.png"><link rel="stylesheet" href="styles.css?v=20261010-r2"></head><body>
 <main class="page">
 <header class="top"><a href="../Our-Journey/" class="back">← Our Journey</a><span class="testbadge">PRIVATE · HE ♡ SHE</span></header>
 <section id="gate" class="shell gate">
@@ -37,10 +37,16 @@
   </section>
 </div>
 <section id="chat" class="shell chat hidden" aria-label="仅限授权设备的私人聊天">
- <div class="chatHead"><div><div class="eyebrow">JUST THE TWO OF US ♡</div><h2>Always Yours ♡</h2><div id="who" class="who"></div></div><div class="chatActions"><button id="notify" class="outline" type="button" title="开启锁屏消息提醒和页面提示声">♧ 开启提醒</button><button id="testPush" class="outline" type="button" title="发送6秒后的推送测试">测试铃铛</button><button id="syncHistory" class="outline" type="button" title="将本机能解密的旧消息重新加密给新获批设备">同步新设备历史</button><button id="exit" class="outline" type="button">切换身份</button></div></div>
+ <div class="chatHead"><div><div class="eyebrow">JUST THE TWO OF US ♡</div><h2>Always Yours ♡</h2><div id="who" class="who"></div></div><div class="chatActions"><button id="sound" class="outline" type="button" title="启用网页打开时的轻柔提示音">♪ 网页声音</button><button id="notify" class="outline" type="button" title="开启锁屏消息提醒和页面提示声">♧ 开启提醒</button><button id="testPush" class="outline" type="button" title="发送6秒后的推送测试">测试铃铛</button><button id="syncHistory" class="outline" type="button" title="将本机能解密的旧消息重新加密给新获批设备">同步新设备历史</button><button id="exit" class="outline" type="button">切换身份</button></div></div>
  <div id="chatStatus" class="status" role="status" aria-live="polite"></div>
  <div id="messages" class="messages"></div>
- <form id="composer" class="composer"><label for="message">写给 TA 的悄悄话 ♡</label><div class="write"><textarea id="message" rows="2" maxlength="3200" placeholder="想和 TA 说些什么…" required></textarea><button type="submit" id="send">发送 ♡</button></div><div class="hint">仅已授权设备可读取加密消息 · 消息保留30天 · 新设备仅可读取授权后为其加密的消息</div></form>
+ <form id="composer" class="composer"><label for="message">写给 TA 的悄悄话 ♡</label>
+ <div id="replyPreview" class="replyComposer hidden"><span id="replyPreviewText"></span><button id="replyCancel" type="button" aria-label="取消回复或编辑">×</button></div>
+ <div id="attachmentInfo" class="attachmentInfo hidden"></div><button type="button" id="attachmentClear" class="smallClear" aria-label="取消附件">× 清除附件</button><div class="write"><textarea id="message" rows="2" maxlength="3200" placeholder="想和 TA 说些什么…"></textarea><button type="submit" id="send">发送 ♡</button></div>
+ <div class="composerTools"><button type="button" id="emojiOpen" aria-label="打开动态表情贴纸">☺ 表情</button><button type="button" id="photoOpen">📷 照片</button><button type="button" id="gifOpen">GIF 动图</button><span class="toolNote">♡ 已加密 · 图片自动压缩</span></div>
+ <div id="emojiPanel" class="emojiPanel hidden" aria-label="心动贴纸"><button type="button" class="emojiPick">🥰</button><button type="button" class="emojiPick">😘</button><button type="button" class="emojiPick">🫶</button><button type="button" class="emojiPick">💞</button><button type="button" class="emojiPick">💗</button><button type="button" class="emojiPick">❤️</button><button type="button" class="emojiPick">💋</button><button type="button" class="emojiPick">🌙</button><button type="button" class="emojiPick">✨</button><button type="button" class="emojiPick">🤗</button><button type="button" class="emojiPick">想你了</button><button type="button" class="emojiPick">晚安</button><button type="button" class="emojiPick">抱抱</button></div>
+ <input type="file" id="photoInput" accept="image/*" class="hidden"><input type="file" id="gifInput" accept="image/gif,.gif" class="hidden">
+ <div class="hint">仅已授权设备可读取加密消息 · 消息保留30天 · 新设备仅可读取授权后为其加密的消息</div></form>
 </section>
 <footer>2024.03.23 ♡ M + T · Our Love Hub · Just for two ♡</footer>
-</main><script src="app.js?v=20261010" defer></script></body></html>
+</main><script src="app.js?v=20261010-r2" defer></script></body></html>

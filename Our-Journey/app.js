@@ -56,105 +56,82 @@ if ('serviceWorker' in navigator) {
 }
 
 
-// Only metadata is read for the bell, and only after this browser has previously
-// configured the HE / SHE chat with its private room ID. No secret in page source.
+// Secure Chat V2 unread indicator. Reuses this origin's approved non-exportable signing key.
+// Never stores the session bearer, signing key, messages or shared secrets in localStorage.
 (() => {
-  const bell = document.getElementById('chatBell');
-  const counter = document.getElementById('chatBellCount');
-  if (!bell || !counter || !('indexedDB' in window)) return;
-  const CHAT_API = 'https://zegjegutcigbydtzggur.supabase.co/functions/v1/always-yours-chat';
-  const chatDbName = 'always-yours-private-device-v1';
-  let activeFetch = false;
-  let roomPromise = null;
-  let previousUnread = null;
-  let soundEnabled = false;
-  let audioContext = null;
-  // Sound requires a user gesture; locked/background devices depend on Web Push.
-  function enableBellSound() {
-    soundEnabled = true;
-    try {
-      audioContext ||= new (window.AudioContext || window.webkitAudioContext)();
-      if (audioContext.state === 'suspended') audioContext.resume().catch(() => {});
-    } catch { soundEnabled = false; }
+ const bell=document.getElementById('chatBell'),counter=document.getElementById('chatBellCount');
+ if(!bell||!counter||!('indexedDB' in window))return;
+ const API='https://zegjegutcigbydtzggur.supabase.co/functions/v1/always-yours-secure-v2';
+ const AUTH='https://zegjegutcigbydtzggur.supabase.co/functions/v1/always-yours-chat';
+ const te=new TextEncoder();let active=false,prev=null,session=null,expires=0,identity=null,who=null;
+ let audio=null,audioUnlocked=false;
+ function b64(v){let s='';for(const x of new Uint8Array(v))s+=String.fromCharCode(x);return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');}
+ const sha=async v=>b64(await crypto.subtle.digest('SHA-256',te.encode(v)));
+ function note(){if(!audioUnlocked||!audio||audio.state!=='running'||document.hidden)return;
+  const t=audio.currentTime;for(const [delay,f] of [[0,700],[.14,860]]){
+   const o=audio.createOscillator(),g=audio.createGain();o.type='sine';o.frequency.value=f;
+   g.gain.setValueAtTime(.0001,t+delay);g.gain.exponentialRampToValueAtTime(.035,t+delay+.02);
+   g.gain.exponentialRampToValueAtTime(.0001,t+delay+.18);o.connect(g);g.connect(audio.destination);o.start(t+delay);o.stop(t+delay+.2);
   }
-  function playBell() {
-    if (!soundEnabled || !audioContext || document.hidden) return;
-    try {
-      const now = audioContext.currentTime;
-      [0, .17].forEach((offset, i) => {
-        const oscillator = audioContext.createOscillator();
-        const gain = audioContext.createGain();
-        oscillator.type = 'sine';
-        oscillator.frequency.value = i ? 988 : 784;
-        gain.gain.setValueAtTime(.0001, now + offset);
-        gain.gain.exponentialRampToValueAtTime(.09, now + offset + .02);
-        gain.gain.exponentialRampToValueAtTime(.0001, now + offset + .42);
-        oscillator.connect(gain).connect(audioContext.destination);
-        oscillator.start(now + offset);
-        oscillator.stop(now + offset + .44);
-      });
-    } catch {}
-  }
-  document.addEventListener('pointerdown', enableBellSound, {once:true});
-  document.addEventListener('keydown', enableBellSound, {once:true});
-  const channel = 'BroadcastChannel' in window ? new BroadcastChannel('always-yours-chat-events') : null;
-  if (channel) channel.onmessage = event => {
-    if (event.data?.type === 'messages-updated') updateBell();
-  };
-  function getRoomFromDevice() {
-    if (roomPromise) return roomPromise;
-    roomPromise = new Promise(resolve => {
-      let request;
-      try { request = indexedDB.open(chatDbName); } catch { resolve(null); return; }
-      request.onerror = () => resolve(null);
-      request.onupgradeneeded = () => { request.transaction?.abort(); resolve(null); };
-      request.onsuccess = () => {
-        const db = request.result;
-        if (!db.objectStoreNames.contains('secrets')) { db.close(); resolve(null); return; }
-        const tx = db.transaction('secrets','readonly');
-        const read = tx.objectStore('secrets').get('room');
-        read.onsuccess = () => { const value = read.result?.room; resolve(typeof value === 'string' && /^[0-9a-f]{40}$/.test(value) ? value : null); };
-        read.onerror = () => resolve(null);
-        tx.oncomplete = () => db.close();
-      };
-    });
-    return roomPromise;
-  }
-  async function updateBell() {
-    if (activeFetch || document.hidden || !navigator.onLine) return;
-    activeFetch = true;
-    try {
-      const roomId = await getRoomFromDevice();
-      const role = localStorage.getItem('alwaysYoursName');
-      if (!roomId || !['Ko Ko','Chit Chit'].includes(role)) {
-        counter.hidden = true;
-        bell.classList.remove('has-unread');
-        previousUnread = null;
-        return;
-      }
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 7000);
-      let response;
-      try { response = await fetch(CHAT_API + '/api/unread', {headers:{'X-Room-Key':roomId,'X-User':role},cache:'no-store',signal:controller.signal}); }
-      finally {clearTimeout(timeout);}
-      if (!response.ok) return;
-      const payload = await response.json();
-      // Fetch only an unread count: no message text, ciphertext, media keys, or timestamps.
-      if (!payload?.ok || !Number.isSafeInteger(payload.unread) || payload.unread < 0) return;
-      const unread = payload.unread;
-      if (previousUnread !== null && unread > previousUnread) playBell();
-      previousUnread = unread;
-      counter.textContent = unread > 99 ? '99+' : String(unread);
-      counter.hidden = unread === 0;
-      bell.classList.toggle('has-unread', unread > 0);
-      bell.setAttribute('aria-label', unread ? `打开悄悄话，${unread} 条未读消息` : '打开悄悄话，没有未读消息');
-      document.title = unread ? `（${unread > 99 ? '99+' : unread}）Our Journey · 悄悄话 ♡` : 'Our Journey · 只属于我们的故事 ♡';
-    } catch { /* Network/authorization failure: never pretend to have read messages. */ }
-    finally {activeFetch = false;}
-  }
-  updateBell();
-  window.setInterval(updateBell, 4000);
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) { roomPromise = null; updateBell(); } });
-  window.addEventListener('pageshow', () => { roomPromise = null; updateBell(); });
-  window.addEventListener('storage', event => { if (event.key === 'alwaysYoursName') { roomPromise = null; previousUnread = null; updateBell(); } });
+ }
+ function audioStart(){try{const C=window.AudioContext||window.webkitAudioContext;if(!C)return;
+  audio ||= new C();if(audio.state==='suspended')audio.resume().catch(()=>{});
+  audioUnlocked=true;
+ }catch{}}
+ document.addEventListener('pointerdown',audioStart,{once:true});document.addEventListener('keydown',audioStart,{once:true});
+ function openDb(){return new Promise((resolve,reject)=>{
+   const r=indexedDB.open('always-yours-identity-keys-v1');
+   r.onupgradeneeded=()=>{r.transaction.abort();reject(Error('No device key store'));};
+   r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);
+ });}
+ async function getIdentity(role){
+  if(identity&&who===role)return identity;
+  const db=await openDb();try{
+   if(!db.objectStoreNames.contains('keys'))return null;
+   const keys=await new Promise((resolve,reject)=>{const rq=db.transaction('keys').objectStore('keys').getAllKeys();rq.onsuccess=()=>resolve(rq.result);rq.onerror=()=>reject(rq.error);});
+   let slot='v2:'+role;
+   if(!keys.includes(slot)){
+    const matching=keys.filter(k=>typeof k==='string'&&k.endsWith(':'+role));
+    if(matching.length!==1)return null;slot=matching[0];
+   }
+   const saved=await new Promise((resolve,reject)=>{const rq=db.transaction('keys').objectStore('keys').get(slot);rq.onsuccess=()=>resolve(rq.result);rq.onerror=()=>reject(rq.error);});
+   if(!saved?.pair?.privateKey||!saved?.pair?.publicKey)return null;
+   const pub=await crypto.subtle.exportKey('jwk',saved.pair.publicKey);
+   const fp=await sha('AY-DEVICE-FP-V1|'+pub.x+'|'+pub.y);
+   identity={fp,key:saved.pair.privateKey};who=role;return identity;
+  }finally{db.close();}
+ }
+ async function post(url,body){const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},cache:'no-store',body:JSON.stringify(body)});
+  const j=await r.json();if(!r.ok)throw Error(j.error||'Unauthorized');return j;}
+ async function login(role,id){if(session&&expires>Date.now()+30000)return session;
+  const c=await post(AUTH+'/api/v2/device/challenge',{user_name:role,fingerprint:id.fp});
+  const payload=['AY-V2-DEVICE-CHALLENGE',role,c.challengeId,c.challenge].join('\n');
+  const signature=b64(await crypto.subtle.sign({name:'ECDSA',hash:'SHA-256'},id.key,te.encode(payload)));
+  const s=await post(AUTH+'/api/v2/device/verify',{user_name:role,challengeId:c.challengeId,signature});
+  if(!s.deviceVerified||!s.accessToken)throw Error('Not authorized');
+  session=s.accessToken;expires=Date.now()+Math.min(600,Number(s.expiresInSeconds)||600)*1000;return session;
+ }
+ async function unread(role,id){const token=await login(role,id),path='/unread',time=String(Date.now());
+  const nonce=b64(crypto.getRandomValues(new Uint8Array(16)));
+  const canonical=['AY-SECURE-V2-REQUEST',role,id.fp,await sha('AY-DEVICE-SESSION-V1|'+token),'GET',path,time,nonce,await sha('')].join('\n');
+  const proof=b64(await crypto.subtle.sign({name:'ECDSA',hash:'SHA-256'},id.key,te.encode(canonical)));
+  const r=await fetch(API+path,{headers:{Authorization:'Bearer '+token,'X-Device-Time':time,'X-Device-Nonce':nonce,'X-Device-Proof':proof},cache:'no-store'});
+  if(!r.ok){if(r.status===401)session=null;throw Error('Unread authorization failed');}
+  const value=await r.json();if(!Number.isInteger(value.unread)||value.unread<0)throw Error('Invalid unread count');return value.unread;
+ }
+ async function update(){if(active||document.hidden||!navigator.onLine)return;active=true;
+  try{const role=localStorage.getItem('ay-secure-role-v1');if(role!=='Ko Ko'&&role!=='Chit Chit')return;
+   const id=await getIdentity(role);if(!id)return;
+   const n=await unread(role,id);
+   if(prev!==null&&n>prev)note();prev=n;counter.hidden=n===0;counter.textContent=n>99?'99+':String(n);
+   bell.classList.toggle('has-unread',n>0);
+   bell.setAttribute('aria-label',n?'打开悄悄话，'+n+' 条未读消息':'打开悄悄话，没有未读消息');
+   document.title=n?'（'+(n>99?'99+':n)+'）Our Journey · 悄悄话 ♡':'Our Journey · 只属于我们的故事 ♡';
+  }catch{}finally{active=false;}
+ }
+ const channel='BroadcastChannel' in window?new BroadcastChannel('ay-v2-chat'):null;
+ if(channel)channel.onmessage=()=>update();
+ window.setInterval(update,6000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)update();});
+ window.addEventListener('pageshow',update);window.addEventListener('storage',e=>{if(e.key==='ay-secure-role-v1'){identity=null;session=null;prev=null;update();}});
+ update();
 })();
