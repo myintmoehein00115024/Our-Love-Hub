@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow,noarchive">
 <meta name="referrer" content="no-referrer">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-zlIR4j/Jlt9OJD34xhLbF1LtN77GLMBB7l92Di9O4d4='; style-src 'unsafe-inline'; connect-src https://zegjegutcigbydtzggur.supabase.co; base-uri 'none'; object-src 'none'; form-action 'none'; img-src 'self' data:; upgrade-insecure-requests">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-6v4kz36xvhWDOfg2CaPvlgLsGSRGFV1U9ORKPx4bnlM='; style-src 'unsafe-inline'; connect-src https://zegjegutcigbydtzggur.supabase.co; base-uri 'none'; object-src 'none'; form-action 'none'; img-src 'self' data:; upgrade-insecure-requests">
 <meta name="theme-color" content="#f9ebf7">
 <title>设备授权管理 ♡ Our Love Hub</title>
 <style>
@@ -55,11 +55,12 @@ body.love-dialog-open{overflow:hidden}@media(max-width:430px){.love-confirm-row{
 <p>在这里安全管理 HE / SHE 的设备：核对指纹、批准申请、备注昵称、查看已记录的申请 IP，以及单台或批量解除设备授权。所有更改均在服务器验证管理员口令，设备解除后可以重新申请。</p>
 <label for="token">管理员授权口令（至少 10 位）</label>
 <input id="token" class="field" type="password" minlength="10" maxlength="256" autocomplete="new-password" spellcheck="false" placeholder="不保存，5 分钟无操作或切换后台会锁定" aria-describedby="privacy" />
-<div class="actions"><button type="button" id="toggle">显示 / 隐藏口令</button><button class="primary" type="button" id="refresh">查看设备授权记录 ↻</button><button type="button" id="auditBtn">查看操作记录</button></div>
+<div class="actions"><button type="button" id="toggle">显示 / 隐藏口令</button><button class="primary" type="button" id="refresh">查看设备授权记录 ↻</button><button type="button" id="auditBtn">查看操作记录</button><button type="button" id="compatBtn">旧版接口使用情况</button></div>
 <div class="hero-note">IP 仅供辅助识别，不等于设备所在地；VPN、运营商网络可能改变 IP。只有升级后新申请且服务器成功记录的设备才显示申请 IP（网络转发标头可能不可靠，只作辅助线索，绝不用于授权）。解除授权将立即阻止新版 Chat V2 继续访问，设备可以重新提交新申请等待批准；旧版聊天 API 尚未完全隔离。</div>
 <div id="status" class="status" role="status" aria-live="polite">尚未读取授权记录。请使用您在 Supabase 设置的原始管理员口令，而非摘要。</div>
 <section id="results" aria-live="polite"></section>
 <section id="audit" class="panel" hidden aria-live="polite"></section>
+<section id="compatibility" class="panel" hidden aria-live="polite"></section>
 <p class="hint" id="privacy">安全提示：管理员口令只在本页面的短时会话内使用，显示口令 10 秒后自动隐藏，不保存到浏览器存储或 GitHub；无操作 5 分钟、切换到后台或离开页面时自动清空口令和设备列表。只批准通过独立渠道核实过指纹的设备。解除授权不会删除既有聊天数据或设备密钥；同设备仍可再次申请，但必须重新批准。也不能远程抹除设备曾保存的内容。旧版聊天 API 的安全隔离仍需继续处理。<strong>不要在公共设备操作。</strong></p>
 </main>
 <div id="loveOverlay" class="love-overlay" hidden>
@@ -78,6 +79,7 @@ const ADMIN_API='https://zegjegutcigbydtzggur.supabase.co/functions/v1/always-yo
 const input=document.getElementById('token'),status=document.getElementById('status'),results=document.getElementById('results');
 const refresh=document.getElementById('refresh'),toggle=document.getElementById('toggle');
 const audit=document.getElementById('audit'),auditBtn=document.getElementById('auditBtn');
+const compatibility=document.getElementById('compatibility'),compatBtn=document.getElementById('compatBtn');
 
 const loveOverlay=document.getElementById('loveOverlay'),loveTitle=document.getElementById('loveTitle'),loveDescription=document.getElementById('loveDescription');
 const loveAccept=document.getElementById('loveAccept'),loveCancel=document.getElementById('loveCancel');
@@ -175,11 +177,11 @@ function lockAdmin(reason='出于安全考虑，管理员会话已锁定。请�
  loveToast.hidden=true;
  if(activeRequest){activeRequest.abort();activeRequest=null;}
  if(revealTimer){clearTimeout(revealTimer);revealTimer=null;}
- input.value='';input.type='password';results.replaceChildren();audit.replaceChildren();audit.hidden=true;
+ input.value='';input.type='password';results.replaceChildren();audit.replaceChildren();audit.hidden=true;compatibility.replaceChildren();compatibility.hidden=true;
  note(reason);
 }
 function checkIdle(){
- if(Date.now()-lastActivity>=MAX_IDLE_MS&&(input.value||results.children.length||!audit.hidden)){
+ if(Date.now()-lastActivity>=MAX_IDLE_MS&&(input.value||results.children.length||!audit.hidden||!compatibility.hidden)){
   lockAdmin();return true;
  }
  return false;
@@ -188,7 +190,7 @@ setInterval(checkIdle,15000);
 window.addEventListener('focus',checkIdle);
 window.addEventListener('pageshow',e=>{if(e.persisted)lockAdmin();});
 document.addEventListener('visibilitychange',()=>{
- if(document.hidden&&(input.value||results.children.length||!audit.hidden))
+ if(document.hidden&&(input.value||results.children.length||!audit.hidden||!compatibility.hidden))
   lockAdmin('页面切换到后台，管理员资料已自动锁定。请重新输入口令。');
 });
 document.addEventListener('pointerdown',activity,{passive:true});
@@ -233,10 +235,10 @@ const admin=(action,payload={})=>request(ADMIN_API+'/'+action,payload);
 async function runTask(fn){
  if(busy)return;
  const epoch=securityEpoch;
- busy=true;refresh.disabled=true;auditBtn.disabled=true;
+ busy=true;refresh.disabled=true;auditBtn.disabled=true;compatBtn.disabled=true;
  try{await fn();}
  catch(e){if(epoch===securityEpoch){const msg=e&&e.message?e.message:'操作失败，请稍后重试';note(msg,'error');flashLove(msg,true);}}
- finally{busy=false;refresh.disabled=false;auditBtn.disabled=false;}
+ finally{busy=false;refresh.disabled=false;auditBtn.disabled=false;compatBtn.disabled=false;}
 }
 async function load(){
  return runTask(async()=>{
@@ -365,7 +367,49 @@ function showAudit(){
   note('仅显示操作类型、时间与状态；审计记录不含管理员口令或明文 IP。','ok');
  });
 }
+
+// R17: read-only legacy-API migration panel. Values are aggregate counts, not user identifiers.
+function showCompatibility(){
+ if(!compatibility.hidden){compatibility.hidden=true;return;}
+ return runTask(async()=>{
+  note('正在读取旧版接口的匿名访问量汇总…');
+  const data=await admin('compatibility');
+  const totals=data.totals&&typeof data.totals==='object'?data.totals:{};
+  compatibility.replaceChildren();
+  compatibility.appendChild(node('h2','','旧版接口迁移观察 ♡'));
+  const hours=Math.max(0,Number(data.monitorHours)||0);
+  const since=data.monitorStartedAt?new Date(data.monitorStartedAt).toLocaleString('zh-CN'):'未知';
+  const intro=node('p','','统计从 R17 部署后开始，约 '+hours+' 小时 · 起始于 '+since+'。仅记录接口类型和请求次数，不记录消息内容、管理员口令、设备指纹或 IP。');
+  compatibility.appendChild(intro);
+  const names=[
+   ['messages-get','读取旧版消息'],['messages-post','发送旧版消息'],
+   ['media-get','下载旧版图片'],['media-post','上传旧版图片'],
+   ['unread-get','读取旧版未读数'],['read-post','提交旧版已读'],
+   ['presence-get','查询旧版在线状态'],['presence-post','提交旧版在线状态'],
+   ['push-subscribe','登记旧版推送']
+  ];
+  let total=0;
+  for(const [key,label] of names){
+   const raw=totals[key]||{};
+   const day=Math.max(0,Number(raw.last24h)||0),twoDay=Math.max(0,Number(raw.last48h)||0);
+   total+=twoDay;
+   const row=node('div','audit-entry');
+   row.appendChild(node('div','',label));
+   row.appendChild(node('div','audit-meta','最近 24 小时：'+day+' 次 · 最近 48 小时：'+twoDay+' 次'));
+   compatibility.appendChild(row);
+  }
+  const risk=node('div','hero-note');
+  risk.textContent=hours<48?'监测期不足 48 小时：请等待积累更多数据。即使统计为 0，也不能据此关闭旧接口。':
+   total>0?'仍检测到旧版接口请求；继续保留兼容服务，先确认是否还有旧设备使用。':
+   '最近 48 小时未检测到上述旧版接口请求，但这并不能证明没有离线旧客户端。关闭旧接口仍需双设备回归验证与单独确认。';
+  compatibility.appendChild(risk);
+  compatibility.hidden=false;
+  note('已安全读取旧接口访问汇总；此面板不会改变任何设备授权或聊天数据。','ok');
+ });
+}
+
 refresh.addEventListener('click',load);
+compatBtn.addEventListener('click',showCompatibility);
 auditBtn.addEventListener('click',showAudit);
 toggle.addEventListener('click',()=>{
  if(revealTimer){clearTimeout(revealTimer);revealTimer=null;}
