@@ -10,7 +10,7 @@ const validB64=/^[A-Za-z0-9_-]+$/;
 function b64(bytes){const v=bytes instanceof Uint8Array?bytes:new Uint8Array(bytes);let s='';for(const c of v)s+=String.fromCharCode(c);return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');}
 function un64(s){if(!validB64.test(s))throw new Error('无效的加密编码');return Uint8Array.from(atob(s.replace(/-/g,'+').replace(/_/g,'/')+'='.repeat((4-s.length%4)%4)),c=>c.charCodeAt(0));}
 async function digest(value){return b64(await crypto.subtle.digest('SHA-256',typeof value==='string'?te.encode(value):value));}
-function status(text){(state.role?$('chatStatus'):$('gateStatus')).textContent=text;}
+function status(text){const target=state.role?$('chatStatus'):$('gateStatus');target.textContent=text;if(target.id==='chatStatus')target.classList.toggle('statusQuiet',/^设备已授权 ·/.test(text));}
 function dbOpen(name,version,upgrader){return new Promise((resolve,reject)=>{const r=indexedDB.open(name,version);r.onupgradeneeded=()=>upgrader?.(r.result);r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});}
 function txReq(db,store,mode,callback){return new Promise((resolve,reject)=>{const tx=db.transaction(store,mode);const rq=callback(tx.objectStore(store));rq.onsuccess=()=>resolve(rq.result);rq.onerror=()=>reject(rq.error);tx.oncomplete=()=>db.close();});}
 async function findSigningIdentity(role){
@@ -229,11 +229,109 @@ function renderMessageBody(element,p){
   const em=document.createElement('span');em.className='emojiMotion';em.textContent=String(p.body||'💗').slice(0,12);element.append(em);
  }else if(p.t==='image'||p.t==='gif'){
   const uri=String(p.data||'');const ok=p.t==='image'?/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(uri):/^data:image\/gif;base64,[A-Za-z0-9+/=]+$/.test(uri);
-  if(ok&&uri.length<=350000){const im=document.createElement('img');im.className='chatMedia';im.alt=p.t==='gif'?'发送的 GIF 动图':'发送的照片';im.loading='lazy';im.src=uri;element.append(im);}
+  if(ok&&uri.length<=350000){
+   const zoom=document.createElement('button');zoom.type='button';zoom.className='chatMediaOpen';zoom.title='点击放大、缩放或保存图片';zoom.setAttribute('aria-label','打开图片，可缩放或保存到手机');
+   const im=document.createElement('img');im.className='chatMedia';im.alt=p.t==='gif'?'发送的 GIF 动图':'发送的照片';im.loading='lazy';im.src=uri;
+   zoom.append(im);zoom.addEventListener('click',()=>openImageViewer(uri,p.t));element.append(zoom);
+  }
   else element.textContent='[媒体文件格式不正确]';
   if(p.body){const caption=document.createElement('div');caption.className='captionText';caption.textContent=String(p.body).slice(0,150);element.append(caption);}
  }else element.textContent=String(p.body??'');
 }
+// Local-only media lightbox: decrypted bytes never leave this device unless the user explicitly shares/saves.
+const viewerState={uri:'',kind:'image',zoom:1,x:0,y:0,focus:null,pointers:new Map(),gesture:null};
+function setViewerZoom(next){
+ viewerState.zoom=Math.max(1,Math.min(4,Math.round(next*10)/10));
+ if(viewerState.zoom===1){viewerState.x=0;viewerState.y=0;}
+ const range=$('viewerZoom');range.value=String(viewerState.zoom);
+ $('viewerZoomLabel').textContent=Math.round(viewerState.zoom*100)+'%';
+ positionViewer();
+}
+function positionViewer(){
+ const stage=$('viewerStage');if(!stage)return;
+ const maxX=(stage.clientWidth*(viewerState.zoom-1))/2;
+ const maxY=(stage.clientHeight*(viewerState.zoom-1))/2;
+ viewerState.x=Math.max(-maxX,Math.min(maxX,viewerState.x));
+ viewerState.y=Math.max(-maxY,Math.min(maxY,viewerState.y));
+ $('viewerImage').style.transform=`translate3d(${viewerState.x}px,${viewerState.y}px,0) scale(${viewerState.zoom})`;
+}
+function openImageViewer(uri,kind){
+ if(!/^data:image\/(?:jpeg|gif);base64,[A-Za-z0-9+/=]+$/.test(uri)||uri.length>350000)return;
+ viewerState.focus=document.activeElement;viewerState.uri=uri;viewerState.kind=kind;viewerState.pointers.clear();viewerState.gesture=null;
+ $('viewerTitle').textContent=kind==='gif'?'我们的 GIF ♡':'我们的照片 ♡';
+ $('viewerImage').alt=kind==='gif'?'聊天 GIF 动图预览':'聊天照片预览';
+ $('viewerImage').src=uri;
+ $('viewerHint').textContent='双指放大 · 拖动查看 · 点击保存图片，可保存至本机';
+ $('photoViewer').classList.remove('hidden');document.body.classList.add('viewerOpen');
+ setViewerZoom(1);$('viewerClose').focus({preventScroll:true});
+}
+function closeImageViewer(){
+ if($('photoViewer').classList.contains('hidden'))return;
+ $('photoViewer').classList.add('hidden');document.body.classList.remove('viewerOpen');
+ $('viewerImage').removeAttribute('src');viewerState.uri='';viewerState.pointers.clear();viewerState.gesture=null;
+ if(viewerState.focus?.isConnected)viewerState.focus.focus({preventScroll:true});
+}
+function localMediaBlob(uri){
+ const match=/^data:(image\/(?:jpeg|gif));base64,([A-Za-z0-9+/=]+)$/.exec(uri);
+ if(!match||uri.length>350000)throw Error('不支持的图片格式');
+ const decoded=atob(match[2]);const bytes=new Uint8Array(decoded.length);
+ for(let i=0;i<decoded.length;i++)bytes[i]=decoded.charCodeAt(i);
+ return new Blob([bytes],{type:match[1]});
+}
+async function saveViewedImage(){
+ if(!viewerState.uri)return;
+ const kind=viewerState.kind,blob=localMediaBlob(viewerState.uri);
+ const filename='our-love-'+new Date().toISOString().replace(/[:.]/g,'-')+(kind==='gif'?'.gif':'.jpg');
+ const file=new File([blob],filename,{type:blob.type});
+ // On iOS the native share sheet can save to Photos or Files.
+ if(typeof navigator.share==='function'&&typeof navigator.canShare==='function'&&navigator.canShare({files:[file]})){
+   try{await navigator.share({files:[file],title:'Our Love Hub · 私人照片'});$('viewerHint').textContent='已打开系统分享菜单；可选择存储图像或保存到文件。';return;}
+   catch(e){if(e?.name==='AbortError')return;}
+ }
+ const url=URL.createObjectURL(blob);
+ try{const a=document.createElement('a');a.href=url;a.download=filename;document.body.append(a);a.click();a.remove();
+    $('viewerHint').textContent='已请求浏览器保存图片；在 iPhone 上可从下载项打开并保存到相册。';
+ }finally{setTimeout(()=>URL.revokeObjectURL(url),30000);}
+}
+$('viewerClose').addEventListener('click',closeImageViewer);
+$('photoViewer').addEventListener('click',e=>{if(e.target===$('photoViewer'))closeImageViewer();});
+$('viewerPlus').addEventListener('click',()=>setViewerZoom(viewerState.zoom+.5));
+$('viewerMinus').addEventListener('click',()=>setViewerZoom(viewerState.zoom-.5));
+$('viewerZoom').addEventListener('input',e=>setViewerZoom(Number(e.target.value)));
+$('viewerSave').addEventListener('click',()=>saveViewedImage().catch(e=>{$('viewerHint').textContent='保存失败：'+e.message;}));
+$('viewerStage').addEventListener('dblclick',()=>setViewerZoom(viewerState.zoom>1?1:2.2));
+$('viewerStage').addEventListener('wheel',e=>{if($('photoViewer').classList.contains('hidden'))return;e.preventDefault();setViewerZoom(viewerState.zoom+(e.deltaY<0?.25:-.25));},{passive:false});
+function getDistance(p){const points=[...p.values()];return Math.hypot(points[0].x-points[1].x,points[0].y-points[1].y);}
+$('viewerStage').addEventListener('pointerdown',e=>{
+ if(e.pointerType==='mouse'&&e.button!==0)return;
+ const stage=$('viewerStage');viewerState.pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+ try{stage.setPointerCapture(e.pointerId);}catch{}
+ if(viewerState.pointers.size===1)viewerState.gesture={type:'pan',startX:e.clientX,startY:e.clientY,x:viewerState.x,y:viewerState.y};
+ else if(viewerState.pointers.size===2)viewerState.gesture={type:'pinch',distance:getDistance(viewerState.pointers),zoom:viewerState.zoom};
+});
+$('viewerStage').addEventListener('pointermove',e=>{
+ const p=viewerState.pointers;if(!p.has(e.pointerId))return;
+ p.set(e.pointerId,{x:e.clientX,y:e.clientY});const g=viewerState.gesture;
+ if(p.size===2&&g?.type==='pinch')setViewerZoom(g.zoom*getDistance(p)/Math.max(g.distance,1));
+ else if(p.size===1&&g?.type==='pan'&&viewerState.zoom>1){viewerState.x=g.x+(e.clientX-g.startX);viewerState.y=g.y+(e.clientY-g.startY);positionViewer();}
+});
+function endViewerPointer(e){viewerState.pointers.delete(e.pointerId);if(viewerState.pointers.size===1){const p=[...viewerState.pointers.values()][0];viewerState.gesture={type:'pan',startX:p.x,startY:p.y,x:viewerState.x,y:viewerState.y};}else if(!viewerState.pointers.size)viewerState.gesture=null;}
+['pointerup','pointercancel','lostpointercapture'].forEach(t=>$('viewerStage').addEventListener(t,endViewerPointer));
+document.addEventListener('keydown',e=>{
+ if($('photoViewer').classList.contains('hidden'))return;
+ if(e.key==='Escape'){e.preventDefault();closeImageViewer();return;}
+ if(e.key==='+'||e.key==='='){e.preventDefault();setViewerZoom(viewerState.zoom+.25);}
+ if(e.key==='-'){e.preventDefault();setViewerZoom(viewerState.zoom-.25);}
+ if(e.key==='Tab'){
+  const nodes=[...$('viewerDialog').querySelectorAll('button:not(:disabled),input:not(:disabled)')];
+  if(nodes.length&&(e.shiftKey&&document.activeElement===nodes[0])){e.preventDefault();nodes[nodes.length-1].focus();}
+  else if(nodes.length&&!e.shiftKey&&document.activeElement===nodes[nodes.length-1]){e.preventDefault();nodes[0].focus();}
+ }
+});
+// Keep the compact menu from lingering above content after interactions.
+document.addEventListener('click',e=>{const menu=$('chatOptions');if(menu?.open&&!menu.contains(e.target))menu.open=false;});
+$('chatOptions').querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{$('chatOptions').open=false;}));
+
 async function markVisibleRead(id){
  if(document.hidden||!state.role)return;
  readQueue.add(id);if(readFlushBusy)return;
@@ -292,7 +390,7 @@ async function refresh(){
    if(own&&p.t==='text'){
     const edit=document.createElement('button');edit.type='button';edit.textContent='✎';edit.title='编辑消息';edit.setAttribute('aria-label','编辑消息');edit.addEventListener('click',()=>editMessage(m.id));actions.append(edit);
    }
-   wrap.append(actions,b);elements.push(wrap);
+   if(own)wrap.append(actions,b);else wrap.append(b,actions);elements.push(wrap);
    if(!own&&!m.read_at&&!String(p.body||'').startsWith('[本设备暂时无法解密')) {b.dataset.needsRead='1';b.dataset.mid=m.id;}
   }
   if(!elements.length){const empty=document.createElement('div');empty.className='system';empty.textContent='等待属于你们的第一条加密消息 ♡';elements.push(empty);}
@@ -365,11 +463,11 @@ async function chooseRole(role,apply=false){
   await login();await setupEncryption();
   try{localStorage.setItem('ay-secure-role-v1',role);}catch{}
   $('deviceApproval').classList.add('hidden');
-  $('gate').classList.add('hidden');$('chat').classList.remove('hidden');
+  $('gate').classList.add('hidden');$('chat').classList.remove('hidden');document.body.classList.add('chatMode');
   $('who').textContent=(role==='Ko Ko'?'HE · Ko Ko':'SHE · Chit Chit')+' · 已验证设备';if(soundOn())$('sound').textContent='♪ 已开启';
   $('messages').replaceChildren();if('Notification' in window&&Notification.permission==='granted'){request('/push/status').then(d=>{if(d.registered)$('notify').textContent='🔔 已开启';}).catch(()=>{});}await refresh();state.timer=setInterval(refresh,5000);
  }catch(e){
-  $('chat').classList.add('hidden');$('gate').classList.remove('hidden');
+  $('chat').classList.add('hidden');$('gate').classList.remove('hidden');document.body.classList.remove('chatMode');
   const message=e?.message||'未知错误';
   if(approvalVerified){
    approvalText('服务器确认已批准本机，但安全登录尚未完成：'+message+'\n请刷新测试页后点击「重新检查授权」。不需要重复申请或修改管理员审批。','登录验证失败');
@@ -405,7 +503,7 @@ $('deviceApproval').addEventListener('keydown',e=>{
 $('exit').addEventListener('click',()=>{
  try{localStorage.removeItem('ay-secure-role-v1');}catch{}
  clearInterval(state.timer);state.role=null;state.session=null;state.identity=null;state.encryption=null;haveSnapshot=false;seenMessages=new Set();clearComposerMode();attachmentReset();
- $('chat').classList.add('hidden');$('gate').classList.remove('hidden');
+ $('chat').classList.add('hidden');$('gate').classList.remove('hidden');document.body.classList.remove('chatMode');
  $('gateStatus').textContent='选择身份后，将自动检查本机授权状态。';
 });
 $('composer').addEventListener('submit',async e=>{

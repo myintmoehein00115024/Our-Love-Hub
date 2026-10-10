@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#f8eafa"><meta name="robots" content="noindex,nofollow"><title>Always Yours ♡ Our Love Hub</title><link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="../assets/apple-touch-icon.png"><link rel="icon" href="../assets/favicon-32.png"><link rel="stylesheet" href="styles.css?v=20261010-r2"></head><body>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#f8eafa"><meta name="robots" content="noindex,nofollow"><title>Always Yours ♡ Our Love Hub</title><link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="../assets/apple-touch-icon.png"><link rel="icon" href="../assets/favicon-32.png"><link rel="stylesheet" href="styles.css?v=20261010-zoom1"></head><body>
 <main class="page">
 <header class="top"><a href="../Our-Journey/" class="back">← Our Journey</a><span class="testbadge">PRIVATE · HE ♡ SHE</span></header>
 <section id="gate" class="shell gate">
@@ -37,7 +37,14 @@
   </section>
 </div>
 <section id="chat" class="shell chat hidden" aria-label="仅限授权设备的私人聊天">
- <div class="chatHead"><div><div class="eyebrow">JUST THE TWO OF US ♡</div><h2>Always Yours ♡</h2><div id="who" class="who"></div></div><div class="chatActions"><button id="sound" class="outline" type="button" title="启用网页打开时的轻柔提示音">♪ 网页声音</button><button id="notify" class="outline" type="button" title="开启锁屏消息提醒和页面提示声">♧ 开启提醒</button><button id="testPush" class="outline" type="button" title="发送6秒后的推送测试">测试铃铛</button><button id="syncHistory" class="outline" type="button" title="将本机能解密的旧消息重新加密给新获批设备">同步新设备历史</button><button id="exit" class="outline" type="button">切换身份</button></div></div>
+ <div class="chatHead">
+  <div class="chatIdentity"><a class="chatHome" href="../Our-Journey/" title="返回 Our Journey" aria-label="返回 Our Journey">←</a><div class="chatBrand"><h2>Always Yours <span aria-hidden="true">♡</span></h2><div id="who" class="who"></div></div></div>
+  <div class="chatActions"><button id="sound" class="outline" type="button" title="网页打开时的柔和提示音">♪ 声音</button><button id="notify" class="outline" type="button" title="开启手机或电脑的系统通知">♧ 提醒</button>
+    <details id="chatOptions" class="chatMore"><summary aria-label="更多聊天选项" title="更多聊天选项">···</summary><div class="chatMenu" role="group" aria-label="更多聊天选项">
+      <button id="testPush" type="button">🔔 测试铃铛</button><button id="syncHistory" type="button">♡ 同步新设备历史</button><button id="exit" type="button">⇄ 切换 HE / SHE</button>
+    </div></details>
+  </div>
+ </div>
  <div id="chatStatus" class="status" role="status" aria-live="polite"></div>
  <div id="messages" class="messages"></div>
  <form id="composer" class="composer"><label for="message">写给 TA 的悄悄话 ♡</label>
@@ -48,5 +55,14 @@
  <input type="file" id="photoInput" accept="image/*" class="hidden"><input type="file" id="gifInput" accept="image/gif,.gif" class="hidden">
  <div class="hint">仅已授权设备可读取加密消息 · 消息保留30天 · 新设备仅可读取授权后为其加密的消息</div></form>
 </section>
+<!-- Media remains on this authorized device. No photo is uploaded to a new service. -->
+<div id="photoViewer" class="viewerOverlay hidden" role="presentation">
+  <section id="viewerDialog" class="viewerDialog" role="dialog" aria-modal="true" aria-labelledby="viewerTitle" tabindex="-1">
+    <div class="viewerTop"><div class="viewerHeading"><strong id="viewerTitle">我们的照片 ♡</strong><span id="viewerZoomLabel">100%</span></div><button type="button" id="viewerClose" class="viewerClose" aria-label="关闭图片预览">×</button></div>
+    <div id="viewerStage" class="viewerStage" aria-label="图片预览，双指缩放或拖动" tabindex="0"><img id="viewerImage" alt="加密聊天中收到的图片" draggable="false"></div>
+    <div class="viewerTools"><button type="button" id="viewerMinus" aria-label="缩小图片">−</button><input type="range" id="viewerZoom" min="1" max="4" step="0.1" value="1" aria-label="图片缩放"><button type="button" id="viewerPlus" aria-label="放大图片">＋</button><button type="button" id="viewerSave" class="viewerSave">↓ 保存图片</button></div>
+    <p id="viewerHint" class="viewerHint" role="status">支持双指放大、拖动查看；iPhone 可通过分享菜单存储图像。</p>
+  </section>
+</div>
 <footer>2024.03.23 ♡ M + T · Our Love Hub · Just for two ♡</footer>
-</main><script src="app.js?v=20261010-r2" defer></script></body></html>
+</main><script src="app.js?v=20261010-zoom1" defer></script></body></html>
