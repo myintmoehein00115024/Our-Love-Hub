@@ -51,7 +51,8 @@ function resetAuthEpoch(){
  state.authEpoch++;
  state.authPromise=null;
  // A continuation must never cross a role, device, or authorization boundary.
- historyShareCursor=null;
+ historyShareCursor=null;historySyncIssues.clear();
+ const report=$('historySyncSummary');if(report){report.classList.add('hidden');report.open=false;}
 }
 async function login(force=false){
  if(!state.role||!state.identity||!state.fp)throw new Error('先选择已授权身份');
@@ -155,7 +156,15 @@ async function decryptMessage(m){
 // unwraps each content key. No plaintext/key material or continuation cursor is persisted.
 // Process at most 240 source-visible messages per click, resuming on next click.
 let historyShareCursor=null,historyShareRunning=false;
+// R24: only message IDs and diagnostic kinds. No plaintext, ciphertext or private keys are stored.
+const historySyncIssues=new Map();
 const HISTORY_SHARE_BATCH=240;
+function showHistorySyncReport(text){
+ const panel=$('historySyncSummary'),label=$('historySyncSummaryText');
+ if(!panel||!label)return;
+ label.textContent=text;panel.classList.remove('hidden');panel.open=true;
+}
+
 function historyShareIdentityOK(role,fp,epoch){
  return state.role===role&&state.fp===fp&&state.authEpoch===epoch&&
   !!state.encryption&&!$('chat').classList.contains('hidden');
@@ -169,7 +178,7 @@ async function shareVisibleHistory(){
   if(!historyShareIdentityOK(role,fp,epoch))throw new Error('身份或授权状态已变化，密钥同步已停止');
  };
  historyShareRunning=true;
- let shared=0,messages=0,failed=0,unreadable=0,checked=0,hasMore=false;
+ let shared=0,messages=0,failed=0,unreadable=0,integrityFailures=0,checked=0,hasMore=false;
  let cursor=historyShareCursor?.role===role&&historyShareCursor?.fp===fp&&
   historyShareCursor?.epoch===epoch?historyShareCursor:null;
  try{
@@ -196,42 +205,63 @@ async function shareVisibleHistory(){
     }
     const absent=keys.filter(k=>!m.envelopes?.[k.fingerprint]);
     let perMessageFailed=false,anyShared=false;
-    if(absent.length){
-     let contentBytes=null;
-     try{
-      const ownEnv=m.envelopes[fp];
-      const sourcePub=await crypto.subtle.importKey('jwk',ownEnv.ephemeralPublicKey||m.ephemeral_public_key,
-        {name:'ECDH',namedCurve:'P-256'},false,[]);
-      const oldWrap=await deriveWrap(state.encryption.privateKey,sourcePub,m.id,fp);
-      contentBytes=new Uint8Array(await crypto.subtle.decrypt({name:'AES-GCM',iv:un64(ownEnv.iv),
-        additionalData:te.encode('AY-WRAP|'+m.id+'|'+fp)},oldWrap,un64(ownEnv.ciphertext)));
-     }catch(e){assertCurrent();unreadable++;}
-     if(contentBytes){
+    if(!absent.length){
+      // Other approved devices may have already finished sharing this message.
+      historySyncIssues.delete(m.id);
+    }else{
+      let contentBytes=null,sourceIssue=null;
       try{
-       for(const k of absent){
-        assertCurrent();
+        const ownEnv=m.envelopes[fp];
+        const sourcePub=await crypto.subtle.importKey('jwk',ownEnv.ephemeralPublicKey||m.ephemeral_public_key,
+          {name:'ECDH',namedCurve:'P-256'},false,[]);
+        const oldWrap=await deriveWrap(state.encryption.privateKey,sourcePub,m.id,fp);
+        contentBytes=new Uint8Array(await crypto.subtle.decrypt({name:'AES-GCM',iv:un64(ownEnv.iv),
+          additionalData:te.encode('AY-WRAP|'+m.id+'|'+fp)},oldWrap,un64(ownEnv.ciphertext)));
+        if(contentBytes.length!==32)throw new Error('密钥长度不正确');
+      }catch(e){assertCurrent();sourceIssue='key';}
+      // R24: unwrapping is NOT enough. Verify that the content key decrypts
+      // the exact authenticated message before handing it to other devices.
+      // Never store message plaintext or private keys in the diagnostic log.
+      if(contentBytes&&!sourceIssue){
         try{
-         const fresh=await crypto.subtle.generateKey({name:'ECDH',namedCurve:'P-256'},true,['deriveBits']);
-         const pubJwk=await crypto.subtle.exportKey('jwk',fresh.publicKey);
-         const publicKey=await crypto.subtle.importKey('jwk',k.enc_public_key,
-           {name:'ECDH',namedCurve:'P-256'},false,[]);
-         const wrap=await deriveWrap(fresh.privateKey,publicKey,m.id,k.fingerprint);
-         const wiv=crypto.getRandomValues(new Uint8Array(12));
-         const encrypted=b64(await crypto.subtle.encrypt({name:'AES-GCM',iv:wiv,
-           additionalData:te.encode('AY-WRAP|'+m.id+'|'+k.fingerprint)},wrap,contentBytes));
-         assertCurrent();
-         const result=await request('/messages/grant','POST',{
-          id:m.id,expectedIv:m.iv,fingerprint:k.fingerprint,
-          envelope:{iv:b64(wiv),ciphertext:encrypted,
-           ephemeralPublicKey:{kty:'EC',crv:'P-256',x:pubJwk.x,y:pubJwk.y}}
-         });
-         assertCurrent();
-         if(result.shared){shared++;anyShared=true;}
-         else if(!result.existing)throw new Error('历史密钥共享结果不明确');
-        }catch(e){assertCurrent();failed++;perMessageFailed=true;}
-       }
-      }finally{contentBytes.fill(0);}
-     }
+          const checkKey=await crypto.subtle.importKey('raw',contentBytes,'AES-GCM',false,['decrypt']);
+          const plaintext=new Uint8Array(await crypto.subtle.decrypt({name:'AES-GCM',iv:un64(m.iv),
+            additionalData:te.encode('AY-SAFE-TEXT-V1\n'+m.id)},checkKey,un64(m.ciphertext)));
+          plaintext.fill(0);
+        }catch(e){assertCurrent();sourceIssue='integrity';}
+      }
+      if(sourceIssue){
+        if(contentBytes)contentBytes.fill(0);
+        historySyncIssues.set(m.id,sourceIssue);
+        unreadable++;
+        if(sourceIssue==='integrity')integrityFailures++;
+      }else if(contentBytes){
+        historySyncIssues.delete(m.id);
+        try{
+          for(const k of absent){
+            assertCurrent();
+            try{
+              const fresh=await crypto.subtle.generateKey({name:'ECDH',namedCurve:'P-256'},true,['deriveBits']);
+              const pubJwk=await crypto.subtle.exportKey('jwk',fresh.publicKey);
+              const publicKey=await crypto.subtle.importKey('jwk',k.enc_public_key,
+                {name:'ECDH',namedCurve:'P-256'},false,[]);
+              const wrap=await deriveWrap(fresh.privateKey,publicKey,m.id,k.fingerprint);
+              const wiv=crypto.getRandomValues(new Uint8Array(12));
+              const encrypted=b64(await crypto.subtle.encrypt({name:'AES-GCM',iv:wiv,
+                additionalData:te.encode('AY-WRAP|'+m.id+'|'+k.fingerprint)},wrap,contentBytes));
+              assertCurrent();
+              const result=await request('/messages/grant','POST',{
+                id:m.id,expectedIv:m.iv,fingerprint:k.fingerprint,
+                envelope:{iv:b64(wiv),ciphertext:encrypted,
+                  ephemeralPublicKey:{kty:'EC',crv:'P-256',x:pubJwk.x,y:pubJwk.y}}
+              });
+              assertCurrent();
+              if(result.shared){shared++;anyShared=true;}
+              else if(!result.existing)throw new Error('历史密钥共享结果不明确');
+            }catch(e){assertCurrent();failed++;perMessageFailed=true;}
+          }
+        }finally{contentBytes.fill(0);}
+      }
     }
     if(anyShared)messages++;
     if(perMessageFailed){
@@ -247,7 +277,10 @@ async function shareVisibleHistory(){
    status('正在逐页同步历史密钥：已检查 '+checked+' 条，已补发 '+shared+' 份…');
   }
   if(!hasMore)historyShareCursor=null;
-  return {shared,messages,failed,unreadable,checked,hasMore,paused:hasMore,limit:HISTORY_SHARE_BATCH};
+  return {shared,messages,failed,unreadable,integrityFailures,checked,hasMore,
+    unresolved:historySyncIssues.size,
+    unresolvedIntegrity:[...historySyncIssues.values()].filter(x=>x==='integrity').length,
+    complete:!hasMore&&historySyncIssues.size===0,paused:hasMore,limit:HISTORY_SHARE_BATCH};
  }finally{
   historyShareRunning=false;
  }
@@ -846,10 +879,13 @@ $('syncHistory').addEventListener('click',async()=>{
   const x=await shareVisibleHistory();
   const summary=x.shared?`本轮检查 ${x.checked} 条历史消息，已为 ${x.messages} 条消息补发 ${x.shared} 份设备密钥封装。`:
     `本轮已检查 ${x.checked} 条历史消息，没有新增密钥封装。`;
-  const issues=x.failed||x.unreadable?` ${x.failed} 次共享失败、${x.unreadable} 条本机无法解密。`:'';
-  const next=x.paused?` 仍有更早的消息或待重试的记录；再次点击「同步新设备历史」将从上次位置继续。`:
-    ' 本机能够安全检查的历史消息已遍历完成。';
-  status(summary+issues+next+' 不会更改已有聊天记录。');
+  const pending=x.failed?`有 ${x.failed} 次共享请求失败，已停在对应消息，下次点击会从失败处重试。` : '';
+  const blocked=x.unresolved?`当前标签页累计发现 ${x.unresolved} 条尚无法由本机验证的历史消息（其中 ${x.unresolvedIntegrity} 条正文完整性验证失败），这些消息没有向新设备补发密钥。` : '';
+  const remedy=x.unresolved?`请先在曾能正常打开这些消息、且仍持有原始加密私钥的设备上获批登录再同步。当前页面遍历完毕后，再次点击可以重新检查异常消息；服务器无法解密或恢复丢失的私钥。` : '';
+  const next=x.paused?'还有更早的消息，或正在等待重新尝试失败请求；再次点击可继续。':
+    (x.complete?'本机可安全处理的历史已检查完成。':'历史已遍历，但仍有无法恢复或验证的消息，并非全部同步成功。');
+  showHistorySyncReport([summary,pending,blocked,next,remedy].filter(Boolean).join(' '));
+  status(summary+(x.unreadable?` 本轮有 ${x.unreadable} 条无法验证。`:'')+(x.failed?` ${x.failed} 次共享失败。`:'')+' 可展开历史同步诊断查看处理建议。');
   lastPaint='';await refresh();
  }catch(e){status('历史同步未完成：'+e.message);}
  finally{$('syncHistory').disabled=false;}
