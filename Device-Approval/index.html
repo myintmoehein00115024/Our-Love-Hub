@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow,noarchive">
 <meta name="referrer" content="no-referrer">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-wrV0tjyH+Z+85l+I5eXzzjs6kLYy7A1JcBwNy+bjMPk='; style-src 'unsafe-inline'; connect-src https://zegjegutcigbydtzggur.supabase.co; base-uri 'none'; object-src 'none'; form-action 'none'; img-src 'self' data:; upgrade-insecure-requests">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-zlIR4j/Jlt9OJD34xhLbF1LtN77GLMBB7l92Di9O4d4='; style-src 'unsafe-inline'; connect-src https://zegjegutcigbydtzggur.supabase.co; base-uri 'none'; object-src 'none'; form-action 'none'; img-src 'self' data:; upgrade-insecure-requests">
 <meta name="theme-color" content="#f9ebf7">
 <title>设备授权管理 ♡ Our Love Hub</title>
 <style>
@@ -125,16 +125,19 @@ function flashLove(message,error=false){
 }
 function bulkToolbar(devices){
  const bar=node('div','bulkbar');const count=node('span','bulk-summary');
- const allButton=node('button','','全选 / 清除');allButton.type='button';
+ const allButton=node('button','',devices.length>12?'选择前12台 / 清除':'全选 / 清除');allButton.type='button';
  const batchButton=node('button','danger','批量解除授权');batchButton.type='button';
  const sync=()=>{
-  count.textContent='已选择 '+selectedBatch.size+' / '+devices.length+' 台已授权设备';
-  batchButton.disabled=selectedBatch.size<2;
+  count.textContent='已选择 '+selectedBatch.size+' / '+devices.length+' 台已授权设备（单批最多12台）';
+  batchButton.disabled=selectedBatch.size<2||selectedBatch.size>12;
   batchButton.textContent='批量解除授权（'+selectedBatch.size+'）';
  };
  allButton.addEventListener('click',()=>{
-  const every=devices.every(d=>selectedBatch.has(deviceKey(d)));
-  for(const d of devices){const key=deviceKey(d);if(every)selectedBatch.delete(key);else selectedBatch.add(key);}
+  const visibleChoice=devices.slice(0,12);
+  const every=visibleChoice.every(d=>selectedBatch.has(deviceKey(d)));
+  if(every){for(const d of devices)selectedBatch.delete(deviceKey(d));}
+  else{for(const d of visibleChoice)selectedBatch.add(deviceKey(d));
+    if(devices.length>12)flashLove('已选择前12台设备。如需解绑其他设备，请分批操作。');}
   results.querySelectorAll('input[data-device-select]').forEach(box=>{box.checked=selectedBatch.has(box.dataset.deviceSelect);});
   sync();
  });
@@ -150,10 +153,11 @@ function bulkToolbar(devices){
   let success=false;
   await runTask(async()=>{
    const response=await admin('bulk-revoke',{devices:targets.map(d=>({user_name:d.user_name,fingerprint:d.fingerprint})),confirm:'BULK_REVOKE'});
-   success=true;note('已成功解除 '+response.revokedCount+' 台设备授权。'+(response.sessionWarning?'部分旧会话清理出现警告，请核对。':''),'ok');
+   if(response.atomic!==true)throw new Error('批量操作的事务确认缺失，请刷新列表核对状态。');
+   success=true;note('已完整解除 '+response.revokedCount+' 台设备授权，服务器已确认本次操作不可部分成功。','ok');
    flashLove('已批量解除 '+response.revokedCount+' 台设备授权');
   });
-  if(success)await load();else {await load();note('批量操作未能完整成功，请核对上方各设备状态后重试。','error');}
+  if(success)await load();else {await load();note('批量解绑结果未确认。已刷新设备状态，请核对后再决定是否重试，避免重复操作。','error');}
  });
  bar.append(count,allButton,batchButton);sync();return {bar,sync};
 }
