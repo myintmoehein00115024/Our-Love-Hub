@@ -4,7 +4,7 @@ const AUTH_BASE='https://zegjegutcigbydtzggur.supabase.co/functions/v1/always-yo
 const API_BASE='https://zegjegutcigbydtzggur.supabase.co/functions/v1/always-yours-secure-v2';
 const AUTH_DB='always-yours-identity-keys-v1',ENC_DB='always-yours-secure-encryption-v1';
 const $=id=>document.getElementById(id),te=new TextEncoder(),td=new TextDecoder();
-const state={role:null,identity:null,fp:null,session:null,expires:0,encryption:null,keys:[],busy:false,timer:null,replyTo:null,editingId:null,editingIv:null,messageIvs:new Map(),attachment:null,decryptedMap:new Map(),pendingSend:null};
+const state={role:null,identity:null,fp:null,session:null,expires:0,authPromise:null,authEpoch:0,encryption:null,keys:[],busy:false,timer:null,replyTo:null,editingId:null,editingIv:null,messageIvs:new Map(),attachment:null,decryptedMap:new Map(),pendingSend:null};
 let lastApprovalFocus=null;
 const validB64=/^[A-Za-z0-9_-]+$/;
 function b64(bytes){const v=bytes instanceof Uint8Array?bytes:new Uint8Array(bytes);let s='';for(const c of v)s+=String.fromCharCode(c);return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');}
@@ -45,36 +45,61 @@ async function checkOrApplyDevice(identity,apply=false){
  return x.deviceState;
 }
 async function jsonFetch(url,body){const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},cache:'no-store',body:JSON.stringify(body)});const x=await r.json().catch(()=>({}));if(!r.ok)throw new Error(x.error||'服务器暂时无法连接');return x;}
+// R20: Coalesce concurrent logins. Sign each request with a stable session
+// snapshot, and discard responses from an identity that has since been exited.
+function resetAuthEpoch(){
+ state.authEpoch++;
+ state.authPromise=null;
+}
 async function login(force=false){
- if(!state.role||!state.identity)throw new Error('先选择已授权身份');
+ if(!state.role||!state.identity||!state.fp)throw new Error('先选择已授权身份');
  if(!force&&state.session&&state.expires-Date.now()>60000)return;
- status('正在验证您已获授权的设备签名…');
- const role=state.role,fp=state.fp;
- let c;try{c=await jsonFetch(AUTH_BASE+'/api/v2/device/challenge',{user_name:role,fingerprint:fp});}
- catch(e){if(/Device not approved|授权已撤销|设备未授权/i.test(String(e?.message||''))&&!$('chat').classList.contains('hidden'))lockRevokedDevice();throw e;}
- if(!/^[a-f0-9-]{36}$/.test(c.challengeId||'')||!/^[A-Za-z0-9_-]{43}$/.test(c.challenge||''))throw new Error('挑战响应不正确');
- const payload=te.encode(['AY-V2-DEVICE-CHALLENGE',role,c.challengeId,c.challenge].join('\n'));
- const proof=b64(await crypto.subtle.sign({name:'ECDSA',hash:'SHA-256'},state.identity.privateKey,payload));
- const x=await jsonFetch(AUTH_BASE+'/api/v2/device/verify',{user_name:role,challengeId:c.challengeId,signature:proof});
- if(!x.deviceVerified||!x.accessToken||x.fingerprint!==fp)throw new Error('服务器未批准当前设备');
- state.session=x.accessToken;state.expires=Date.now()+Math.min(600,Number(x.expiresInSeconds)||600)*1000;syncSWChatReadiness();
+ if(state.authPromise)return state.authPromise;
+ const role=state.role,fp=state.fp,identity=state.identity,epoch=state.authEpoch;
+ const current=()=>epoch===state.authEpoch&&role===state.role&&fp===state.fp&&identity===state.identity;
+ const work=(async()=>{
+  status('正在验证您已获授权的设备签名…');
+  let c;
+  try{c=await jsonFetch(AUTH_BASE+'/api/v2/device/challenge',{user_name:role,fingerprint:fp});}
+  catch(e){
+   if(current()&&/Device not approved|授权已撤销|设备未授权/i.test(String(e?.message||''))&&!$('chat').classList.contains('hidden'))lockRevokedDevice();
+   throw e;
+  }
+  if(!current())throw new Error('已切换身份，旧登录已取消');
+  if(!/^[a-f0-9-]{36}$/.test(c.challengeId||'')||!/^[A-Za-z0-9_-]{43}$/.test(c.challenge||''))throw new Error('挑战响应不正确');
+  const payload=te.encode(['AY-V2-DEVICE-CHALLENGE',role,c.challengeId,c.challenge].join('\n'));
+  const proof=b64(await crypto.subtle.sign({name:'ECDSA',hash:'SHA-256'},identity.privateKey,payload));
+  if(!current())throw new Error('已切换身份，旧登录已取消');
+  const x=await jsonFetch(AUTH_BASE+'/api/v2/device/verify',{user_name:role,challengeId:c.challengeId,signature:proof});
+  if(!current())throw new Error('已切换身份，旧登录已取消');
+  if(!x.deviceVerified||!x.accessToken||x.fingerprint!==fp)throw new Error('服务器未批准当前设备');
+  state.session=x.accessToken;
+  state.expires=Date.now()+Math.min(600,Number(x.expiresInSeconds)||600)*1000;
+  syncSWChatReadiness();
+ })();
+ state.authPromise=work;
+ try{await work;}
+ finally{if(state.authPromise===work)state.authPromise=null;}
 }
 async function request(path,method='GET',payload=null){
  await login();
+ const role=state.role,fp=state.fp,identity=state.identity,token=state.session,epoch=state.authEpoch;
+ if(!role||!fp||!identity?.privateKey||!token)throw new Error('安全会话已失效，请重新进入聊天');
  const url=API_BASE+path,body=payload===null?'':JSON.stringify(payload);
  const time=String(Date.now()),nonce=b64(crypto.getRandomValues(new Uint8Array(16)));
- const sessionHash=await digest('AY-DEVICE-SESSION-V1|'+state.session);
+ const sessionHash=await digest('AY-DEVICE-SESSION-V1|'+token);
  const contentHash=await digest(body);
- const pathname=path; // Server authenticates function-relative route, never proxy-specific URL.
- const canonical=['AY-SECURE-V2-REQUEST',state.role,state.fp,sessionHash,method,pathname,time,nonce,contentHash];
- const signature=b64(await crypto.subtle.sign({name:'ECDSA',hash:'SHA-256'},state.identity.privateKey,te.encode(canonical.join('\n'))));
- const r=await fetch(url,{method,cache:'no-store',headers:{'Authorization':'Bearer '+state.session,'X-Device-Time':time,'X-Device-Nonce':nonce,'X-Device-Proof':signature,...(method==='GET'?{}:{'Content-Type':'application/json'})},...(method==='GET'?{}:{body})});
+ const canonical=['AY-SECURE-V2-REQUEST',role,fp,sessionHash,method,path,time,nonce,contentHash];
+ const signature=b64(await crypto.subtle.sign({name:'ECDSA',hash:'SHA-256'},identity.privateKey,te.encode(canonical.join('\n'))));
+ if(epoch!==state.authEpoch||role!==state.role||fp!==state.fp||identity!==state.identity)
+  throw new Error('身份已切换，请在当前页面重新操作');
+ const r=await fetch(url,{method,cache:'no-store',headers:{'Authorization':'Bearer '+token,'X-Device-Time':time,'X-Device-Nonce':nonce,'X-Device-Proof':signature,...(method==='GET'?{}:{'Content-Type':'application/json'})},...(method==='GET'?{}:{body})});
  const x=await r.json().catch(()=>({}));
  if(!r.ok){
-   if(r.status===401){state.session=null;state.expires=0;}
-   if(r.status===403&&/此设备未授权|授权已撤销|Device not approved/i.test(String(x.error||'')))lockRevokedDevice();
-   throw new Error(x.error||'安全请求失败');
-  }
+  if(r.status===401&&state.session===token){state.session=null;state.expires=0;syncSWChatReadiness();}
+  if(r.status===403&&epoch===state.authEpoch&&/此设备未授权|授权已撤销|Device not approved/i.test(String(x.error||'')))lockRevokedDevice();
+  throw new Error(x.error||'安全请求失败');
+ }
  return x;
 }
 async function encryptionPair(){
@@ -194,7 +219,7 @@ let notificationAudio=null,readObserver=null,readQueue=new Set(),readFlushBusy=f
 // after server-side device revocation and does not delete local non-exportable private keys.
 function clearPrivateView(){
  clearInterval(state.timer);state.timer=null;
- state.session=null;state.expires=0;state.encryption=null;state.keys=[];
+ resetAuthEpoch();state.session=null;state.expires=0;state.encryption=null;state.keys=[];
  state.pendingSend=null;state.decryptedMap.clear();state.messageIvs.clear();state.replyTo=null;state.editingId=null;state.editingIv=null;
  state.attachment=null;lastPaint='';haveSnapshot=false;seenMessages=new Set();newWhileAway=0;
  readQueue.clear();if(readObserver){readObserver.disconnect();readObserver=null;}
@@ -520,14 +545,14 @@ function openApproval(role){
 function closeApproval(){
  if(state.busy)return;
  $('deviceApproval').classList.add('hidden');
- state.role=null;state.identity=null;state.fp=null;state.session=null;
+ resetAuthEpoch();state.role=null;state.identity=null;state.fp=null;state.session=null;
  $('gateStatus').textContent='选择身份后，将自动检查本机授权状态。';
  (lastApprovalFocus?.isConnected?lastApprovalFocus:document.querySelector('[data-role]'))?.focus({preventScroll:true});
 }
 async function chooseRole(role,apply=false){
  if(state.busy)return;
  const isSamePending=state.role===role&&!$('deviceApproval').classList.contains('hidden');
- state.busy=true;clearInterval(state.timer);state.session=null;state.encryption=null;state.role=role;syncSWChatReadiness();lastPaint='';haveSnapshot=false;seenMessages=new Set();state.decryptedMap=new Map();state.pendingSend=null;newWhileAway=0;readQueue.clear();
+ state.busy=true;resetAuthEpoch();clearInterval(state.timer);state.session=null;state.encryption=null;state.role=role;syncSWChatReadiness();lastPaint='';haveSnapshot=false;seenMessages=new Set();state.decryptedMap=new Map();state.pendingSend=null;newWhileAway=0;readQueue.clear();
  if(!isSamePending)openApproval(role);
  $('approvalRetry').disabled=true;
  $('approvalApply').classList.add('hidden');
