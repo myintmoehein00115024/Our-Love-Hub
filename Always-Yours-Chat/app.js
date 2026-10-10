@@ -4,7 +4,7 @@ const AUTH_BASE='https://zegjegutcigbydtzggur.supabase.co/functions/v1/always-yo
 const API_BASE='https://zegjegutcigbydtzggur.supabase.co/functions/v1/always-yours-secure-v2';
 const AUTH_DB='always-yours-identity-keys-v1',ENC_DB='always-yours-secure-encryption-v1';
 const $=id=>document.getElementById(id),te=new TextEncoder(),td=new TextDecoder();
-const state={role:null,identity:null,fp:null,session:null,expires:0,encryption:null,keys:[],busy:false,timer:null,replyTo:null,editingId:null,attachment:null,decryptedMap:new Map()};
+const state={role:null,identity:null,fp:null,session:null,expires:0,encryption:null,keys:[],busy:false,timer:null,replyTo:null,editingId:null,attachment:null,decryptedMap:new Map(),pendingSend:null};
 let lastApprovalFocus=null;
 const validB64=/^[A-Za-z0-9_-]+$/;
 function b64(bytes){const v=bytes instanceof Uint8Array?bytes:new Uint8Array(bytes);let s='';for(const c of v)s+=String.fromCharCode(c);return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');}
@@ -145,6 +145,21 @@ async function shareVisibleHistory(){
 }
 let lastPaint='',refreshBusy=false,haveSnapshot=false,seenMessages=new Set();
 const v2Broadcast='BroadcastChannel' in window?new BroadcastChannel('ay-v2-chat'):null;
+let newWhileAway=0;
+function announceLocalChange(){try{v2Broadcast?.postMessage({type:'changed',role:state.role});}catch{}}
+function updateJumpButton(){
+ const box=$('messages'),button=$('jumpLatest');if(!box||!button)return;
+ const distance=box.scrollHeight-box.scrollTop-box.clientHeight;
+ const away=distance>140;button.classList.toggle('hidden',!away);
+ if(!away)newWhileAway=0;
+ button.textContent=newWhileAway?'↓ '+newWhileAway+' 条新消息':'↓ 回到最新';
+ button.setAttribute('aria-label',newWhileAway?'跳到最新消息，共 '+newWhileAway+' 条新消息':'跳到最新消息');
+}
+$('messages').addEventListener('scroll',()=>updateJumpButton(),{passive:true});
+$('jumpLatest').addEventListener('click',()=>{$('messages').scrollTo({top:$('messages').scrollHeight,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});newWhileAway=0;updateJumpButton();});
+window.addEventListener('online',()=>{if(state.role){status('网络已恢复，正在同步消息…');lastPaint='';if(readQueue.size)markVisibleRead([...readQueue][0]);refresh();}});
+window.addEventListener('offline',()=>{if(state.role)status('目前离线 · 暂时不能发送和同步。已输入的内容会保留在此页面。');});
+v2Broadcast?.addEventListener('message',e=>{if(e.data?.type==='changed'&&e.data?.role===state.role&&state.role)refresh();});
 let notificationAudio=null,readObserver=null,readQueue=new Set(),readFlushBusy=false;
 function soundOn(){return localStorage.getItem('ay-v2-sound')==='1';}
 async function enableSound(){
@@ -333,15 +348,25 @@ document.addEventListener('click',e=>{const menu=$('chatOptions');if(menu?.open&
 $('chatOptions').querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{$('chatOptions').open=false;}));
 
 async function markVisibleRead(id){
- if(document.hidden||!state.role)return;
+ if(!id||document.hidden||!state.role)return;
  readQueue.add(id);if(readFlushBusy)return;
  readFlushBusy=true;
  try{
-  await new Promise(resolve=>setTimeout(resolve,200));
-  if(document.hidden)return;
-  const ids=[...readQueue].slice(0,80);readQueue.clear();
-  if(ids.length){const x=await request('/messages/read','POST',{ids});if(x.seen){lastPaint='';}}
- }catch(e){console.warn('Read receipt not saved',e.message);}finally{readFlushBusy=false;}
+  await new Promise(resolve=>setTimeout(resolve,250));
+  while(readQueue.size&&!document.hidden&&state.role){
+   const ids=[...readQueue].slice(0,80);
+   ids.forEach(v=>readQueue.delete(v));
+   try{
+    const x=await request('/messages/read','POST',{ids});
+    if(x.seen){lastPaint='';announceLocalChange();}
+   }catch(e){
+    // Read receipts are best-effort; keep the pending batch available for the next refresh.
+    ids.forEach(v=>readQueue.add(v));
+    console.warn('Read receipt not saved',e.message);
+    break;
+   }
+  }
+ }finally{readFlushBusy=false;}
 }
 function observeRead(b,id){
  if(!('IntersectionObserver' in window)){if(!document.hidden)markVisibleRead(id);return;}
@@ -354,7 +379,9 @@ function observeRead(b,id){
  b.dataset.mid=id;readObserver.observe(b);
 }
 async function refresh(){
- if(!state.role||refreshBusy||document.hidden)return;refreshBusy=true;
+ if(!state.role||refreshBusy||document.hidden)return;
+ if(!navigator.onLine){status('目前离线 · 等待网络恢复后同步。');return;}
+ refreshBusy=true;
  try{
   const data=await request('/messages');
   const arr=data.messages||[],signature=JSON.stringify(arr.map(m=>[m.id,m.read_at,m.edited_at]));
@@ -395,12 +422,14 @@ async function refresh(){
   }
   if(!elements.length){const empty=document.createElement('div');empty.className='system';empty.textContent='等待属于你们的第一条加密消息 ♡';elements.push(empty);}
   const box=$('messages'),wasBottom=(box.scrollHeight-box.scrollTop-box.clientHeight)<150;
+  if(!wasBottom)newWhileAway+=incoming.length;
   if(readObserver){readObserver.disconnect();readObserver=null;}
   box.replaceChildren(...elements);if(wasBottom)box.scrollTop=box.scrollHeight;
+  updateJumpButton();
   box.querySelectorAll('[data-needs-read]').forEach(b=>observeRead(b,b.dataset.mid||b.closest('.messageRow')?.dataset.mid));
   lastPaint=signature;
   status('设备已授权 · 新消息保持端到端加密 · 单勾未读 / 双勾已读');
-  try{v2Broadcast?.postMessage({type:'changed'});}catch{}
+  // Broadcast only actual writes, not every poll/render; avoids cross-tab repaint loops.
  }catch(e){status('读取失败：'+e.message);}
  finally{refreshBusy=false;}
 }
@@ -430,7 +459,7 @@ function closeApproval(){
 async function chooseRole(role,apply=false){
  if(state.busy)return;
  const isSamePending=state.role===role&&!$('deviceApproval').classList.contains('hidden');
- state.busy=true;clearInterval(state.timer);state.session=null;state.encryption=null;state.role=role;lastPaint='';haveSnapshot=false;seenMessages=new Set();state.decryptedMap=new Map();
+ state.busy=true;clearInterval(state.timer);state.session=null;state.encryption=null;state.role=role;lastPaint='';haveSnapshot=false;seenMessages=new Set();state.decryptedMap=new Map();state.pendingSend=null;newWhileAway=0;readQueue.clear();
  if(!isSamePending)openApproval(role);
  $('approvalRetry').disabled=true;
  $('approvalApply').classList.add('hidden');
@@ -464,7 +493,7 @@ async function chooseRole(role,apply=false){
   try{localStorage.setItem('ay-secure-role-v1',role);}catch{}
   $('deviceApproval').classList.add('hidden');
   $('gate').classList.add('hidden');$('chat').classList.remove('hidden');document.body.classList.add('chatMode');
-  $('who').textContent=(role==='Ko Ko'?'HE · Ko Ko':'SHE · Chit Chit')+' · 已验证设备';if(soundOn())$('sound').textContent='♪ 已开启';
+  $('who').textContent=(role==='Ko Ko'?'HE · Ko Ko':'SHE · Chit Chit')+' · 已验证设备';if(soundOn()){$('sound').textContent='♪ 重启声音';$('sound').title='浏览器重开后须手动点击，才能重新播放网页提示音';}
   $('messages').replaceChildren();if('Notification' in window&&Notification.permission==='granted'){request('/push/status').then(d=>{if(d.registered)$('notify').textContent='🔔 已开启';}).catch(()=>{});}await refresh();state.timer=setInterval(refresh,5000);
  }catch(e){
   $('chat').classList.add('hidden');$('gate').classList.remove('hidden');document.body.classList.remove('chatMode');
@@ -502,29 +531,40 @@ $('deviceApproval').addEventListener('keydown',e=>{
 });
 $('exit').addEventListener('click',()=>{
  try{localStorage.removeItem('ay-secure-role-v1');}catch{}
- clearInterval(state.timer);state.role=null;state.session=null;state.identity=null;state.encryption=null;haveSnapshot=false;seenMessages=new Set();clearComposerMode();attachmentReset();
+ clearInterval(state.timer);state.role=null;state.session=null;state.identity=null;state.encryption=null;state.pendingSend=null;haveSnapshot=false;seenMessages=new Set();newWhileAway=0;readQueue.clear();clearComposerMode();attachmentReset();
  $('chat').classList.add('hidden');$('gate').classList.remove('hidden');document.body.classList.remove('chatMode');
  $('gateStatus').textContent='选择身份后，将自动检查本机授权状态。';
 });
 $('composer').addEventListener('submit',async e=>{
  e.preventDefault();if(state.busy||!state.role)return;
- const input=$('message'),message=input.value.trim();
+ const input=$('message'),message=input.value.trim(),editing=!!state.editingId;
  if(!message&&!state.attachment)return;
+ if(editing&&!message){status('编辑消息不能为空');return;}
  state.busy=true;$('send').disabled=true;
+ $('send').textContent=editing?'保存中…':'发送中…';
  try{
-  let content;
-  if(state.editingId){
-   content={t:'text',body:message,replyTo:state.replyTo||null};
-   const payload=await encryptMessage('AYV2:'+JSON.stringify(content),state.editingId);
-   await request('/messages/edit','POST',payload);
+  const content=editing?{t:'text',body:message,replyTo:state.replyTo||null}:
+    (state.attachment?{...state.attachment,body:message.slice(0,150),replyTo:state.replyTo||null}:
+     {t:'text',body:message,replyTo:state.replyTo||null});
+  const raw='AYV2:'+JSON.stringify(content);
+  if(editing){
+   const packet=await encryptMessage(raw,state.editingId);
+   await request('/messages/edit','POST',packet);
+   state.pendingSend=null;
   }else{
-   content=state.attachment?{...state.attachment,body:message.slice(0,150),replyTo:state.replyTo||null}:{t:'text',body:message,replyTo:state.replyTo||null};
-   const payload=await encryptMessage('AYV2:'+JSON.stringify(content));
-   await request('/messages','POST',payload);
+   // A lost HTTP response must not create a second message when the user taps Send again.
+   // Reuse the same random message ID / ciphertext for the unchanged in-page draft.
+   const fingerprint=await digest(raw);
+   if(!state.pendingSend||state.pendingSend.fingerprint!==fingerprint||state.pendingSend.role!==state.role)
+    state.pendingSend={fingerprint,role:state.role,packet:await encryptMessage(raw)};
+   try{await request('/messages','POST',state.pendingSend.packet);}
+   catch(err){if(!/重复消息/.test(String(err?.message||'')))throw err;}
+   state.pendingSend=null;
   }
-  input.value='';attachmentReset();clearComposerMode();lastPaint='';await refresh();
- }catch(err){status('发送失败：'+err.message);}
- finally{state.busy=false;$('send').disabled=false;refresh();}
+  input.value='';attachmentReset();clearComposerMode();lastPaint='';announceLocalChange();
+  await refresh();
+ }catch(err){status('发送未确认：'+err.message+'。请检查网络后重试，系统会复用同一条消息编号。');}
+ finally{state.busy=false;$('send').disabled=false;$('send').textContent=state.editingId?'保存 ♡':'发送 ♡';}
 });
 function setAttachment(att,display){
  state.attachment=att;clearComposerMode();$('attachmentInfo').classList.remove('hidden');$('attachmentInfo').textContent=display;
@@ -542,7 +582,7 @@ document.querySelectorAll('.emojiPick').forEach(b=>b.addEventListener('click',as
  state.busy=true;
  try{
   const packet=await encryptMessage('AYV2:'+JSON.stringify({t:'emoji',body:text,replyTo:state.replyTo||null}));
-  await request('/messages','POST',packet);clearComposerMode();lastPaint='';await refresh();
+  await request('/messages','POST',packet);clearComposerMode();lastPaint='';announceLocalChange();await refresh();
  }catch(e){status('心动贴纸发送失败：'+e.message);}finally{state.busy=false;}
 }));
 function readFileData(file){return new Promise((resolve,reject)=>{const r=new FileReader();r.onerror=()=>reject(Error('本机无法读取所选文件'));r.onload=()=>resolve(r.result);r.readAsDataURL(file);});}
@@ -595,6 +635,9 @@ $('syncHistory').addEventListener('click',async()=>{
  }catch(e){status('历史同步失败：'+e.message);}
  finally{$('syncHistory').disabled=false;}
 });
+$('retrySync').addEventListener('click',async()=>{
+ status('正在重新检查连接并同步最新消息…');lastPaint='';await refresh();
+});
 $('testPush').addEventListener('click',async()=>{
  $('testPush').disabled=true;
  try{const x=await request('/push/test','POST',{});status('已安排约 '+(x.afterSeconds||6)+' 秒后的锁屏提醒；请立即切到后台或锁屏测试。');}
@@ -604,5 +647,5 @@ $('testPush').addEventListener('click',async()=>{
 if(navigator.serviceWorker)navigator.serviceWorker.addEventListener('message',event=>{
  if(event.data?.type==='ay-v2-new-message')refresh();
 });
-document.addEventListener('visibilitychange',()=>{if(!document.hidden&&state.role)refresh();});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&state.role){if(readQueue.size)markVisibleRead([...readQueue][0]);refresh();}});
 try{const previous=localStorage.getItem('ay-secure-role-v1');if(previous==='Ko Ko'||previous==='Chit Chit'){setTimeout(()=>chooseRole(previous),200);}}catch{}

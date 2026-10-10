@@ -58,3 +58,11 @@ body.viewerOpen{overflow:hidden}
 .chatHead{flex-direction:row;align-items:center}
 @media(max-width:580px){.chatHead{flex-direction:row;align-items:center}.chatActions #sound,.chatActions #notify{font-size:0;width:35px;min-width:35px;max-width:35px;padding:0;display:grid;place-items:center}.chatActions #sound::before{content:'♪';font-size:18px;line-height:1}.chatActions #notify::before{content:'♧';font-size:18px;line-height:1}.chatBrand h2{font-size:clamp(20px,5.6vw,25px)}.chatBrand .who{max-width:146px}.chatHead{gap:5px}}
 @media(max-width:375px){.chatActions #sound,.chatActions #notify{width:31px;min-width:31px;max-width:31px}.chatMore summary{min-width:31px;width:31px}.chatBrand h2{font-size:20px}.chatHead{padding-inline:9px}}
+
+/* Stability pass: new-message shortcut stays inside the private conversation pane. */
+.conversationPane{position:relative;display:flex;flex:1;min-height:0;overflow:hidden}
+.conversationPane>.messages{width:100%;height:100%;min-height:0;flex:1}
+.jumpLatest{position:absolute;right:clamp(12px,2.3vw,24px);bottom:13px;z-index:2;border:1px solid #e3c2dd;border-radius:30px;padding:10px 16px;font-size:12px;font-weight:700;color:#98638e;background:#fffafa;box-shadow:0 9px 20px #71435a22;cursor:pointer;max-width:calc(100% - 24px)}
+.jumpLatest:hover,.jumpLatest:focus-visible{background:#f6e8f5;border-color:#c999cb}
+.jumpLatest:focus-visible{outline:2px solid #a77acc;outline-offset:2px}
+@media(max-width:580px){.jumpLatest{right:12px;bottom:10px;padding:9px 13px;font-size:12px}}
