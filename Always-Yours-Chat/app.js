@@ -386,6 +386,9 @@ let notificationAudio=null,readObserver=null,readQueue=new Set(),readFlushBusy=f
 // This cannot delete plaintext/screenshots already retained by the browser or user. It locks this live view
 // after server-side device revocation and does not delete local non-exportable private keys.
 function clearPrivateView(){
+ // Clear any half-finished switch confirmation, including when revoked remotely.
+ exitConfirmState=null;
+ if($('exit'))$('exit').textContent='⇄ 切换 HE / SHE';
  clearInterval(state.timer);state.timer=null;
  resetAuthEpoch();state.session=null;state.expires=0;state.encryption=null;state.keys=[];
  state.pendingSend=null;renderSendRecovery();state.busy=false;visibleHistory.clear();olderHasMore=null;olderLoading=false;state.decryptedMap.clear();state.messageIvs.clear();state.replyTo=null;state.editingId=null;state.editingIv=null;
@@ -844,7 +847,29 @@ $('deviceApproval').addEventListener('keydown',e=>{
   else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}
  }
 });
+// R29: an in-flight / ambiguous send may have reached Supabase even when its
+// acknowledgement is missing. Do not erase its original UUID / ciphertext on
+// an accidental HE/SHE switch. Explicit two-click opt-out remains available.
+let exitConfirmState=null;
 $('exit').addEventListener('click',()=>{
+ const pending=state.pendingSend;
+ const atRisk=!!(pending&&pending.attempts>0&&
+   sendContext(pending.role,pending.fp,pending.epoch));
+ if(atRisk){
+  const now=Date.now();
+  if(!exitConfirmState||exitConfirmState.packet!==pending||exitConfirmState.deadline<now){
+   const prompt={packet:pending,deadline:now+12000};
+   exitConfirmState=prompt;
+   $('exit').textContent='⚠ 再次点击确认切换';
+   status('上次消息可能已提交，切换身份会丢失本标签页的安全重试资料。请先使用「检查上次发送」，或在 12 秒内再次点击确认切换。');
+   setTimeout(()=>{
+    if(exitConfirmState===prompt){exitConfirmState=null;$('exit').textContent='⇄ 切换 HE / SHE';}
+   },12000);
+   return;
+  }
+ }
+ exitConfirmState=null;
+ $('exit').textContent='⇄ 切换 HE / SHE';
  try{localStorage.removeItem('ay-secure-role-v1');}catch{}
  clearPrivateView();state.role=null;state.fp=null;state.identity=null;clearComposerMode();attachmentReset();
  $('gateStatus').textContent='选择身份后，将自动检查本机授权状态。';
@@ -1126,7 +1151,8 @@ window.addEventListener('pageshow',event=>{if(event.persisted)resumeForegroundCh
 // its original UUID and IV. Mobile browsers may ignore beforeunload prompts.
 window.addEventListener('beforeunload',event=>{
  const p=state.pendingSend;
- if(!p?.uncertain||!sendContext(p.role,p.fp,p.epoch))return;
+ // Also cover a POST that has started but has not yet returned an error.
+ if(!p||p.attempts<1||!sendContext(p.role,p.fp,p.epoch))return;
  event.preventDefault();
  event.returnValue='';
 });
