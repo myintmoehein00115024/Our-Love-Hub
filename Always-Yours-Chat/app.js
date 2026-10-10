@@ -197,6 +197,46 @@ async function showHistoryCoverage(){
  status(`近30天加密消息 ${x.total} 条${partial} · 本机持有密钥封装 ${x.availableHere} 条 · 当前所有已批准设备均无密钥封装 ${x.noApprovedKey} 条。`+
   (x.noApprovedKey?'这些记录只有曾获授权的旧设备可能协助恢复：原设备需重新申请获批、保留原本机私钥，再使用「同步新设备历史」。服务器不能替代设备解密。':'可以在拥有历史解密密钥的设备上选择「同步新设备历史」。'));
 }
+// R21: keep earlier encrypted history in memory only for this authorized chat session.
+// No plaintext or private keys are persisted in localStorage/IndexedDB by pagination.
+let visibleHistory=new Map(),olderHasMore=null,olderLoading=false;
+function orderedHistory(){return [...visibleHistory.values()].sort((a,b)=>
+ Date.parse(a.created_at)-Date.parse(b.created_at)||a.id.localeCompare(b.id));}
+function historyButton(){
+ if(!olderHasMore)return null;
+ const b=document.createElement('button');b.type='button';b.id='loadOlder';
+ b.className='outline';b.textContent=olderLoading?'正在加载更早消息…':'↑ 加载更早消息 ♡';
+ b.disabled=olderLoading;
+ b.style.cssText='align-self:center;flex:0 0 auto;min-height:36px;padding:8px 16px;font-size:12px;max-width:95%;margin:0 auto 4px';
+ b.addEventListener('click',loadOlderHistory);return b;
+}
+async function loadOlderHistory(){
+ if(olderLoading||refreshBusy||!state.role||!visibleHistory.size)return;
+ const role=state.role,fp=state.fp,epoch=state.authEpoch;
+ const oldest=orderedHistory()[0];if(!oldest)return;
+ const btn=$('loadOlder');olderLoading=true;if(btn){btn.disabled=true;btn.textContent='正在加载更早消息…';}
+ try{
+  const path='/messages/older?before='+encodeURIComponent(oldest.created_at)+'&before_id='+encodeURIComponent(oldest.id);
+  const response=await request(path);
+  if(state.role!==role||state.fp!==fp||state.authEpoch!==epoch||$('chat').classList.contains('hidden'))return;
+  if(!response.ok||!Array.isArray(response.messages)||typeof response.hasMore!=='boolean'||response.messages.length>80)
+   throw new Error('历史消息分页结果不正确');
+  let added=0;
+  for(const msg of response.messages){
+   if(typeof msg.id!=='string'||!msg.created_at||!msg.envelopes?.[fp])continue;
+   if(!visibleHistory.has(msg.id))added++;
+   visibleHistory.set(msg.id,msg);seenMessages.add(msg.id);
+  }
+  olderHasMore=response.hasMore;
+  const box=$('messages'),oldScroll=box.scrollTop,oldHeight=box.scrollHeight;
+  lastPaint='';await refresh();
+  if(state.role===role&&state.fp===fp){
+   box.scrollTop=Math.max(0,oldScroll+box.scrollHeight-oldHeight);
+   status(added?'已加载 '+added+' 条更早的加密消息 ♡':(olderHasMore?'继续点击加载更早消息':'已经查看到本机可解密的最早消息 ♡'));
+  }
+ }catch(e){if(state.role===role&&state.fp===fp)status('加载更早消息失败：'+e.message+'，可稍后重试');}
+ finally{olderLoading=false;const active=$('loadOlder');if(active){active.disabled=false;active.textContent='↑ 加载更早消息 ♡';}}
+}
 let lastPaint='',refreshBusy=false,haveSnapshot=false,seenMessages=new Set();
 const v2Broadcast='BroadcastChannel' in window?new BroadcastChannel('ay-v2-chat'):null;
 let newWhileAway=0;
@@ -220,7 +260,7 @@ let notificationAudio=null,readObserver=null,readQueue=new Set(),readFlushBusy=f
 function clearPrivateView(){
  clearInterval(state.timer);state.timer=null;
  resetAuthEpoch();state.session=null;state.expires=0;state.encryption=null;state.keys=[];
- state.pendingSend=null;state.decryptedMap.clear();state.messageIvs.clear();state.replyTo=null;state.editingId=null;state.editingIv=null;
+ state.pendingSend=null;visibleHistory.clear();olderHasMore=null;olderLoading=false;state.decryptedMap.clear();state.messageIvs.clear();state.replyTo=null;state.editingId=null;state.editingIv=null;
  state.attachment=null;lastPaint='';haveSnapshot=false;seenMessages=new Set();newWhileAway=0;
  readQueue.clear();if(readObserver){readObserver.disconnect();readObserver=null;}
  $('messages').replaceChildren();$('message').value='';$('photoInput').value='';$('gifInput').value='';
@@ -446,6 +486,11 @@ async function markVisibleRead(id){
    ids.forEach(v=>readQueue.delete(v));
    try{
     const x=await request('/messages/read','POST',{ids});
+    // Older pages are cached in memory; keep their read status in sync after ack.
+    if(x.ok){const time=new Date().toISOString();for(const mid of ids){
+      const m=visibleHistory.get(mid);
+      if(m&&m.sender!==state.role&&!m.read_at)visibleHistory.set(mid,{...m,read_at:time});
+    }}
     if(x.seen){lastPaint='';announceLocalChange();}
    }catch(e){
     // Read receipts are best-effort; keep the pending batch available for the next refresh.
@@ -475,7 +520,16 @@ async function refresh(){
   const data=await request('/messages');
   if(state.role!==requestedRole||state.fp!==requestedFp||$('chat').classList.contains('hidden'))return;
   // Device envelope changes (e.g. history-key share) must repaint, even if read/edit time is unchanged.
-  const arr=data.messages||[],signature=JSON.stringify(arr.map(m=>[m.id,m.read_at,m.edited_at,m.envelopes?.[requestedFp]||null]));
+  const latest=data.messages||[];
+  if(olderHasMore===null)olderHasMore=latest.length>=80;
+  for(const msg of latest)visibleHistory.set(msg.id,msg);
+  // Discard expired data; avoid retaining previously displayed plaintext beyond the 30-day window.
+  const tooOld=Date.now()-30*24*60*60*1000;
+  for(const [mid,m] of visibleHistory)if(!Number.isFinite(Date.parse(m.created_at))||Date.parse(m.created_at)<tooOld)visibleHistory.delete(mid);
+  // Keep only the latest 500 messages per open tab to bound memory use.
+  const full=orderedHistory();
+  if(full.length>500){for(const msg of full.slice(0,full.length-500))visibleHistory.delete(msg.id);olderHasMore=false;}
+  const arr=orderedHistory(),signature=JSON.stringify([olderHasMore,...arr.map(m=>[m.id,m.read_at,m.edited_at,m.envelopes?.[requestedFp]||null])]);
   // R19: snapshot message versions for optimistic edit concurrency control.
   state.messageIvs=new Map(arr.filter(m=>typeof m.id==='string'&&typeof m.iv==='string').map(m=>[m.id,m.iv]));
   if(signature===lastPaint)return;
@@ -514,6 +568,7 @@ async function refresh(){
    if(!own&&!m.read_at&&!String(p.body||'').startsWith('[本设备暂时无法解密')) {b.dataset.needsRead='1';b.dataset.mid=m.id;}
   }
   if(!elements.length){const empty=document.createElement('div');empty.className='system';empty.textContent='等待属于你们的第一条加密消息 ♡';elements.push(empty);}
+  const olderButton=historyButton();if(olderButton)elements.unshift(olderButton);
   const box=$('messages'),wasBottom=(box.scrollHeight-box.scrollTop-box.clientHeight)<150;
   if(!wasBottom)newWhileAway+=incoming.length;
   if(readObserver){readObserver.disconnect();readObserver=null;}
@@ -552,7 +607,7 @@ function closeApproval(){
 async function chooseRole(role,apply=false){
  if(state.busy)return;
  const isSamePending=state.role===role&&!$('deviceApproval').classList.contains('hidden');
- state.busy=true;resetAuthEpoch();clearInterval(state.timer);state.session=null;state.encryption=null;state.role=role;syncSWChatReadiness();lastPaint='';haveSnapshot=false;seenMessages=new Set();state.decryptedMap=new Map();state.pendingSend=null;newWhileAway=0;readQueue.clear();
+ state.busy=true;resetAuthEpoch();clearInterval(state.timer);state.session=null;state.encryption=null;state.role=role;syncSWChatReadiness();lastPaint='';haveSnapshot=false;seenMessages=new Set();visibleHistory.clear();olderHasMore=null;olderLoading=false;state.decryptedMap=new Map();state.pendingSend=null;newWhileAway=0;readQueue.clear();
  if(!isSamePending)openApproval(role);
  $('approvalRetry').disabled=true;
  $('approvalApply').classList.add('hidden');
