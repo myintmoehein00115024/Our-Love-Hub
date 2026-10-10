@@ -610,7 +610,7 @@ function renderMessageBody(element,p){
  }else element.textContent=String(p.body??'');
 }
 // Local-only media lightbox: decrypted bytes never leave this device unless the user explicitly shares/saves.
-const viewerState={uri:'',kind:'image',zoom:1,x:0,y:0,focus:null,pointers:new Map(),gesture:null};
+const viewerState={uri:'',kind:'image',zoom:1,x:0,y:0,focus:null,pointers:new Map(),gesture:null,albumMode:false};
 function setViewerZoom(next){
  viewerState.zoom=Math.max(1,Math.min(4,Math.round(next*10)/10));
  if(viewerState.zoom===1){viewerState.x=0;viewerState.y=0;}
@@ -626,20 +626,42 @@ function positionViewer(){
  viewerState.y=Math.max(-maxY,Math.min(maxY,viewerState.y));
  $('viewerImage').style.transform=`translate3d(${viewerState.x}px,${viewerState.y}px,0) scale(${viewerState.zoom})`;
 }
+// R33: native Android long-press menu must see a real touchable <img>.
+// The zoom canvas intentionally disables image pointer events; use a separate
+// normal image surface, never upload decrypted bytes to a new server.
+function setAlbumSaveMode(active){
+ viewerState.albumMode=Boolean(active);
+ $('viewerStage').classList.toggle('hidden',viewerState.albumMode);
+ $('viewerDirectStage').classList.toggle('hidden',!viewerState.albumMode);
+ $('viewerAlbum').textContent=viewerState.albumMode?'↶ 返回缩放':'▣ 长按保存';
+ $('viewerAlbum').setAttribute('aria-pressed',String(viewerState.albumMode));
+ for(const id of ['viewerMinus','viewerPlus','viewerZoom'])$(id).disabled=viewerState.albumMode;
+ if(viewerState.albumMode){
+  $('viewerDirectImage').src=viewerState.uri;
+  $('viewerZoomLabel').textContent='长按模式';
+  viewerNotice('请直接长按上方图片，选择「下载图片」或「保存图片」。保存后到安卓相册的「下载/其他相簿」找；找不到请用文件管理器 Downloads → 移动到 Pictures 或 DCIM。若没有长按菜单，使用下方「下载文件」或「系统分享」。');
+ }else{
+  $('viewerDirectImage').removeAttribute('src');
+  $('viewerZoomLabel').textContent=Math.round(viewerState.zoom*100)+'%';
+  viewerNotice('安卓：点「长按保存」后按住原图；或点「下载文件」，再到相册的下载相簿查看。iPhone：点「打开原图」后长按 → 存储到照片。');
+ }
+}
 function openImageViewer(uri,kind){
  if(!/^data:image\/(?:jpeg|gif);base64,[A-Za-z0-9+/=]+$/.test(uri)||uri.length>350000)return;
  viewerState.focus=document.activeElement;viewerState.uri=uri;viewerState.kind=kind;viewerState.pointers.clear();viewerState.gesture=null;
+ setAlbumSaveMode(false);
  $('viewerTitle').textContent=kind==='gif'?'我们的 GIF ♡':'我们的照片 ♡';
  $('viewerImage').alt=kind==='gif'?'聊天 GIF 动图预览':'聊天照片预览';
  $('viewerImage').src=uri;
- $('viewerHint').textContent='iPhone：点「打开原图」后长按图片 → 存储到照片；Android/电脑：用下载文件或系统分享。';
+ viewerNotice('安卓：点「长按保存」后按住原图；或点「下载文件」到相册的下载相簿查看。iPhone：点「打开原图」后长按 → 存储到照片。');
  $('photoViewer').classList.remove('hidden');document.body.classList.add('viewerOpen');
  setViewerZoom(1);$('viewerClose').focus({preventScroll:true});
 }
 function closeImageViewer(){
  if($('photoViewer').classList.contains('hidden'))return;
  $('photoViewer').classList.add('hidden');document.body.classList.remove('viewerOpen');
- $('viewerImage').removeAttribute('src');viewerState.uri='';viewerState.pointers.clear();viewerState.gesture=null;
+ $('viewerImage').removeAttribute('src');$('viewerDirectImage').removeAttribute('src');
+ viewerState.uri='';viewerState.albumMode=false;viewerState.pointers.clear();viewerState.gesture=null;
  if(viewerState.focus?.isConnected)viewerState.focus.focus({preventScroll:true});
 }
 function localMediaBlob(uri){
@@ -662,28 +684,28 @@ function downloadViewedImage(){
  try{
   const a=document.createElement('a');a.href=url;a.download=filename;a.rel='noopener';
   document.body.append(a);a.click();a.remove();
-  viewerNotice('已请求下载文件。iPhone 下载的图片通常在「文件」里；要进照片相册，请点「打开原图」后长按选择「存储到照片」。');
+  viewerNotice('已请求保存图片文件（不等于已写入相册）。安卓：打开文件管理器 → Download/下载，或相册 → 相簿 → 下载；若图库未出现，请将文件移动到 Pictures 或 DCIM/Camera。iPhone：用「打开原图」长按存储到照片。');
  }finally{setTimeout(()=>URL.revokeObjectURL(url),120000);}
 }
 async function saveViewedImage(){
  const {blob,filename}=viewedFile();
  // User-triggered Web Share can offer "Save Image" on supported iPhone/Android
  // versions. It never silently writes to Photos and never uploads to our server.
- if(typeof navigator.share==='function'&&typeof navigator.canShare==='function'){
+ if(typeof navigator.share==='function'){
   try{
    const file=new File([blob],filename,{type:blob.type});
-   if(navigator.canShare({files:[file]})){
+   if(typeof navigator.canShare!=='function'||navigator.canShare({files:[file]})){
     await navigator.share({files:[file],title:'Our Love Hub · 私人照片'});
-    viewerNotice('分享菜单已结束。若选择了「存储图像」，请到相册确认；如没有该选项，请用「打开原图」长按保存。');
+    viewerNotice('系统分享已结束，但不能自动确认是否进相册。若选了照片/图库的保存选项，请打开相册检查；安卓没有保存选项时点「长按保存」，或下载文件后从 Downloads 移到 Pictures。');
     return;
    }
   }catch(e){
-   if(e?.name==='AbortError'){viewerNotice('已取消系统分享。可选择「下载文件」或「打开原图」保存到相册。');return;}
-   viewerNotice('此浏览器未能调用系统分享。请使用「下载文件」，或在 iPhone 点「打开原图」并长按存储。');
+   if(e?.name==='AbortError'){viewerNotice('已取消系统分享。安卓可以用「长按保存」或「下载文件」。');return;}
+   viewerNotice('此浏览器未能调用系统分享。安卓请用「长按保存」或「下载文件」；iPhone 点「打开原图」长按。');
    return;
   }
  }
- viewerNotice('本浏览器不支持图片文件分享到系统相册。请用「下载文件」，或点「打开原图」并长按存储。');
+ viewerNotice('此浏览器不支持分享图片文件。安卓点「长按保存」或「下载文件」，iPhone 点「打开原图」长按存储。');
 }
 // The real link is followed by the browser's own user gesture (not a scripted
 // popup after await), important for Safari iOS and installed home-screen apps.
@@ -696,6 +718,10 @@ $('viewerRaw').addEventListener('click',e=>{
   viewerNotice('原图已在新标签页打开（若被拦截，请允许打开）。iPhone：长按原图 →「存储到照片」。GIF 也可以长按保存。');
   setTimeout(()=>{URL.revokeObjectURL(url);if(lastRawImageUrl===url)lastRawImageUrl=null;},600000);
  }catch(err){e.preventDefault();viewerNotice('无法打开原图：'+err.message);}
+});
+$('viewerAlbum').addEventListener('click',()=>{
+ if(!viewerState.uri)return;
+ setAlbumSaveMode(!viewerState.albumMode);
 });
 $('viewerDownload').addEventListener('click',()=>{
  try{downloadViewedImage();}catch(e){viewerNotice('无法下载图片：'+e.message);}

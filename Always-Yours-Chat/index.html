@@ -8,6 +8,12 @@
 .viewerTools{flex-wrap:wrap!important;row-gap:8px}
 .viewerTools .viewerRaw{display:inline-flex;align-items:center;justify-content:center;text-decoration:none;min-height:35px;border-radius:10px;padding:6px 11px;font-size:12px;font-weight:700;background:#fff;color:#754e79;border:1px solid #d8bad8}
 @media(max-width:420px){.partnerPresence{font-size:11px}.viewerTools .viewerRaw{font-size:11px;padding:5px 8px}.viewerTools #viewerDownload,.viewerTools #viewerSave{font-size:11px}}
+/* R33: bypass the gesture-capturing zoom canvas for native image long-press. */
+.viewerDirectStage{flex:1;min-height:0;background:#322638;display:flex;align-items:center;justify-content:center;padding:8px;overflow:auto;touch-action:auto;-webkit-user-select:auto;user-select:auto}
+.viewerDirectStage img{max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;pointer-events:auto;-webkit-user-select:auto;user-select:auto;-webkit-touch-callout:default;-webkit-user-drag:auto;touch-action:auto}
+.viewerTools #viewerAlbum{font-size:12px;font-weight:700;background:#fff;color:#754e79;border:1px solid #d8bad8}
+.viewerTools input:disabled,.viewerTools button:disabled{opacity:.45;cursor:default}
+@media(max-width:420px){.viewerTools #viewerAlbum{font-size:11px;padding:6px 8px}}
 </style></head><body>
 <main class="page">
 <header class="top"><a href="../Our-Journey/" class="back">← Our Journey</a><span class="testbadge">PRIVATE · HE ♡ SHE</span></header>
@@ -77,9 +83,10 @@
   <section id="viewerDialog" class="viewerDialog" role="dialog" aria-modal="true" aria-labelledby="viewerTitle" tabindex="-1">
     <div class="viewerTop"><div class="viewerHeading"><strong id="viewerTitle">我们的照片 ♡</strong><span id="viewerZoomLabel">100%</span></div><button type="button" id="viewerClose" class="viewerClose" aria-label="关闭图片预览">×</button></div>
     <div id="viewerStage" class="viewerStage" aria-label="图片预览，双指缩放或拖动" tabindex="0"><img id="viewerImage" alt="加密聊天中收到的图片" draggable="false"></div>
-    <div class="viewerTools"><button type="button" id="viewerMinus" aria-label="缩小图片">−</button><input type="range" id="viewerZoom" min="1" max="4" step="0.1" value="1" aria-label="图片缩放"><button type="button" id="viewerPlus" aria-label="放大图片">＋</button><button type="button" id="viewerSave" class="viewerSave">↗ 系统分享</button><button type="button" id="viewerDownload" class="viewerSave">↓ 下载文件</button><a id="viewerRaw" class="viewerSave viewerRaw" href="#" target="_blank" rel="noopener noreferrer">↗ 打开原图</a></div>
-    <p id="viewerHint" class="viewerHint" role="status">iPhone：点击打开原图，长按图片可存储到照片；Android：可下载或分享。</p>
+    <div id="viewerDirectStage" class="viewerDirectStage hidden" aria-label="可直接长按保存的原图"><img id="viewerDirectImage" alt="长按图片打开安卓原生保存菜单" draggable="true"></div>
+    <div class="viewerTools"><button type="button" id="viewerMinus" aria-label="缩小图片">−</button><input type="range" id="viewerZoom" min="1" max="4" step="0.1" value="1" aria-label="图片缩放"><button type="button" id="viewerPlus" aria-label="放大图片">＋</button><button type="button" id="viewerAlbum" class="viewerSave" aria-pressed="false">▣ 长按保存</button><button type="button" id="viewerSave" class="viewerSave">↗ 系统分享</button><button type="button" id="viewerDownload" class="viewerSave">↓ 下载文件</button><a id="viewerRaw" class="viewerSave viewerRaw" href="#" target="_blank" rel="noopener noreferrer">↗ 打开原图</a></div>
+    <p id="viewerHint" class="viewerHint" role="status">Android：点「长按保存」后长按原图；如果文件在下载目录，可用文件管理器移动到 Pictures/DCIM。iPhone：打开原图长按存到照片。</p>
   </section>
 </div>
 <footer>2024.03.23 ♡ M + T · Our Love Hub · Just for two ♡</footer>
-</main><script src="app.js?v=20261011-presence-race-r31" defer></script></body></html>
+</main><script src="app.js?v=20261011-android-gallery-r33" defer></script></body></html>
