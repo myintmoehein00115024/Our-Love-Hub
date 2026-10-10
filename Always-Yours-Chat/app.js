@@ -4,7 +4,7 @@ const AUTH_BASE='https://zegjegutcigbydtzggur.supabase.co/functions/v1/always-yo
 const API_BASE='https://zegjegutcigbydtzggur.supabase.co/functions/v1/always-yours-secure-v2';
 const AUTH_DB='always-yours-identity-keys-v1',ENC_DB='always-yours-secure-encryption-v1';
 const $=id=>document.getElementById(id),te=new TextEncoder(),td=new TextDecoder();
-const state={role:null,identity:null,fp:null,session:null,expires:0,encryption:null,keys:[],busy:false,timer:null,replyTo:null,editingId:null,attachment:null,decryptedMap:new Map(),pendingSend:null};
+const state={role:null,identity:null,fp:null,session:null,expires:0,encryption:null,keys:[],busy:false,timer:null,replyTo:null,editingId:null,editingIv:null,messageIvs:new Map(),attachment:null,decryptedMap:new Map(),pendingSend:null};
 let lastApprovalFocus=null;
 const validB64=/^[A-Za-z0-9_-]+$/;
 function b64(bytes){const v=bytes instanceof Uint8Array?bytes:new Uint8Array(bytes);let s='';for(const c of v)s+=String.fromCharCode(c);return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');}
@@ -151,7 +151,7 @@ async function shareVisibleHistory(){
     const pub=await crypto.subtle.importKey('jwk',k.enc_public_key,{name:'ECDH',namedCurve:'P-256'},false,[]);
     const wrap=await deriveWrap(fresh.privateKey,pub,m.id,k.fingerprint),iv=crypto.getRandomValues(new Uint8Array(12));
     const sealed=b64(await crypto.subtle.encrypt({name:'AES-GCM',iv,additionalData:te.encode('AY-WRAP|'+m.id+'|'+k.fingerprint)},wrap,contentBytes));
-    const res=await request('/messages/grant','POST',{id:m.id,fingerprint:k.fingerprint,envelope:{iv:b64(iv),ciphertext:sealed,ephemeralPublicKey:{kty:'EC',crv:'P-256',x:p.x,y:p.y}}});
+    const res=await request('/messages/grant','POST',{id:m.id,expectedIv:m.iv,fingerprint:k.fingerprint,envelope:{iv:b64(iv),ciphertext:sealed,ephemeralPublicKey:{kty:'EC',crv:'P-256',x:p.x,y:p.y}}});
     if(res.shared){shared++;anyShared=true;}
    }catch(e){
     // A revoked source must stop immediately rather than continuing with another recipient.
@@ -195,7 +195,7 @@ let notificationAudio=null,readObserver=null,readQueue=new Set(),readFlushBusy=f
 function clearPrivateView(){
  clearInterval(state.timer);state.timer=null;
  state.session=null;state.expires=0;state.encryption=null;state.keys=[];
- state.pendingSend=null;state.decryptedMap.clear();state.replyTo=null;state.editingId=null;
+ state.pendingSend=null;state.decryptedMap.clear();state.messageIvs.clear();state.replyTo=null;state.editingId=null;state.editingIv=null;
  state.attachment=null;lastPaint='';haveSnapshot=false;seenMessages=new Set();newWhileAway=0;
  readQueue.clear();if(readObserver){readObserver.disconnect();readObserver=null;}
  $('messages').replaceChildren();$('message').value='';$('photoInput').value='';$('gifInput').value='';
@@ -283,19 +283,21 @@ function summaryOf(p){
 }
 function replyToMessage(id){
  const p=state.decryptedMap.get(id);if(!p)return;
- state.replyTo=id;state.editingId=null;$('replyPreview').classList.remove('hidden');
+ state.replyTo=id;state.editingId=null;state.editingIv=null;$('replyPreview').classList.remove('hidden');
  $('replyPreviewText').textContent='↩ 回复：'+summaryOf(p);$('send').textContent='发送 ♡';
  $('message').focus();
 }
 function editMessage(id){
  const p=state.decryptedMap.get(id);
  if(!p||p.t!=='text')return status('目前仅支持编辑文字消息');
- state.editingId=id;state.replyTo=p.replyTo||null;
+ const originalIv=state.messageIvs.get(id);
+ if(typeof originalIv!=='string'||!/^[A-Za-z0-9_-]{16}$/.test(originalIv))return status('未找到这条消息的安全版本，请刷新后再编辑');
+ state.editingId=id;state.editingIv=originalIv;state.replyTo=p.replyTo||null;
  $('replyPreview').classList.remove('hidden');$('replyPreviewText').textContent='✎ 正在编辑自己的消息';
  $('message').value=p.body||'';$('send').textContent='保存 ♡';$('message').focus();
 }
 function clearComposerMode(){
- state.replyTo=null;state.editingId=null;
+ state.replyTo=null;state.editingId=null;state.editingIv=null;
  $('replyPreview').classList.add('hidden');$('replyPreviewText').textContent='';
  $('send').textContent='发送 ♡';
 }
@@ -449,6 +451,8 @@ async function refresh(){
   if(state.role!==requestedRole||state.fp!==requestedFp||$('chat').classList.contains('hidden'))return;
   // Device envelope changes (e.g. history-key share) must repaint, even if read/edit time is unchanged.
   const arr=data.messages||[],signature=JSON.stringify(arr.map(m=>[m.id,m.read_at,m.edited_at,m.envelopes?.[requestedFp]||null]));
+  // R19: snapshot message versions for optimistic edit concurrency control.
+  state.messageIvs=new Map(arr.filter(m=>typeof m.id==='string'&&typeof m.iv==='string').map(m=>[m.id,m.iv]));
   if(signature===lastPaint)return;
   const incoming=arr.filter(m=>m.sender!==state.role&&haveSnapshot&&!seenMessages.has(m.id));
   for(const m of arr)seenMessages.add(m.id);
@@ -613,7 +617,8 @@ $('composer').addEventListener('submit',async e=>{
      {t:'text',body:message,replyTo:state.replyTo||null});
   const raw='AYV2:'+JSON.stringify(content);
   if(editing){
-   const packet=await encryptMessage(raw,state.editingId);
+   if(!state.editingIv)throw new Error('消息版本已失效，请刷新后重新编辑');
+   const packet={...(await encryptMessage(raw,state.editingId)),expectedIv:state.editingIv};
    await request('/messages/edit','POST',packet);
    state.pendingSend=null;
   }else{
