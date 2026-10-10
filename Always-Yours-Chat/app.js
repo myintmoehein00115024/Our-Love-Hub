@@ -98,6 +98,9 @@ async function request(path,method='GET',payload=null){
   throw new Error('身份已切换，请在当前页面重新操作');
  const r=await fetch(url,{method,cache:'no-store',headers:{'Authorization':'Bearer '+token,'X-Device-Time':time,'X-Device-Nonce':nonce,'X-Device-Proof':signature,...(method==='GET'?{}:{'Content-Type':'application/json'})},...(method==='GET'?{}:{body})});
  const x=await r.json().catch(()=>({}));
+ // R25: a delayed server response from a previous login cannot be consumed after logout or role switch.
+ if(epoch!==state.authEpoch||role!==state.role||fp!==state.fp||identity!==state.identity)
+  throw new Error('身份已切换，旧请求结果已丢弃');
  if(!r.ok){
   if(r.status===401&&state.session===token){state.session=null;state.expires=0;syncSWChatReadiness();}
   if(r.status===403&&epoch===state.authEpoch&&/此设备未授权|授权已撤销|Device not approved/i.test(String(x.error||'')))lockRevokedDevice();
@@ -326,11 +329,11 @@ async function loadOlderHistory(){
   olderHasMore=response.hasMore;
   const box=$('messages'),oldScroll=box.scrollTop,oldHeight=box.scrollHeight;
   lastPaint='';await refresh();
-  if(state.role===role&&state.fp===fp){
+  if(state.role===role&&state.fp===fp&&state.authEpoch===epoch){
    box.scrollTop=Math.max(0,oldScroll+box.scrollHeight-oldHeight);
    status(added?'已加载 '+added+' 条更早的加密消息 ♡':(olderHasMore?'继续点击加载更早消息':'已经查看到本机可解密的最早消息 ♡'));
   }
- }catch(e){if(state.role===role&&state.fp===fp)status('加载更早消息失败：'+e.message+'，可稍后重试');}
+ }catch(e){if(state.role===role&&state.fp===fp&&state.authEpoch===epoch)status('加载更早消息失败：'+e.message+'，可稍后重试');}
  finally{olderLoading=false;const active=$('loadOlder');if(active){active.disabled=false;active.textContent='↑ 加载更早消息 ♡';}}
 }
 let lastPaint='',refreshBusy=false,haveSnapshot=false,seenMessages=new Set();
@@ -573,15 +576,19 @@ $('chatOptions').querySelectorAll('button').forEach(b=>b.addEventListener('click
 
 async function markVisibleRead(id){
  if(!id||document.hidden||!state.role)return;
+ const role=state.role,fp=state.fp,epoch=state.authEpoch;
+ const current=()=>state.role===role&&state.fp===fp&&state.authEpoch===epoch&&
+   !$('chat').classList.contains('hidden');
  readQueue.add(id);if(readFlushBusy)return;
  readFlushBusy=true;
  try{
   await new Promise(resolve=>setTimeout(resolve,250));
-  while(readQueue.size&&!document.hidden&&state.role){
+  while(readQueue.size&&!document.hidden&&current()){
    const ids=[...readQueue].slice(0,80);
    ids.forEach(v=>readQueue.delete(v));
    try{
     const x=await request('/messages/read','POST',{ids});
+    if(!current())break;
     // Older pages are cached in memory; keep their read status in sync after ack.
     if(x.ok){const time=new Date().toISOString();for(const mid of ids){
       const m=visibleHistory.get(mid);
@@ -589,13 +596,19 @@ async function markVisibleRead(id){
     }}
     if(x.seen){lastPaint='';announceLocalChange();}
    }catch(e){
-    // Read receipts are best-effort; keep the pending batch available for the next refresh.
-    ids.forEach(v=>readQueue.add(v));
-    console.warn('Read receipt not saved',e.message);
+    // R25: never repopulate a newly logged-in identity with old message IDs.
+    if(current())ids.forEach(v=>readQueue.add(v));
+    if(current())console.warn('Read receipt not saved',e.message);
     break;
    }
   }
- }finally{readFlushBusy=false;}
+ }finally{
+  readFlushBusy=false;
+  if(!current()&&readQueue.size&&!document.hidden&&state.role&&
+     !$('chat').classList.contains('hidden')){
+    void markVisibleRead([...readQueue][0]);
+  }
+ }
 }
 function observeRead(b,id){
  if(!('IntersectionObserver' in window)){if(!document.hidden)markVisibleRead(id);return;}
@@ -611,10 +624,12 @@ async function refresh(){
  if(!state.role||refreshBusy||document.hidden)return;
  if(!navigator.onLine){status('目前离线 · 等待网络恢复后同步。');return;}
  refreshBusy=true;
+ const requestedRole=state.role,requestedFp=state.fp,requestedEpoch=state.authEpoch;
+ const current=()=>requestedRole===state.role&&requestedFp===state.fp&&
+   requestedEpoch===state.authEpoch&&!$('chat').classList.contains('hidden');
  try{
-  const requestedRole=state.role,requestedFp=state.fp;
   const data=await request('/messages');
-  if(state.role!==requestedRole||state.fp!==requestedFp||$('chat').classList.contains('hidden'))return;
+  if(!current())return;
   // Device envelope changes (e.g. history-key share) must repaint, even if read/edit time is unchanged.
   const latest=data.messages||[];
   if(olderHasMore===null)olderHasMore=latest.length>=80;
@@ -633,13 +648,18 @@ async function refresh(){
   for(const m of arr)seenMessages.add(m.id);
   if(incoming.length&&document.visibilityState==='visible')playHeartNote();
   haveSnapshot=true;
-  const parsed=[];state.decryptedMap=new Map();
+  // R25: decrypt locally first; publish nothing from a superseded identity.
+  const parsed=[],decrypted=new Map();
   for(const m of arr){
+   if(!current())return;
    let p;
    try{p=decodePayload(await decryptMessage(m));}
    catch{p={t:'text',body:'[本设备暂时无法解密这条消息]'};}
-   state.decryptedMap.set(m.id,p);parsed.push({m,p});
+   if(!current())return;
+   decrypted.set(m.id,p);parsed.push({m,p});
   }
+  if(!current())return;
+  state.decryptedMap=decrypted;
   const elements=[];
   for(const {m,p} of parsed){
    const own=m.sender===state.role;
@@ -674,7 +694,7 @@ async function refresh(){
   lastPaint=signature;
   status('设备已授权 · 新消息保持端到端加密 · 单勾未读 / 双勾已读');
   // Broadcast only actual writes, not every poll/render; avoids cross-tab repaint loops.
- }catch(e){if(state.role)status('读取失败：'+e.message);}
+ }catch(e){if(current())status('读取失败：'+e.message);}
  finally{refreshBusy=false;}
 }
 function approvalText(message,stage='待审核'){
