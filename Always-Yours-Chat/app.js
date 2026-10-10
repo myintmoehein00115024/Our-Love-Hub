@@ -5,6 +5,9 @@ const API_BASE='https://zegjegutcigbydtzggur.supabase.co/functions/v1/always-you
 const AUTH_DB='always-yours-identity-keys-v1',ENC_DB='always-yours-secure-encryption-v1';
 const $=id=>document.getElementById(id),te=new TextEncoder(),td=new TextDecoder();
 const state={role:null,identity:null,fp:null,session:null,expires:0,authPromise:null,authEpoch:0,encryption:null,keys:[],busy:false,timer:null,replyTo:null,editingId:null,editingIv:null,messageIvs:new Map(),attachment:null,decryptedMap:new Map(),pendingSend:null};
+// R28: a visible page can suppress push notifications only after a recent, successful
+// signed message sync. Local browser connectivity alone does not prove the chat is live.
+let lastForegroundSync=0;
 let lastApprovalFocus=null;
 const validB64=/^[A-Za-z0-9_-]+$/;
 function b64(bytes){const v=bytes instanceof Uint8Array?bytes:new Uint8Array(bytes);let s='';for(const c of v)s+=String.fromCharCode(c);return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');}
@@ -50,6 +53,10 @@ async function jsonFetch(url,body){const r=await fetch(url,{method:'POST',header
 function resetAuthEpoch(){
  state.authEpoch++;
  state.authPromise=null;
+ lastForegroundSync=0;
+ if(refreshAbort)refreshAbort.abort();
+ refreshQueued=false;
+ syncSWChatReadiness();
  // A continuation must never cross a role, device, or authorization boundary.
  historyShareCursor=null;historySyncIssues.clear();
  const report=$('historySyncSummary');if(report){report.classList.add('hidden');report.open=false;}
@@ -84,7 +91,7 @@ async function login(force=false){
  try{await work;}
  finally{if(state.authPromise===work)state.authPromise=null;}
 }
-async function request(path,method='GET',payload=null){
+async function request(path,method='GET',payload=null,signal=null){
  await login();
  const role=state.role,fp=state.fp,identity=state.identity,token=state.session,epoch=state.authEpoch;
  if(!role||!fp||!identity?.privateKey||!token)throw new Error('安全会话已失效，请重新进入聊天');
@@ -96,7 +103,7 @@ async function request(path,method='GET',payload=null){
  const signature=b64(await crypto.subtle.sign({name:'ECDSA',hash:'SHA-256'},identity.privateKey,te.encode(canonical.join('\n'))));
  if(epoch!==state.authEpoch||role!==state.role||fp!==state.fp||identity!==state.identity)
   throw new Error('身份已切换，请在当前页面重新操作');
- const r=await fetch(url,{method,cache:'no-store',headers:{'Authorization':'Bearer '+token,'X-Device-Time':time,'X-Device-Nonce':nonce,'X-Device-Proof':signature,...(method==='GET'?{}:{'Content-Type':'application/json'})},...(method==='GET'?{}:{body})});
+ const r=await fetch(url,{method,cache:'no-store',...(signal?{signal}:{}),headers:{'Authorization':'Bearer '+token,'X-Device-Time':time,'X-Device-Nonce':nonce,'X-Device-Proof':signature,...(method==='GET'?{}:{'Content-Type':'application/json'})},...(method==='GET'?{}:{body})});
  const x=await r.json().catch(()=>({}));
  // R25: a delayed server response from a previous login cannot be consumed after logout or role switch.
  if(epoch!==state.authEpoch||role!==state.role||fp!==state.fp||identity!==state.identity)
@@ -336,7 +343,12 @@ async function loadOlderHistory(){
  }catch(e){if(state.role===role&&state.fp===fp&&state.authEpoch===epoch)status('加载更早消息失败：'+e.message+'，可稍后重试');}
  finally{olderLoading=false;const active=$('loadOlder');if(active){active.disabled=false;active.textContent='↑ 加载更早消息 ♡';}}
 }
-let lastPaint='',refreshBusy=false,haveSnapshot=false,seenMessages=new Set();
+let lastPaint='',refreshBusy=false,refreshQueued=false,refreshAbort=null,haveSnapshot=false,seenMessages=new Set();
+function markForegroundSynced(){
+ if(document.hidden||!document.hasFocus())return;
+ lastForegroundSync=Date.now();
+ syncSWChatReadiness();
+}
 const v2Broadcast='BroadcastChannel' in window?new BroadcastChannel('ay-v2-chat'):null;
 let newWhileAway=0;
 function announceLocalChange(){try{v2Broadcast?.postMessage({type:'changed',role:state.role});}catch{}}
@@ -350,8 +362,25 @@ function updateJumpButton(){
 }
 $('messages').addEventListener('scroll',()=>updateJumpButton(),{passive:true});
 $('jumpLatest').addEventListener('click',()=>{$('messages').scrollTo({top:$('messages').scrollHeight,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});newWhileAway=0;updateJumpButton();});
-window.addEventListener('online',()=>{if(state.role){status('网络已恢复，正在同步消息…');lastPaint='';if(readQueue.size)markVisibleRead([...readQueue][0]);refresh();}});
-window.addEventListener('offline',()=>{if(state.role)status('目前离线 · 暂时不能发送和同步。已输入的内容会保留在此页面。');});
+// R28: Foreground re-entry coalesces with an in-flight sync, and never
+// announces readiness before a successful foreground message fetch.
+function resumeForegroundChat(){
+ lastForegroundSync=0;syncSWChatReadiness();
+ if(!state.role||$('chat').classList.contains('hidden')||document.hidden)return;
+ if(!navigator.onLine){status('网络尚未恢复，等待连接后同步。');return;}
+ lastPaint='';
+ if(readQueue.size)void markVisibleRead([...readQueue][0]);
+ void refresh();
+}
+window.addEventListener('online',()=>{
+ if(state.role&&!$('chat').classList.contains('hidden'))status('网络已恢复，正在重新同步消息…');
+ resumeForegroundChat();
+});
+window.addEventListener('offline',()=>{
+ lastForegroundSync=0;syncSWChatReadiness();
+ if(refreshAbort)refreshAbort.abort();
+ if(state.role&&!$('chat').classList.contains('hidden'))status('目前离线 · 暂时不能发送和同步。已输入的内容会保留在此页面。');
+});
 v2Broadcast?.addEventListener('message',e=>{if(e.data?.type==='changed'&&e.data?.role===state.role&&state.role)refresh();});
 let notificationAudio=null,readObserver=null,readQueue=new Set(),readFlushBusy=false;
 // This cannot delete plaintext/screenshots already retained by the browser or user. It locks this live view
@@ -379,7 +408,8 @@ function lockRevokedDevice(){
 // entering an authenticated, decryptable Chat V2 view.
 function v2ChatActiveForPush(){
  return !!(state.role&&state.identity?.privateKey&&state.encryption?.privateKey&&
-  state.session&&state.expires>Date.now()&&navigator.onLine&&!document.hidden&&
+  state.session&&state.expires>Date.now()&&navigator.onLine&&
+  lastForegroundSync>0&&Date.now()-lastForegroundSync<20000&&!document.hidden&&
   document.hasFocus()&&!$('chat').classList.contains('hidden'));
 }
 function syncSWChatReadiness(){
@@ -622,17 +652,23 @@ function observeRead(b,id){
  b.dataset.mid=id;readObserver.observe(b);
 }
 async function refresh(){
- if(!state.role||refreshBusy||document.hidden)return;
- if(!navigator.onLine){status('目前离线 · 等待网络恢复后同步。');return;}
+ if(!state.role||document.hidden||$('chat').classList.contains('hidden'))return;
+ if(refreshBusy){refreshQueued=true;return;}
+ if(!navigator.onLine){lastForegroundSync=0;syncSWChatReadiness();status('目前离线 · 等待网络恢复后同步。');return;}
  refreshBusy=true;
+ // Abort a stalled foreground GET without affecting writes, encryption or shared logins.
+ const controller=new AbortController();refreshAbort=controller;
+ const timeout=setTimeout(()=>controller.abort(),15000);
  const requestedRole=state.role,requestedFp=state.fp,requestedEpoch=state.authEpoch;
  const current=()=>requestedRole===state.role&&requestedFp===state.fp&&
-   requestedEpoch===state.authEpoch&&!$('chat').classList.contains('hidden');
+   requestedEpoch===state.authEpoch&&!document.hidden&&
+   !$('chat').classList.contains('hidden');
  try{
-  const data=await request('/messages');
+  const data=await request('/messages','GET',null,controller.signal);
   if(!current())return;
   // Device envelope changes (e.g. history-key share) must repaint, even if read/edit time is unchanged.
-  const latest=data.messages||[];
+  if(!Array.isArray(data.messages))throw new Error('聊天同步数据格式不正确');
+  const latest=data.messages;
   if(olderHasMore===null)olderHasMore=latest.length>=80;
   for(const msg of latest)visibleHistory.set(msg.id,msg);
   // Discard expired data; avoid retaining previously displayed plaintext beyond the 30-day window.
@@ -644,7 +680,7 @@ async function refresh(){
   const arr=orderedHistory(),signature=JSON.stringify([olderHasMore,...arr.map(m=>[m.id,m.read_at,m.edited_at,m.envelopes?.[requestedFp]||null])]);
   // R19: snapshot message versions for optimistic edit concurrency control.
   state.messageIvs=new Map(arr.filter(m=>typeof m.id==='string'&&typeof m.iv==='string').map(m=>[m.id,m.iv]));
-  if(signature===lastPaint)return;
+  if(signature===lastPaint){markForegroundSynced();return;}
   const incoming=arr.filter(m=>m.sender!==state.role&&haveSnapshot&&!seenMessages.has(m.id));
   for(const m of arr)seenMessages.add(m.id);
   if(incoming.length&&document.visibilityState==='visible')playHeartNote();
@@ -694,9 +730,21 @@ async function refresh(){
   box.querySelectorAll('[data-needs-read]').forEach(b=>observeRead(b,b.dataset.mid||b.closest('.messageRow')?.dataset.mid));
   lastPaint=signature;
   status('设备已授权 · 新消息保持端到端加密 · 单勾未读 / 双勾已读');
+  markForegroundSynced();
   // Broadcast only actual writes, not every poll/render; avoids cross-tab repaint loops.
- }catch(e){if(current())status('读取失败：'+e.message);}
- finally{refreshBusy=false;}
+ }catch(e){if(current()){
+   lastForegroundSync=0;syncSWChatReadiness();
+   status(e?.name==='AbortError'?'连接超时，等待网络恢复后重新同步':'读取失败：'+e.message);
+  }}
+ finally{
+  clearTimeout(timeout);if(refreshAbort===controller)refreshAbort=null;
+  refreshBusy=false;
+  if(refreshQueued){
+    refreshQueued=false;
+    if(state.role&&!document.hidden&&!$('chat').classList.contains('hidden'))
+      queueMicrotask(()=>{void refresh();});
+  }
+ }
 }
 function approvalText(message,stage='待审核'){
  $('approvalState').textContent=stage;
@@ -1064,11 +1112,15 @@ if(navigator.serviceWorker)navigator.serviceWorker.addEventListener('message',ev
  if(event.data?.type==='ay-v2-new-message')refresh();
 });
 document.addEventListener('visibilitychange',()=>{
- syncSWChatReadiness();
- if(!document.hidden&&state.role){if(readQueue.size)markVisibleRead([...readQueue][0]);refresh();}
+ if(document.hidden){
+  lastForegroundSync=0;if(refreshAbort)refreshAbort.abort();
+  syncSWChatReadiness();
+ }else resumeForegroundChat();
 });
-window.addEventListener('focus',syncSWChatReadiness);
-window.addEventListener('blur',syncSWChatReadiness);
+window.addEventListener('focus',resumeForegroundChat);
+window.addEventListener('blur',()=>{lastForegroundSync=0;syncSWChatReadiness();});
+// iOS Safari may restore a page from BFCache without repeating a normal load.
+window.addEventListener('pageshow',event=>{if(event.persisted)resumeForegroundChat();});
 // R27: a pending encrypted packet is intentionally kept in RAM, not persisted.
 // When a send is uncertain, warn before a desktop refresh/leave that would erase
 // its original UUID and IV. Mobile browsers may ignore beforeunload prompts.
@@ -1079,6 +1131,7 @@ window.addEventListener('beforeunload',event=>{
  event.returnValue='';
 });
 window.addEventListener('pagehide',()=>{
+ lastForegroundSync=0;if(refreshAbort)refreshAbort.abort();
  try{navigator.serviceWorker?.controller?.postMessage({type:'ay-v2-chat-readiness',ready:false});}catch{}
 });
 window.addEventListener('offline',syncSWChatReadiness);
