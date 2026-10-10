@@ -19,7 +19,7 @@
 <div class="actions"><button type="button" id="toggle">显示 / 隐藏口令</button><button class="primary" type="button" id="refresh">查看设备授权记录 ↻</button></div>
 <div id="status" class="status" role="status" aria-live="polite">尚未读取授权记录。请使用您在 Supabase 设置的原始管理员口令，而非摘要。</div>
 <section id="results" aria-live="polite"></section>
-<p class="hint" id="privacy">安全提示：密码不会保存到浏览器或 GitHub。只有核对过对方通过私下联系方式发来的完整指纹，才点击批准。设备认证已用于新版安全聊天；请只批准您认识的设备。<strong>请勿在公共设备使用。</strong></p>
+<p class="hint" id="privacy">安全提示：口令不会写入本地存储或 GitHub；本页面关闭时清除输入框。只有核对过对方通过私下联系方式发来的完整指纹，才点击批准。设备认证已用于新版安全聊天；请只批准您认识的设备。<strong>请勿在公共设备使用。</strong></p>
 </main>
 <script>
 'use strict';
@@ -27,6 +27,7 @@ const API='https://zegjegutcigbydtzggur.supabase.co/functions/v1/always-yours-ch
 const input=document.getElementById('token'),status=document.getElementById('status'),results=document.getElementById('results');
 const refresh=document.getElementById('refresh'),toggle=document.getElementById('toggle');
 let loading=false;
+// 只允许人工审批；页面不自动批准任何设备。
 function note(msg,type=''){status.textContent=msg;status.className='status '+type;}
 async function call(action,extra={}){
  const token=input.value;
@@ -59,12 +60,19 @@ async function load(){
    card.appendChild(node('div','finger',item.fingerprint));
    const time=Number(item.requested_at);if(Number.isFinite(time)&&time>0)card.appendChild(node('div','meta','申请时间：'+new Date(time).toLocaleString()));
    if(item.status==='approved'&&item.approved_at)card.appendChild(node('div','meta','批准时间：'+new Date(Number(item.approved_at)).toLocaleString()));
+   if(item.status==='revoked'&&item.revoked_at){card.appendChild(node('div','meta','撤销时间：'+new Date(Number(item.revoked_at)).toLocaleString()));}
+   const copy=node('button','', '复制完整设备指纹');copy.type='button';
+   copy.addEventListener('click',async()=>{try{await navigator.clipboard.writeText(item.fingerprint);note('已复制指纹。请通过独立渠道核对，避免误批准。','ok');}catch{note('复制失败，请长按上方指纹手动复制。','error');}});
+   card.appendChild(copy);
    if(item.status!=='pending'){panel.appendChild(card);continue;}
    const approve=node('button','approve','✓ 确认批准此设备');
    approve.type='button';approve.addEventListener('click',async()=>{
     if(loading)return;
     const identity=item.user_name==='Ko Ko'?'HE · Ko Ko':'SHE · Chit Chit';
     if(!confirm(`您已经通过私下联系方式核对了这台 ${identity} 设备的完整指纹吗？\n\n${item.fingerprint}\n\n只批准您认识的设备。`))return;
+    const suffix=item.fingerprint.slice(-8);
+    const checked=prompt(`最后确认：请输入设备指纹末尾 8 位（区分大小写）\n${suffix}`);
+    if(checked!==suffix){if(checked!==null)note('设备指纹核对不一致，已取消批准。','error');return;}
     loading=true;approve.disabled=true;
     try{await call('approve',{user_name:item.user_name,fingerprint:item.fingerprint});note('已批准 '+identity+' 的设备。已授权设备列表会保留记录。','ok');setTimeout(load,0);}
     catch(e){note(e.message||'批准失败','error');approve.disabled=false;}
