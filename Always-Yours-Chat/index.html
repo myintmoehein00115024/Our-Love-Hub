@@ -51,6 +51,10 @@
   <p id="historySyncSummaryText" style="line-height:1.65;white-space:pre-wrap;max-height:112px;overflow:auto;margin:6px 0 2px"></p>
  </details>
  <div class="conversationPane"><div id="messages" class="messages" role="log" aria-label="聊天记录" aria-live="off"></div><button id="jumpLatest" class="jumpLatest hidden" type="button" aria-label="跳到最新消息">↓ 回到最新</button></div>
+ <div id="sendRecovery" class="hidden" role="group" aria-label="上一条消息发送状态" style="padding:10px 16px;background:#fff6fc;border-top:1px solid #ead1e9;flex-shrink:0">
+  <p id="sendRecoveryText" style="font-size:12px;color:#71486d;margin:0 0 7px;line-height:1.55"></p>
+  <div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" id="sendCheck" class="outline" style="font-size:12px">↻ 检查上次发送</button><button type="button" id="sendDiscard" class="outline" style="font-size:12px">放弃本机重试</button></div>
+ </div>
  <form id="composer" class="composer"><label for="message">写给 TA 的悄悄话 ♡</label>
  <div id="replyPreview" class="replyComposer hidden"><span id="replyPreviewText"></span><button id="replyCancel" type="button" aria-label="取消回复或编辑">×</button></div>
  <div id="attachmentInfo" class="attachmentInfo hidden"></div><button type="button" id="attachmentClear" class="smallClear" aria-label="取消附件">× 清除附件</button><div class="write"><textarea id="message" rows="2" maxlength="3200" placeholder="想和 TA 说些什么…"></textarea><button type="submit" id="send">发送 ♡</button></div>
@@ -69,4 +73,4 @@
   </section>
 </div>
 <footer>2024.03.23 ♡ M + T · Our Love Hub · Just for two ♡</footer>
-</main><script src="app.js?v=20261010-auth-response-isolation-r25" defer></script></body></html>
+</main><script src="app.js?v=20261010-safe-send-confirmation-r26" defer></script></body></html>

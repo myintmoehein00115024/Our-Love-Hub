@@ -359,9 +359,10 @@ let notificationAudio=null,readObserver=null,readQueue=new Set(),readFlushBusy=f
 function clearPrivateView(){
  clearInterval(state.timer);state.timer=null;
  resetAuthEpoch();state.session=null;state.expires=0;state.encryption=null;state.keys=[];
- state.pendingSend=null;visibleHistory.clear();olderHasMore=null;olderLoading=false;state.decryptedMap.clear();state.messageIvs.clear();state.replyTo=null;state.editingId=null;state.editingIv=null;
+ state.pendingSend=null;renderSendRecovery();state.busy=false;visibleHistory.clear();olderHasMore=null;olderLoading=false;state.decryptedMap.clear();state.messageIvs.clear();state.replyTo=null;state.editingId=null;state.editingIv=null;
  state.attachment=null;lastPaint='';haveSnapshot=false;seenMessages=new Set();newWhileAway=0;
  readQueue.clear();if(readObserver){readObserver.disconnect();readObserver=null;}
+ $('send').disabled=false;$('send').textContent='发送 ♡';$('sendCheck').disabled=false;
  $('messages').replaceChildren();$('message').value='';$('photoInput').value='';$('gifInput').value='';
  $('replyPreview').classList.add('hidden');$('attachmentInfo').classList.add('hidden');
  $('photoViewer').classList.add('hidden');$('viewerImage').removeAttribute('src');
@@ -723,7 +724,7 @@ function closeApproval(){
 async function chooseRole(role,apply=false){
  if(state.busy)return;
  const isSamePending=state.role===role&&!$('deviceApproval').classList.contains('hidden');
- state.busy=true;resetAuthEpoch();clearInterval(state.timer);state.session=null;state.encryption=null;state.role=role;syncSWChatReadiness();lastPaint='';haveSnapshot=false;seenMessages=new Set();visibleHistory.clear();olderHasMore=null;olderLoading=false;state.decryptedMap=new Map();state.pendingSend=null;newWhileAway=0;readQueue.clear();
+ state.busy=true;resetAuthEpoch();clearInterval(state.timer);state.session=null;state.encryption=null;state.role=role;syncSWChatReadiness();lastPaint='';haveSnapshot=false;seenMessages=new Set();visibleHistory.clear();olderHasMore=null;olderLoading=false;state.decryptedMap=new Map();state.pendingSend=null;renderSendRecovery();newWhileAway=0;readQueue.clear();
  if(!isSamePending)openApproval(role);
  $('approvalRetry').disabled=true;
  $('approvalApply').classList.add('hidden');
@@ -800,37 +801,160 @@ $('exit').addEventListener('click',()=>{
  clearPrivateView();state.role=null;state.fp=null;state.identity=null;clearComposerMode();attachmentReset();
  $('gateStatus').textContent='选择身份后，将自动检查本机授权状态。';
 });
+// R26: never infer success from a lost response or a bare 409 duplicate.
+// The encrypted pending packet exists only in this tab's RAM: never in localStorage.
+function sendContext(role,fp,epoch){
+ return !!(role&&fp&&role===state.role&&fp===state.fp&&epoch===state.authEpoch&&
+   !$('chat').classList.contains('hidden'));
+}
+function renderSendRecovery(){
+ const panel=$('sendRecovery'),discard=$('sendDiscard');
+ if(!panel)return;
+ const p=state.pendingSend;
+ panel.classList.toggle('hidden',!p||!p.uncertain);
+ if(!p||!p.uncertain){if(discard){discard.dataset.confirm='';discard.textContent='放弃本机重试';}return;}
+ $('sendRecoveryText').textContent=(p.kind==='edit'?'上次编辑':'上次发送')+
+  '尚未确认。请先核对状态；同一份草稿再点「发送」会复用原加密请求，不会创建新消息编号。';
+}
+function clearPendingPacket(p){
+ if(state.pendingSend===p){state.pendingSend=null;renderSendRecovery();}
+}
+async function checkPendingPacket(p){
+ const path='/messages/status?kind='+encodeURIComponent(p.kind)+
+   '&id='+encodeURIComponent(p.packet.id)+'&iv='+encodeURIComponent(p.packet.iv);
+ return request(path);
+}
+function currentComposerRaw(){
+ const body=$('message').value.trim();
+ const data=state.editingId?{t:'text',body,replyTo:state.replyTo||null}:
+   (state.attachment?{...state.attachment,body:body.slice(0,150),replyTo:state.replyTo||null}:
+     {t:'text',body,replyTo:state.replyTo||null});
+ return 'AYV2:'+JSON.stringify(data);
+}
+async function clearMatchingComposer(p){
+ if(p.kind==='emoji')return;
+ if((p.kind==='edit')!==!!state.editingId)return;
+ if(p.kind==='edit'&&(p.packet.id!==state.editingId||p.packet.expectedIv!==state.editingIv))return;
+ if((await digest(currentComposerRaw()))!==p.fingerprint)return;
+ if(!sendContext(p.role,p.fp,p.epoch))return;
+ $('message').value='';attachmentReset();clearComposerMode();
+}
+// An explicitly retried packet always has the same ID, IV and ciphertext.
+// Even if the original request commits after a status check, the database UUID
+// constraint makes a second POST harmless; a conflict is never trusted as success.
+async function submitV2Safely(raw,kind='send',editId=null,expectedIv=null){
+ const role=state.role,fp=state.fp,epoch=state.authEpoch;
+ const current=()=>sendContext(role,fp,epoch);
+ if(!current())throw Error('当前聊天身份已失效');
+ const fingerprint=await digest(raw);
+ if(!current())throw Error('身份已切换，发送已停止');
+ let p=state.pendingSend;
+ if(p&&!(p.role===role&&p.fp===fp&&p.epoch===epoch&&
+   p.kind===kind&&p.fingerprint===fingerprint&&
+   (kind!=='edit'||(p.packet.id===editId&&p.packet.expectedIv===expectedIv)))){
+   // Resolve the previous request first. Do not quietly replace its pending ID.
+   const ack=await checkPendingPacket(p);
+   if(!current())throw Error('身份已切换，旧请求已丢弃');
+   if(ack.confirmed){clearPendingPacket(p);throw Error('上次消息已确认保存；请再次点击发送当前内容');}
+   p.uncertain=true;renderSendRecovery();
+   throw Error('上次发送尚未确认。请先使用「检查上次发送」，或恢复原草稿重试');
+ }
+ if(!p){
+   if(kind==='edit'&&!expectedIv)throw Error('消息版本标记失效，请刷新后重新编辑');
+   const packet=await encryptMessage(raw,kind==='edit'?editId:null);
+   if(!current())throw Error('身份已切换，未发送旧消息');
+   p={kind,role,fp,epoch,fingerprint,packet:kind==='edit'?{...packet,expectedIv}:packet,
+      attempts:0,uncertain:false};
+   state.pendingSend=p;
+ }
+ const assertCurrent=()=>{
+   if(!current()||state.pendingSend!==p)throw Error('身份已切换，旧发送结果已丢弃');
+ };
+ if(p.attempts>0){
+   const found=await checkPendingPacket(p);
+   assertCurrent();
+   if(found.confirmed){clearPendingPacket(p);return {confirmed:true,recovered:true};}
+   if(p.kind!=='edit'&&found.found)throw Error('消息编号对应不同加密内容，停止重试以防误判');
+ }
+ p.attempts++;
+ try{await request(kind==='edit'?'/messages/edit':'/messages','POST',p.packet);}
+ catch(err){
+   assertCurrent();
+   let verified=null;
+   try{verified=await checkPendingPacket(p);}catch{}
+   assertCurrent();
+   if(verified?.confirmed){clearPendingPacket(p);return {confirmed:true,recovered:true};}
+   p.uncertain=true;renderSendRecovery();
+   if(kind!=='edit'&&verified?.found)
+     throw Error('服务器发现同编号但加密版本不同，未作为发送成功处理');
+   throw Error('服务器未确认保存，原加密消息已保留供安全重试（'+String(err?.message||'网络异常')+'）');
+ }
+ assertCurrent();clearPendingPacket(p);
+ return {confirmed:true,recovered:false};
+}
+
 $('composer').addEventListener('submit',async e=>{
  e.preventDefault();if(state.busy||!state.role)return;
  const input=$('message'),message=input.value.trim(),editing=!!state.editingId;
  if(!message&&!state.attachment)return;
  if(editing&&!message){status('编辑消息不能为空');return;}
+ const role=state.role,fp=state.fp,epoch=state.authEpoch;
+ const active=()=>sendContext(role,fp,epoch);
  state.busy=true;$('send').disabled=true;
  $('send').textContent=editing?'保存中…':'发送中…';
+ let confirmed=false;
  try{
-  const content=editing?{t:'text',body:message,replyTo:state.replyTo||null}:
-    (state.attachment?{...state.attachment,body:message.slice(0,150),replyTo:state.replyTo||null}:
-     {t:'text',body:message,replyTo:state.replyTo||null});
-  const raw='AYV2:'+JSON.stringify(content);
-  if(editing){
-   if(!state.editingIv)throw new Error('消息版本已失效，请刷新后重新编辑');
-   const packet={...(await encryptMessage(raw,state.editingId)),expectedIv:state.editingIv};
-   await request('/messages/edit','POST',packet);
-   state.pendingSend=null;
-  }else{
-   // A lost HTTP response must not create a second message when the user taps Send again.
-   // Reuse the same random message ID / ciphertext for the unchanged in-page draft.
-   const fingerprint=await digest(raw);
-   if(!state.pendingSend||state.pendingSend.fingerprint!==fingerprint||state.pendingSend.role!==state.role)
-    state.pendingSend={fingerprint,role:state.role,packet:await encryptMessage(raw)};
-   try{await request('/messages','POST',state.pendingSend.packet);}
-   catch(err){if(!/重复消息/.test(String(err?.message||'')))throw err;}
-   state.pendingSend=null;
-  }
-  input.value='';attachmentReset();clearComposerMode();lastPaint='';announceLocalChange();
-  await refresh();
- }catch(err){status('发送未确认：'+err.message+'。请检查网络后重试，系统会复用同一条消息编号。');}
- finally{state.busy=false;$('send').disabled=false;$('send').textContent=state.editingId?'保存 ♡':'发送 ♡';}
+   const raw=currentComposerRaw();
+   const outcome=await submitV2Safely(raw,editing?'edit':'send',
+     editing?state.editingId:null,editing?state.editingIv:null);
+   if(!active())return;
+   if(outcome.confirmed){
+     confirmed=true;
+     input.value='';attachmentReset();clearComposerMode();lastPaint='';announceLocalChange();
+     status(outcome.recovered?'已核实服务器保存了上次的消息 ♡':'消息已安全保存 ♡');
+   }
+ }catch(err){
+   if(active())status(String(err?.message||'发送状态尚未确认'));
+ }finally{
+   if(active()){
+     state.busy=false;$('send').disabled=false;
+     $('send').textContent=state.editingId?'保存 ♡':'发送 ♡';
+   }
+ }
+ if(confirmed&&active()){
+   try{await refresh();}catch{if(active())status('消息已经保存，聊天列表稍后会自动刷新');}
+ }
+});
+$('sendCheck').addEventListener('click',async()=>{
+ const p=state.pendingSend;
+ if(!p||state.busy||!sendContext(p.role,p.fp,p.epoch))return;
+ const active=()=>sendContext(p.role,p.fp,p.epoch)&&state.pendingSend===p;
+ state.busy=true;$('sendCheck').disabled=true;
+ try{
+   const ack=await checkPendingPacket(p);
+   if(!active())return;
+   if(ack.confirmed){
+     await clearMatchingComposer(p);
+     if(!active())return;
+     clearPendingPacket(p);lastPaint='';announceLocalChange();
+     status('已确认上次'+(p.kind==='edit'?'编辑':'消息')+'保存在服务器 ♡');
+     await refresh();
+   }else if(p.kind!=='edit'&&ack.found){
+     status('消息编号被其他加密版本占用，不能认定发送成功');
+   }else status('还未确认保存。保持原草稿，点击「发送」可安全重试同一编号');
+ }catch(err){if(active())status('确认暂不可用：'+String(err?.message||'网络中断'));}
+ finally{if(sendContext(p.role,p.fp,p.epoch)){state.busy=false;$('sendCheck').disabled=false;}}
+});
+$('sendDiscard').addEventListener('click',()=>{
+ const p=state.pendingSend;if(!p||state.busy)return;
+ const button=$('sendDiscard');
+ if(button.dataset.confirm!=='yes'){
+   button.dataset.confirm='yes';button.textContent='再次点击确认放弃';
+   status('放弃只会清除本页面的重试记录，不能撤回可能已送达服务器的消息。');
+   return;
+ }
+ clearPendingPacket(p);
+ status('已放弃本页面继续重试；之前的请求可能已经送达，请先检查聊天记录以免重复发送。');
 });
 function setAttachment(att,display){
  state.attachment=att;clearComposerMode();$('attachmentInfo').classList.remove('hidden');$('attachmentInfo').textContent=display;
@@ -844,12 +968,20 @@ $('emojiOpen').addEventListener('click',()=>$('emojiPanel').classList.toggle('hi
 document.querySelectorAll('.emojiPick').forEach(b=>b.addEventListener('click',async()=>{
  $('emojiPanel').classList.add('hidden');
  const text=b.textContent||'💗';
- if(state.busy)return;
+ if(state.busy||!state.role)return;
+ const role=state.role,fp=state.fp,epoch=state.authEpoch;
+ const active=()=>sendContext(role,fp,epoch);
  state.busy=true;
+ let confirmed=false;
  try{
-  const packet=await encryptMessage('AYV2:'+JSON.stringify({t:'emoji',body:text,replyTo:state.replyTo||null}));
-  await request('/messages','POST',packet);clearComposerMode();lastPaint='';announceLocalChange();await refresh();
- }catch(e){status('心动贴纸发送失败：'+e.message);}finally{state.busy=false;}
+   const raw='AYV2:'+JSON.stringify({t:'emoji',body:text,replyTo:state.replyTo||null});
+   const result=await submitV2Safely(raw,'emoji');
+   if(!active())return;
+   confirmed=!!result.confirmed;
+   if(confirmed){clearComposerMode();lastPaint='';announceLocalChange();}
+ }catch(e){if(active())status('心动贴纸状态未确认：'+String(e?.message||'网络故障'));}
+ finally{if(active())state.busy=false;}
+ if(confirmed&&active())try{await refresh();}catch{}
 }));
 function readFileData(file){return new Promise((resolve,reject)=>{const r=new FileReader();r.onerror=()=>reject(Error('本机无法读取所选文件'));r.onload=()=>resolve(r.result);r.readAsDataURL(file);});}
 $('gifInput').addEventListener('change',async e=>{
