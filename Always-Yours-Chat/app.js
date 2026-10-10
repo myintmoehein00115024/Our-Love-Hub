@@ -50,7 +50,8 @@ async function login(force=false){
  if(!force&&state.session&&state.expires-Date.now()>60000)return;
  status('正在验证您已获授权的设备签名…');
  const role=state.role,fp=state.fp;
- const c=await jsonFetch(AUTH_BASE+'/api/v2/device/challenge',{user_name:role,fingerprint:fp});
+ let c;try{c=await jsonFetch(AUTH_BASE+'/api/v2/device/challenge',{user_name:role,fingerprint:fp});}
+ catch(e){if(/Device not approved|授权已撤销|设备未授权/i.test(String(e?.message||''))&&!$('chat').classList.contains('hidden'))lockRevokedDevice();throw e;}
  if(!/^[a-f0-9-]{36}$/.test(c.challengeId||'')||!/^[A-Za-z0-9_-]{43}$/.test(c.challenge||''))throw new Error('挑战响应不正确');
  const payload=te.encode(['AY-V2-DEVICE-CHALLENGE',role,c.challengeId,c.challenge].join('\n'));
  const proof=b64(await crypto.subtle.sign({name:'ECDSA',hash:'SHA-256'},state.identity.privateKey,payload));
@@ -69,7 +70,11 @@ async function request(path,method='GET',payload=null){
  const signature=b64(await crypto.subtle.sign({name:'ECDSA',hash:'SHA-256'},state.identity.privateKey,te.encode(canonical.join('\n'))));
  const r=await fetch(url,{method,cache:'no-store',headers:{'Authorization':'Bearer '+state.session,'X-Device-Time':time,'X-Device-Nonce':nonce,'X-Device-Proof':signature,...(method==='GET'?{}:{'Content-Type':'application/json'})},...(method==='GET'?{}:{body})});
  const x=await r.json().catch(()=>({}));
- if(!r.ok){if(r.status===401){state.session=null;state.expires=0;}throw new Error(x.error||'安全请求失败');}
+ if(!r.ok){
+   if(r.status===401){state.session=null;state.expires=0;}
+   if(r.status===403&&/此设备未授权|授权已撤销|Device not approved/i.test(String(x.error||'')))lockRevokedDevice();
+   throw new Error(x.error||'安全请求失败');
+  }
  return x;
 }
 async function encryptionPair(){
@@ -161,6 +166,25 @@ window.addEventListener('online',()=>{if(state.role){status('网络已恢复，�
 window.addEventListener('offline',()=>{if(state.role)status('目前离线 · 暂时不能发送和同步。已输入的内容会保留在此页面。');});
 v2Broadcast?.addEventListener('message',e=>{if(e.data?.type==='changed'&&e.data?.role===state.role&&state.role)refresh();});
 let notificationAudio=null,readObserver=null,readQueue=new Set(),readFlushBusy=false;
+// This cannot delete plaintext/screenshots already retained by the browser or user. It locks this live view
+// after server-side device revocation and does not delete local non-exportable private keys.
+function clearPrivateView(){
+ clearInterval(state.timer);state.timer=null;
+ state.session=null;state.expires=0;state.encryption=null;state.keys=[];
+ state.pendingSend=null;state.decryptedMap.clear();state.replyTo=null;state.editingId=null;
+ state.attachment=null;lastPaint='';haveSnapshot=false;seenMessages=new Set();newWhileAway=0;
+ readQueue.clear();if(readObserver){readObserver.disconnect();readObserver=null;}
+ $('messages').replaceChildren();$('message').value='';$('photoInput').value='';$('gifInput').value='';
+ $('replyPreview').classList.add('hidden');$('attachmentInfo').classList.add('hidden');
+ $('photoViewer').classList.add('hidden');$('viewerImage').removeAttribute('src');
+ viewerState.uri='';viewerState.pointers.clear();
+ $('chat').classList.add('hidden');$('gate').classList.remove('hidden');document.body.classList.remove('chatMode');
+}
+function lockRevokedDevice(){
+ clearPrivateView();state.role=null;state.identity=null;state.fp=null;
+ try{localStorage.removeItem('ay-secure-role-v1');}catch{}
+ $('gateStatus').textContent='服务器已拒绝此设备的授权：聊天已锁定。请联系管理员核对设备状态。';
+}
 function soundOn(){return localStorage.getItem('ay-v2-sound')==='1';}
 async function enableSound(){
  const C=window.AudioContext||window.webkitAudioContext;
@@ -196,7 +220,7 @@ async function enablePush(){
  if(ios&&!standalone)throw new Error('iPhone / iPad 请先用 Safari「分享 → 添加到主屏幕」，从主屏幕打开 Our Love Hub 后再开启通知。网页声音可单独开启。');
  const permission=Notification.permission==='granted'?'granted':await Notification.requestPermission();
  if(permission!=='granted')throw new Error('系统通知权限未允许；可在系统设置中修改。网页提示音可单独开启。');
- const registration=await navigator.serviceWorker.register('./sw.js?v=20261010-r2',{scope:'./',updateViaCache:'none'});
+ const registration=await navigator.serviceWorker.register('./sw.js?v=20261010-r3',{scope:'./',updateViaCache:'none'});
  await navigator.serviceWorker.ready;
  const cfg=await request('/push/config');
  if(!cfg.configured||!cfg.publicKey)throw new Error('Supabase 推送配置尚未完成');
@@ -383,8 +407,11 @@ async function refresh(){
  if(!navigator.onLine){status('目前离线 · 等待网络恢复后同步。');return;}
  refreshBusy=true;
  try{
+  const requestedRole=state.role,requestedFp=state.fp;
   const data=await request('/messages');
-  const arr=data.messages||[],signature=JSON.stringify(arr.map(m=>[m.id,m.read_at,m.edited_at]));
+  if(state.role!==requestedRole||state.fp!==requestedFp||$('chat').classList.contains('hidden'))return;
+  // Device envelope changes (e.g. history-key share) must repaint, even if read/edit time is unchanged.
+  const arr=data.messages||[],signature=JSON.stringify(arr.map(m=>[m.id,m.read_at,m.edited_at,m.envelopes?.[requestedFp]||null]));
   if(signature===lastPaint)return;
   const incoming=arr.filter(m=>m.sender!==state.role&&haveSnapshot&&!seenMessages.has(m.id));
   for(const m of arr)seenMessages.add(m.id);
@@ -430,7 +457,7 @@ async function refresh(){
   lastPaint=signature;
   status('设备已授权 · 新消息保持端到端加密 · 单勾未读 / 双勾已读');
   // Broadcast only actual writes, not every poll/render; avoids cross-tab repaint loops.
- }catch(e){status('读取失败：'+e.message);}
+ }catch(e){if(state.role)status('读取失败：'+e.message);}
  finally{refreshBusy=false;}
 }
 function approvalText(message,stage='待审核'){
@@ -531,8 +558,7 @@ $('deviceApproval').addEventListener('keydown',e=>{
 });
 $('exit').addEventListener('click',()=>{
  try{localStorage.removeItem('ay-secure-role-v1');}catch{}
- clearInterval(state.timer);state.role=null;state.session=null;state.identity=null;state.encryption=null;state.pendingSend=null;haveSnapshot=false;seenMessages=new Set();newWhileAway=0;readQueue.clear();clearComposerMode();attachmentReset();
- $('chat').classList.add('hidden');$('gate').classList.remove('hidden');document.body.classList.remove('chatMode');
+ clearPrivateView();state.role=null;state.fp=null;state.identity=null;clearComposerMode();attachmentReset();
  $('gateStatus').textContent='选择身份后，将自动检查本机授权状态。';
 });
 $('composer').addEventListener('submit',async e=>{

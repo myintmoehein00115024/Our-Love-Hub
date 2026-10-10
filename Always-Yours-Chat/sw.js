@@ -4,8 +4,9 @@ self.addEventListener('activate',event=>{event.waitUntil(self.clients.claim());}
 self.addEventListener('push',event=>{
  event.waitUntil((async()=>{
   const clients=await self.clients.matchAll({type:'window',includeUncontrolled:true});
-  const shown=clients.filter(c=>c.visibilityState==='visible'&&c.url.includes('/Always-Yours-Chat/'));
+  const shown=clients.filter(c=>c.visibilityState==='visible'&&c.focused===true&&c.url.includes('/Always-Yours-Chat/'));
   if(shown.length){for(const client of shown){client.postMessage({type:'ay-v2-new-message'});}return;}
+  // Visible-but-unfocused windows must not suppress the system notification.
   await self.registration.showNotification('Always Yours ♡',{
     body:'收到一条新的悄悄话 ♡',
     icon:'../assets/icon-192.png',badge:'../assets/favicon-32.png',
