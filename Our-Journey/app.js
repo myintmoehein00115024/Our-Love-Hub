@@ -67,6 +67,7 @@ if ('serviceWorker' in navigator) {
  let audio=null,audioUnlocked=false;
  function b64(v){let s='';for(const x of new Uint8Array(v))s+=String.fromCharCode(x);return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');}
  const sha=async v=>b64(await crypto.subtle.digest('SHA-256',te.encode(v)));
+ function clearUnread(){prev=null;counter.hidden=true;counter.textContent='0';bell.classList.remove('has-unread');bell.setAttribute('aria-label','打开悄悄话，未读状态需要重新验证');document.title='Our Journey · 只属于我们的故事 ♡';}
  function note(){if(!audioUnlocked||!audio||audio.state!=='running'||document.hidden)return;
   const t=audio.currentTime;for(const [delay,f] of [[0,700],[.14,860]]){
    const o=audio.createOscillator(),g=audio.createGain();o.type='sine';o.frequency.value=f;
@@ -120,14 +121,14 @@ if ('serviceWorker' in navigator) {
   const value=await r.json();if(!Number.isInteger(value.unread)||value.unread<0)throw Error('Invalid unread count');return value.unread;
  }
  async function update(){if(active||document.hidden||!navigator.onLine)return;active=true;
-  try{const role=localStorage.getItem('ay-secure-role-v1');if(role!=='Ko Ko'&&role!=='Chit Chit')return;
-   const id=await getIdentity(role);if(!id)return;
+  try{const role=localStorage.getItem('ay-secure-role-v1');if(role!=='Ko Ko'&&role!=='Chit Chit'){clearUnread();session=null;identity=null;return;}
+   const id=await getIdentity(role);if(!id){clearUnread();session=null;return;}
    const n=await unread(role,id);
    if(prev!==null&&n>prev)note();prev=n;counter.hidden=n===0;counter.textContent=n>99?'99+':String(n);
    bell.classList.toggle('has-unread',n>0);
    bell.setAttribute('aria-label',n?'打开悄悄话，'+n+' 条未读消息':'打开悄悄话，没有未读消息');
    document.title=n?'（'+(n>99?'99+':n)+'）Our Journey · 悄悄话 ♡':'Our Journey · 只属于我们的故事 ♡';
-  }catch{}finally{active=false;}
+  }catch(e){if(/Unauthorized|Not authorized|Unread authorization failed|Device not approved|revoked|expired/i.test(String(e?.message||''))){session=null;expires=0;clearUnread();}}finally{active=false;}
  }
  const channel='BroadcastChannel' in window?new BroadcastChannel('ay-v2-chat'):null;
  if(channel)channel.onmessage=()=>update();
