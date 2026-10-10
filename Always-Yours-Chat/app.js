@@ -1,1841 +1,339 @@
-// Supabase Edge Function URL is public. The chat encryption key remains on each device.
-const WORKER_URL_KEY="alwaysYoursSupabaseFunctionUrlV1";
-function validWorkerUrl(raw){
-  try{
-    const parsed=new URL(String(raw||"").trim());
-    if(parsed.protocol!=="https:" || parsed.username || parsed.password || parsed.search || parsed.hash || parsed.port) return null;
-    if(!/^[a-z0-9-]+\.supabase\.co$/.test(parsed.hostname))return null;
-    if(!/^\/functions\/v1\/always-yours-chat\/?$/.test(parsed.pathname))return null;
-    return parsed.origin+parsed.pathname.replace(/\/$/,"");
-  }catch{return null;}
-}
-// Initialize this new, dedicated chat backend once, even if the browser cached
-// a previous Cloudflare/old Supabase connection. Later user overrides still persist.
-const DEFAULT_CHAT_API = validWorkerUrl(window.ALWAYS_YOURS_CHAT_ROUTES?.apiBase);
-const INITIALIZED_API_KEY="alwaysYoursChatProjectZegjegutcigbydtzggurInitializedV1";
-let savedWorkerUrl=null;
-try{
-  if(DEFAULT_CHAT_API && localStorage.getItem(INITIALIZED_API_KEY)!=="yes"){
-    localStorage.setItem(WORKER_URL_KEY,DEFAULT_CHAT_API);
-    localStorage.setItem(INITIALIZED_API_KEY,"yes");
+'use strict';
+// Official secure v2 private chat, cryptographic authentication enforced server-side. Keeps all identity + encryption private keys in origin-local IndexedDB.
+const AUTH_BASE='https://zegjegutcigbydtzggur.supabase.co/functions/v1/always-yours-chat';
+const API_BASE='https://zegjegutcigbydtzggur.supabase.co/functions/v1/always-yours-secure-v2';
+const AUTH_DB='always-yours-identity-keys-v1',ENC_DB='always-yours-secure-encryption-v1';
+const $=id=>document.getElementById(id),te=new TextEncoder(),td=new TextDecoder();
+const state={role:null,identity:null,fp:null,session:null,expires:0,encryption:null,keys:[],busy:false,timer:null};
+let lastApprovalFocus=null;
+const validB64=/^[A-Za-z0-9_-]+$/;
+function b64(bytes){const v=bytes instanceof Uint8Array?bytes:new Uint8Array(bytes);let s='';for(const c of v)s+=String.fromCharCode(c);return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');}
+function un64(s){if(!validB64.test(s))throw new Error('无效的加密编码');return Uint8Array.from(atob(s.replace(/-/g,'+').replace(/_/g,'/')+'='.repeat((4-s.length%4)%4)),c=>c.charCodeAt(0));}
+async function digest(value){return b64(await crypto.subtle.digest('SHA-256',typeof value==='string'?te.encode(value):value));}
+function status(text){(state.role?$('chatStatus'):$('gateStatus')).textContent=text;}
+function dbOpen(name,version,upgrader){return new Promise((resolve,reject)=>{const r=indexedDB.open(name,version);r.onupgradeneeded=()=>upgrader?.(r.result);r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});}
+function txReq(db,store,mode,callback){return new Promise((resolve,reject)=>{const tx=db.transaction(store,mode);const rq=callback(tx.objectStore(store));rq.onsuccess=()=>resolve(rq.result);rq.onerror=()=>reject(rq.error);tx.oncomplete=()=>db.close();});}
+async function findSigningIdentity(role){
+ // New devices may register without knowing the old chat encryption password.
+ // Prefer an existing v2 identity; otherwise reuse exactly one legacy authorized key.
+ const db=await dbOpen(AUTH_DB,1,d=>{if(!d.objectStoreNames.contains('keys'))d.createObjectStore('keys');});
+ const entries=await txReq(db,'keys','readonly',store=>store.getAllKeys());
+ const all=entries||[];
+ let slot='v2:'+role;
+ if(!all.includes(slot)){
+  const old=all.filter(k=>typeof k==='string'&&k.endsWith(':'+role)&&k!==slot);
+  if(old.length===1)slot=old[0];
+  else if(old.length>1)throw new Error('检测到多把旧设备私钥，请先在原 Chat 确认要使用的设备');
+  else{
+   const newPair=await crypto.subtle.generateKey({name:'ECDSA',namedCurve:'P-256'},false,['sign','verify']);
+   const d=await dbOpen(AUTH_DB,1);await txReq(d,'keys','readwrite',store=>store.put({pair:newPair},slot));
   }
-  savedWorkerUrl=localStorage.getItem(WORKER_URL_KEY);
-}catch{}
-let API_BASE = validWorkerUrl(savedWorkerUrl) || DEFAULT_CHAT_API;
-const API_TIMEOUT_MS = 9000;
-const POLL_MS = 10000;
-const TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30-day rolling retention
-const ROOM_SALT = "always-yours-room-v2";
-const KEY_SALT = "always-yours-e2ee-v2";
-const MAX_VISIBLE_MESSAGES = 80; // Per-page size; older days load on demand.
-const PAGE_SIZE = 80;
-const CACHE_PREFIX = "alwaysYoursMessageCache:";
-const STICKERS = ["🥰","😘","🫶","💞","🌙","💋","🩷","🤍","抱抱 ♡","想你了 ♡","晚安 🌙","永远是你 💞"];
-const EMOJIS = ["😊","🥰","😘","😍","🫶","💕","💗","💖","💞","💋","🌹","🌙","✨","🥺","🤍","❤️‍🔥","🩷","😚","😌","💐"];
-
-const $ = (id) => document.getElementById(id);
-const gate = $("gate");
-const chat = $("chat");
-const secretInput = $("secret");
-const statusEl = $("status");
-const messagesEl = $("messages");
-const emptyState = $("emptyState");
-const input = $("messageInput");
-const sendBtn = $("sendBtn");
-const toastEl = $("toast");
-const connectionState = $("connectionState");
-const stickerPanel = $("stickerPanel");
-const photoBtn = $("photoBtn");
-const photoInput = $("photoInput");
-const gifBtn = $("gifBtn");
-const gifInput = $("gifInput");
-const replyPreview = $("replyPreview");
-const replyPreviewLabel = $("replyPreviewLabel");
-const replyPreviewText = $("replyPreviewText");
-const photoPreview = $("photoPreview");
-const photoPreviewImg = $("photoPreviewImg");
-const photoPreviewName = $("photoPreviewName");
-const photoPreviewMeta = $("photoPreviewMeta");
-const removePhotoBtn = $("removePhotoBtn");
-const installBtn = $("installBtn");
-const newMessageHint = $("newMessageHint");
-const selectedPerson = $("selectedPerson");
-const gateInstallBtn = $("gateInstallBtn");
-const installModal = $("installModal");
-const installSteps = $("installSteps");
-const installLead = $("installLead");
-const installAction = $("installAction");
-const closeInstall = $("closeInstall");
-const installButtons = [installBtn, gateInstallBtn].filter(Boolean);
-const emojiPanel = $("emojiPanel");
-
-const chatHeader = document.querySelector(".chat-header > div:first-child");
-const roomLabelEl = $("roomLabel");
-let presenceEl = null;
-let editBar = null;
-
-function ensurePresenceUi(){
-  if(!chatHeader || presenceEl) return;
-  presenceEl=document.createElement("div");
-  presenceEl.id="partnerPresence";
-  presenceEl.className="partner-presence is-away";
-  presenceEl.innerHTML='<span class="presence-dot" aria-hidden="true"></span><span class="presence-text">Chit Chit · checking…</span>';
-  (roomLabelEl || chatHeader).insertAdjacentElement("afterend",presenceEl);
+ }
+ const d=await dbOpen(AUTH_DB,1);const stored=await txReq(d,'keys','readonly',store=>store.get(slot));
+ if(!stored?.pair?.privateKey||!stored?.pair?.publicKey||stored.pair.privateKey.extractable)throw new Error('本机签名私钥不存在或不安全');
+ const pub=await crypto.subtle.exportKey('jwk',stored.pair.publicKey);
+ const fp=await digest('AY-DEVICE-FP-V1|'+pub.x+'|'+pub.y);
+ return {pair:stored.pair,fp,pub};
 }
-function ensureEditBar(){
-  if(editBar || !document.querySelector(".composer-wrap")) return;
-  editBar=document.createElement("div");
-  editBar.id="editBar";
-  editBar.className="edit-bar hidden";
-  editBar.innerHTML='<div class="edit-bar-copy"><span class="edit-bar-icon">✎</span><div><strong>正在编辑消息</strong><span id="editBarText"></span></div></div><button type="button" id="cancelEditBtn" class="edit-cancel">取消</button>';
-  document.querySelector(".composer-wrap").insertBefore(editBar,document.querySelector(".composer-wrap").firstElementChild);
-  editBar.querySelector("#cancelEditBtn").addEventListener("click",cancelEdit);
+async function checkOrApplyDevice(identity,apply=false){
+ const role=state.role;
+ const nonce=b64(crypto.getRandomValues(new Uint8Array(16)));
+ const signature=b64(await crypto.subtle.sign({name:'ECDSA',hash:'SHA-256'},identity.pair.privateKey,
+     te.encode(['AY-DEVICE-ENROLL-V2',role,nonce].join('\n'))));
+ const x=await jsonFetch(API_BASE+(apply?'/enroll':'/enroll/status'),{user_name:role,publicKey:{kty:'EC',crv:'P-256',x:identity.pub.x,y:identity.pub.y},nonce,signature});
+ if(x.fingerprint!==identity.fp)throw new Error('设备指纹校验失败');
+ return x.deviceState;
 }
-ensurePresenceUi();
-ensureEditBar();
-
-let selectedName = "Ko Ko";
-let roleChosen = false;
-let rememberedRole = null;
-try {
-  const remembered = localStorage.getItem("alwaysYoursName");
-  if(remembered === "Ko Ko" || remembered === "Chit Chit") {
-    selectedName = remembered;
-    rememberedRole = remembered;
+async function jsonFetch(url,body){const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},cache:'no-store',body:JSON.stringify(body)});const x=await r.json().catch(()=>({}));if(!r.ok)throw new Error(x.error||'服务器暂时无法连接');return x;}
+async function login(force=false){
+ if(!state.role||!state.identity)throw new Error('先选择已授权身份');
+ if(!force&&state.session&&state.expires-Date.now()>60000)return;
+ status('正在验证您已获授权的设备签名…');
+ const role=state.role,fp=state.fp;
+ const c=await jsonFetch(AUTH_BASE+'/api/v2/device/challenge',{user_name:role,fingerprint:fp});
+ if(!/^[a-f0-9-]{36}$/.test(c.challengeId||'')||!/^[A-Za-z0-9_-]{43}$/.test(c.challenge||''))throw new Error('挑战响应不正确');
+ const payload=te.encode(['AY-V2-DEVICE-CHALLENGE',role,c.challengeId,c.challenge].join('\n'));
+ const proof=b64(await crypto.subtle.sign({name:'ECDSA',hash:'SHA-256'},state.identity.privateKey,payload));
+ const x=await jsonFetch(AUTH_BASE+'/api/v2/device/verify',{user_name:role,challengeId:c.challengeId,signature:proof});
+ if(!x.deviceVerified||!x.accessToken||x.fingerprint!==fp)throw new Error('服务器未批准当前设备');
+ state.session=x.accessToken;state.expires=Date.now()+Math.min(600,Number(x.expiresInSeconds)||600)*1000;
+}
+async function request(path,method='GET',payload=null){
+ await login();
+ const url=API_BASE+path,body=payload===null?'':JSON.stringify(payload);
+ const time=String(Date.now()),nonce=b64(crypto.getRandomValues(new Uint8Array(16)));
+ const sessionHash=await digest('AY-DEVICE-SESSION-V1|'+state.session);
+ const contentHash=await digest(body);
+ const pathname=path; // Server authenticates function-relative route, never proxy-specific URL.
+ const canonical=['AY-SECURE-V2-REQUEST',state.role,state.fp,sessionHash,method,pathname,time,nonce,contentHash];
+ const signature=b64(await crypto.subtle.sign({name:'ECDSA',hash:'SHA-256'},state.identity.privateKey,te.encode(canonical.join('\n'))));
+ const r=await fetch(url,{method,cache:'no-store',headers:{'Authorization':'Bearer '+state.session,'X-Device-Time':time,'X-Device-Nonce':nonce,'X-Device-Proof':signature,...(method==='GET'?{}:{'Content-Type':'application/json'})},...(method==='GET'?{}:{body})});
+ const x=await r.json().catch(()=>({}));
+ if(!r.ok){if(r.status===401){state.session=null;state.expires=0;}throw new Error(x.error||'安全请求失败');}
+ return x;
+}
+async function encryptionPair(){
+ const db=await dbOpen(ENC_DB,1,d=>{if(!d.objectStoreNames.contains('keys'))d.createObjectStore('keys');});
+ const key=state.role+':'+state.fp;
+ let pair=await txReq(db,'keys','readonly',store=>store.get(key));
+ if(!pair){pair=await crypto.subtle.generateKey({name:'ECDH',namedCurve:'P-256'},false,['deriveBits']);const d=await dbOpen(ENC_DB,1);await txReq(d,'keys','readwrite',store=>store.put(pair,key));}
+ if(pair.privateKey.extractable)throw new Error('加密私钥必须不可导出');
+ return pair;
+}
+async function setupEncryption(){
+ state.encryption=await encryptionPair();
+ const p=await crypto.subtle.exportKey('jwk',state.encryption.publicKey);
+ await request('/keys','POST',{publicKey:{kty:'EC',crv:'P-256',x:p.x,y:p.y}});
+ await loadKeys();
+}
+async function loadKeys(){const x=await request('/keys');state.keys=x.keys||[];return state.keys;}
+async function deriveWrap(privateKey,publicKey,id,fp){
+ const bits=await crypto.subtle.deriveBits({name:'ECDH',public:publicKey},privateKey,256);
+ const hk=await crypto.subtle.importKey('raw',bits,'HKDF',false,['deriveKey']);
+ return crypto.subtle.deriveKey({name:'HKDF',hash:'SHA-256',salt:te.encode('AY-SAFE-V2'),info:te.encode(id+'|'+fp)},hk,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);
+}
+async function encryptMessage(text){
+ const keys=await loadKeys();
+ if(!keys.some(k=>k.user_name==='Ko Ko')||!keys.some(k=>k.user_name==='Chit Chit'))throw new Error('请先让 HE 和 SHE 两边的已批准设备各进入本测试页面一次，以登记加密公钥。');
+ const id=crypto.randomUUID(),contentKeyBytes=crypto.getRandomValues(new Uint8Array(32));
+ const contentKey=await crypto.subtle.importKey('raw',contentKeyBytes,'AES-GCM',false,['encrypt']);
+ const iv=crypto.getRandomValues(new Uint8Array(12)),data=te.encode(text);
+ const ciphertext=b64(await crypto.subtle.encrypt({name:'AES-GCM',iv,additionalData:te.encode('AY-SAFE-TEXT-V1\n'+id)},contentKey,data));
+ const ephemeral=await crypto.subtle.generateKey({name:'ECDH',namedCurve:'P-256'},true,['deriveBits']);
+ const publicKey=await crypto.subtle.exportKey('jwk',ephemeral.publicKey),envelopes={};
+ for(const rec of keys){
+  const pk=await crypto.subtle.importKey('jwk',rec.enc_public_key,{name:'ECDH',namedCurve:'P-256'},false,[]);
+  const wrap=await deriveWrap(ephemeral.privateKey,pk,id,rec.fingerprint);
+  const wiv=crypto.getRandomValues(new Uint8Array(12));
+  const wct=await crypto.subtle.encrypt({name:'AES-GCM',iv:wiv,additionalData:te.encode('AY-WRAP|'+id+'|'+rec.fingerprint)},wrap,contentKeyBytes);
+  envelopes[rec.fingerprint]={iv:b64(wiv),ciphertext:b64(wct)};
+ }
+ return {id,iv:b64(iv),ciphertext,ephemeralPublicKey:{kty:'EC',crv:'P-256',x:publicKey.x,y:publicKey.y},envelopes};
+}
+async function decryptMessage(m){
+ const env=m.envelopes?.[state.fp];if(!env)throw new Error('无本机密钥');
+ const ephemeral=await crypto.subtle.importKey('jwk',env.ephemeralPublicKey||m.ephemeral_public_key,{name:'ECDH',namedCurve:'P-256'},false,[]);
+ const wrapping=await deriveWrap(state.encryption.privateKey,ephemeral,m.id,state.fp);
+ const rawKey=await crypto.subtle.decrypt({name:'AES-GCM',iv:un64(env.iv),additionalData:te.encode('AY-WRAP|'+m.id+'|'+state.fp)},wrapping,un64(env.ciphertext));
+ const key=await crypto.subtle.importKey('raw',rawKey,'AES-GCM',false,['decrypt']);
+ const plain=await crypto.subtle.decrypt({name:'AES-GCM',iv:un64(m.iv),additionalData:te.encode('AY-SAFE-TEXT-V1\n'+m.id)},key,un64(m.ciphertext));
+ return td.decode(plain);
+}
+async function shareVisibleHistory(){
+ if(!state.role||!state.encryption)throw new Error('请先用已授权设备进入聊天');
+ const keys=await loadKeys(),data=await request('/messages');
+ let shared=0,missing=0;
+ for(const m of data.messages||[]){
+  const absent=keys.filter(k=>!m.envelopes?.[k.fingerprint]);
+  if(!absent.length)continue;
+  const ownEnv=m.envelopes?.[state.fp];if(!ownEnv)continue;
+  const sourcePub=await crypto.subtle.importKey('jwk',ownEnv.ephemeralPublicKey||m.ephemeral_public_key,{name:'ECDH',namedCurve:'P-256'},false,[]);
+  const oldWrap=await deriveWrap(state.encryption.privateKey,sourcePub,m.id,state.fp);
+  const contentBytes=new Uint8Array(await crypto.subtle.decrypt({name:'AES-GCM',iv:un64(ownEnv.iv),additionalData:te.encode('AY-WRAP|'+m.id+'|'+state.fp)},oldWrap,un64(ownEnv.ciphertext)));
+  for(const k of absent){
+   const fresh=await crypto.subtle.generateKey({name:'ECDH',namedCurve:'P-256'},true,['deriveBits']);
+   const p=await crypto.subtle.exportKey('jwk',fresh.publicKey);
+   const pub=await crypto.subtle.importKey('jwk',k.enc_public_key,{name:'ECDH',namedCurve:'P-256'},false,[]);
+   const wrap=await deriveWrap(fresh.privateKey,pub,m.id,k.fingerprint),iv=crypto.getRandomValues(new Uint8Array(12));
+   const sealed=b64(await crypto.subtle.encrypt({name:'AES-GCM',iv,additionalData:te.encode('AY-WRAP|'+m.id+'|'+k.fingerprint)},wrap,contentBytes));
+   await request('/messages/grant','POST',{id:m.id,fingerprint:k.fingerprint,envelope:{iv:b64(iv),ciphertext:sealed,ephemeralPublicKey:{kty:'EC',crv:'P-256',x:p.x,y:p.y}}});
+   shared++;
   }
-} catch {}
-const DEVICE_DB = "always-yours-private-device-v1";
-function openDeviceDb(){
-  return new Promise((resolve,reject)=>{
-    const req=indexedDB.open(DEVICE_DB,1);
-    req.onupgradeneeded=()=>{if(!req.result.objectStoreNames.contains("secrets"))req.result.createObjectStore("secrets");};
-    req.onsuccess=()=>resolve(req.result);
-    req.onerror=()=>reject(req.error);
-  });
-}
-async function deviceRecord(mode,record){
-  const db=await openDeviceDb();
-  return new Promise((resolve,reject)=>{
-    const tx=db.transaction("secrets",mode==="get"?"readonly":"readwrite");
-    const store=tx.objectStore("secrets");
-    const req=mode==="get"?store.get("room"):mode==="delete"?store.delete("room"):store.put(record,"room");
-    req.onsuccess=()=>resolve(req.result);
-    req.onerror=()=>reject(req.error);
-    tx.oncomplete=()=>db.close();
-  });
-}
-async function deviceCredentials(){try{const v=await deviceRecord("get");return v?.key&&/^[a-f0-9]{40}$/.test(v?.room)?v:null;}catch{return null;}}
-function revealSetup(msg=""){ $("setup").classList.remove("hidden"); if(msg)setStatus(msg); secretInput.focus(); }
-async function openPreparedRoom(){
-  if(!roomId||!cryptoKey||!validRole(selectedName))return;
-  const epoch=++viewEpoch;
-  historyMessages=[];hasMoreHistory=false;historyBusy=false;
-  messagePlaintextCache.clear();
-  updateLoadOlderButton();
-  lastMessageIds="";lastContentIds="";firstSync=true;
-  const cached=await loadCache();
-  if(epoch!==viewEpoch)return;
-  showChat();
-  $("roomLabel").textContent=`${selectedName === "Ko Ko" ? "HE · Ko Ko" : "SHE · Chit Chit"} ♡`;
-  if(cached.length){ historyMessages=cached; renderMessages(cached); }
-  updateConnection("连接中…");
-  startPolling();startPresence();refreshNotifyButton().catch(()=>{});
-  setTimeout(()=>repairPushBinding().catch(err=>console.warn("Notification check:",err.message)),300);
-}
-function validRole(name){return name==="Ko Ko"||name==="Chit Chit";}
-async function chooseRole(name){
-  if(!validRole(name))return;
-  if(outgoingBusy){toast("正在发送或保存消息，请稍等再切换身份 ♡");return;}
-  // An installed device remembers its role. Warn before redirecting its notifications
-  // to the other profile; this is a mis-tap guard, NOT server-side authentication.
-  const previousRole = roleChosen ? selectedName : rememberedRole;
-  if (previousRole && previousRole !== name) {
-    const from = previousRole === "Ko Ko" ? "HE · Ko Ko" : "SHE · Chit Chit";
-    const to = name === "Ko Ko" ? "HE · Ko Ko" : "SHE · Chit Chit";
-    if (!window.confirm(`这台设备原来使用 ${from}。\n切换到 ${to} 后，此设备的手机消息提醒也会重新绑定。\n\n确认切换身份吗？`)) return;
-  }
-  selectedName=name;roleChosen=true;
-  rememberedRole=name;
-  if (previousRole && previousRole!==name) {
-    // Existing subscription is re-bound to the newly selected HE/SHE profile below.
-    verifiedPushRole=null;
-  }
-  try{localStorage.setItem("alwaysYoursName",selectedName);}catch{}
-  document.querySelectorAll(".name-option").forEach(b=>b.classList.toggle("selected-role",b.dataset.name===name));
-  syncNameChoice();setStatus("");
-  const stored=await deviceCredentials();
-  if(stored){roomId=stored.room;cryptoKey=stored.key;$("setup").classList.add("hidden");await openPreparedRoom();}
-  else revealSetup("首次使用，请输入一次你们共同保存的独立聊天加密密钥，以后只需选择 HE / SHE。您不需要输入生日。");
-}
-
-let roomId = null;
-let cryptoKey = null;
-let deferredInstallPrompt = null;
-let pollTimer = null;
-let syncing = false;
-let lastMessageIds = "";
-let lastContentIds = "";
-let lastRenderedCount = 0;
-let firstSync = true;
-let viewEpoch = 0;
-let historyMessages = [];
-let hasMoreHistory = false;
-let historyBusy = false;
-let outgoingBusy = false;
-const messagePlaintextCache = new Map();
-let draftTimer = null;
-let selectedPhotoFile = null;
-let selectedPhotoPreviewUrl = null;
-const mediaObjectUrls = new Set();
-let editingMessageId = null;
-let editingMessageReply = null;
-let replyingTo = null;
-let presenceTimer = null;
-let presenceSyncBusy = false;
-const readMarkedIds = new Set();
-
-function toast(msg){
-  toastEl.textContent = msg;
-  toastEl.classList.add("show");
-  clearTimeout(toast._t);
-  toast._t = setTimeout(() => toastEl.classList.remove("show"), 2300);
-}
-function setStatus(msg){ statusEl.textContent = msg; }
-function updateConnection(msg){ connectionState.textContent = msg; }
-function bytesToBase64(bytes){
-  let s="";
-  const a=new Uint8Array(bytes);
-  for(let i=0;i<a.length;i+=0x8000) s+=String.fromCharCode(...a.subarray(i,i+0x8000));
-  return btoa(s);
-}
-function base64ToBytes(s){
-  const bin=atob(s); const out=new Uint8Array(bin.length);
-  for(let i=0;i<bin.length;i++) out[i]=bin.charCodeAt(i);
-  return out;
-}
-async function sha256Hex(text){
-  const b=new TextEncoder().encode(text);
-  const h=await crypto.subtle.digest("SHA-256", b);
-  return [...new Uint8Array(h)].map(x=>x.toString(16).padStart(2,"0")).join("");
-}
-async function deriveKey(secret){
-  const raw=await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), "PBKDF2", false, ["deriveKey"]);
-  return crypto.subtle.deriveKey(
-    {name:"PBKDF2", salt:new TextEncoder().encode(KEY_SALT), iterations:150000, hash:"SHA-256"},
-    raw,
-    {name:"AES-GCM", length:256},
-    false,
-    ["encrypt","decrypt"]
-  );
-}
-async function encryptPayload(payload){
-  const iv=crypto.getRandomValues(new Uint8Array(12));
-  const plaintext=new TextEncoder().encode(JSON.stringify(payload));
-  const cipher=await crypto.subtle.encrypt({name:"AES-GCM",iv},cryptoKey,plaintext);
-  return {iv:bytesToBase64(iv), ciphertext:bytesToBase64(cipher)};
-}
-async function decryptPayload(ivB64,cipherB64){
-  const plain=await crypto.subtle.decrypt({name:"AES-GCM",iv:base64ToBytes(ivB64)},cryptoKey,base64ToBytes(cipherB64));
-  return JSON.parse(new TextDecoder().decode(plain));
-}
-function sanitizeSecret(v){ return v.trim().replace(/\s+/g," "); }
-function formatTime(value){
-  const d=new Date(Number(value)||Date.now());
-  return new Intl.DateTimeFormat(undefined,{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"}).format(d);
-}
-// Dates are already separated by day in the chat timeline. Show only HH:mm in each bubble.
-function formatBubbleTime(value){
-  return new Intl.DateTimeFormat("zh-CN",{hour:"2-digit",minute:"2-digit",hour12:false})
-    .format(new Date(Number(value)||Date.now()));
-}
-// A receipt is based ONLY on the server's seen_at field, never on online presence.
-function setReadReceipt(element, seen){
-  if(!element)return;
-  const isSeen=Boolean(seen);
-  element.classList.toggle("is-seen",isSeen);
-  element.classList.toggle("is-sent",!isSeen);
-  const description=isSeen?"对方已读":"已发送，对方尚未阅读";
-  element.setAttribute("aria-label",description);
-  element.title=description;
-  const checks=element.querySelector(".receipt-checks");
-  if(checks) checks.textContent=isSeen?"✓✓":"✓";
-}
-
-
-function showChat(){ gate.classList.add("hidden"); chat.classList.remove("hidden"); ensurePresenceUi(); ensureEditBar(); }
-function showGate(){
-  if(outgoingBusy){toast("消息仍在发送，请稍等 ♡");return;}
-  ++viewEpoch;
-  historyMessages=[];hasMoreHistory=false;historyBusy=false;
-  messagePlaintextCache.clear();updateLoadOlderButton();
-  roleChosen=false;
-  document.querySelectorAll(".name-option").forEach(b=>b.classList.remove("selected-role"));
-  messagesEl.replaceChildren();
-  emptyState.classList.remove("hidden");
-  lastMessageIds="";lastContentIds="";lastRenderedCount=0;firstSync=true;
-  syncing=false;
-  readMarkedIds.clear();
-  for(const url of mediaObjectUrls){try{URL.revokeObjectURL(url)}catch{}}
-  mediaObjectUrls.clear();
-  clearBackendIssue();
-  chat.classList.add("hidden");
-  gate.classList.remove("hidden");
-  stopPolling();
-  stopPresence();
-  cancelEdit();
-  clearReply();
-  input.value="";
-}
-function otherUser(name){return name==="Ko Ko"?"Chit Chit":"Ko Ko";}
-function userIsMine(sender){ return sender===selectedName; }
-function renderSticker(text){ const d=document.createElement("div"); d.className="sticker-message"; d.textContent=text; return d; }
-
-function cacheKey(){ return `${CACHE_PREFIX}${roomId}`; }
-// Offline copies are encrypted as well. Remove legacy plaintext caches when encountered.
-async function saveCache(items){
-  if(!cryptoKey||!roomId)return;
-  const key=cacheKey();
-  try{
-    const packet=await encryptPayload({items:items.slice(-MAX_VISIBLE_MESSAGES)});
-    localStorage.setItem(key,JSON.stringify({version:2,...packet}));
-  }catch{}
-}
-async function loadCache(){
-  try{
-    const key=cacheKey(),value=JSON.parse(localStorage.getItem(key)||"null");
-    if(!value)return [];
-    if(value.version!==2||!value.iv||!value.ciphertext){localStorage.removeItem(key);return [];}
-    const packet=await decryptPayload(value.iv,value.ciphertext);
-    const now=Date.now();
-    return Array.isArray(packet.items)?packet.items.filter(m=>Number(m.expires_at||0)>now):[];
-  }catch{return []}
-}
-
-function dayKey(value){ const d=new Date(Number(value)||Date.now()); return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`; }
-function dayLabel(value){ const d=new Date(Number(value)||Date.now()); const now=new Date(); if(dayKey(d.getTime())===dayKey(now.getTime())) return "Today"; const y=new Date(now); y.setDate(now.getDate()-1); if(dayKey(d.getTime())===dayKey(y.getTime())) return "Yesterday"; return new Intl.DateTimeFormat(undefined,{month:"short",day:"numeric"}).format(d); }
-function showNewHint(){ if(!newMessageHint) return; newMessageHint.classList.remove("hidden"); clearTimeout(showNewHint._t); showNewHint._t=setTimeout(()=>newMessageHint.classList.add("hidden"),2200); }
-function renderMessages(items){
-  const shouldStickToBottom=messagesEl.scrollHeight-messagesEl.clientHeight-messagesEl.scrollTop<100;
-  const priorScrollTop=messagesEl.scrollTop;
-  for(const url of mediaObjectUrls){ try{URL.revokeObjectURL(url)}catch{} }
-  mediaObjectUrls.clear();
-  messagesEl.replaceChildren();
-  if(!items.length){ emptyState.classList.remove("hidden"); return; }
-  emptyState.classList.add("hidden");
-  let previousDay="";
-  for(const item of items){
-    const currentDay=dayKey(item.created_at);
-    if(currentDay!==previousDay){
-      const divider=document.createElement("div"); divider.className="date-divider"; divider.textContent=dayLabel(item.created_at); messagesEl.appendChild(divider); previousDay=currentDay;
-    }
-    const mine=userIsMine(item.sender);
-    const row=document.createElement("div");
-    row.className=`message-row ${mine?"mine":"theirs"}`;
-    if(item.kind==="image") row.classList.add("photo-row");
-    if(item.kind==="sticker") row.classList.add("sticker-row");
-    const bubble=document.createElement("div"); bubble.className="message-bubble";
-    if(item.kind==="image") bubble.classList.add("photo-bubble");
-    if(item.kind==="sticker") bubble.classList.add("sticker-bubble");
-    // Left/right alignment identifies each side visually; no repeated HE/SHE label in the bubble.
-    // Keep an accessible description for assistive technologies.
-    row.setAttribute("role","group");
-    row.setAttribute("aria-label",mine?"我发送的消息":"对方发送的消息");
-    if(item.reply){
-      const quote=document.createElement("button");
-      quote.type="button"; quote.className="message-reply-quote";
-      quote.setAttribute("aria-label","跳转到引用的消息");
-      const who=document.createElement("strong");who.textContent=(item.reply.sender==="Ko Ko"?"HE":"SHE")+" · 回复";
-      const snippet=document.createElement("span");snippet.textContent=String(item.reply.text||"消息").slice(0,120);
-      quote.append(who,snippet);
-      quote.addEventListener("click",()=>{
-        const match=[...messagesEl.querySelectorAll("[data-chat-message-id]")].find(el=>el.dataset.chatMessageId===item.reply.id);
-        if(match){match.scrollIntoView({block:"center",behavior:"smooth"});match.classList.add("highlight-replied");setTimeout(()=>match.classList.remove("highlight-replied"),1300);}
-        else toast("这条引用的消息不在当前列表中 ♡");
-      });
-      bubble.appendChild(quote);
-    }
-    if(item.kind==="sticker") bubble.appendChild(renderSticker(item.text));
-    else if(item.kind==="image"){
-      const media=document.createElement("div"); media.className="image-message";
-      hydrateImageMessage(media,item);
-      bubble.appendChild(media);
-    } else {
-      const t=document.createElement("div"); t.className="message-text"; t.textContent=item.text; bubble.appendChild(t);
-
-    }
-    const meta=document.createElement("div"); meta.className="message-meta-row";
-    if(item.edited_at){
-      const ed=document.createElement("span"); ed.className="message-edited";
-      ed.textContent="✎"; ed.title="消息已编辑"; ed.setAttribute("aria-label","消息已编辑");
-      meta.appendChild(ed);
-    }
-    const tm=document.createElement("time");
-    tm.className="message-time";
-    tm.textContent=formatBubbleTime(item.created_at);
-    tm.dateTime=new Date(Number(item.created_at)||Date.now()).toISOString();
-    tm.title=formatTime(item.created_at);
-    meta.appendChild(tm);
-    if(mine){
-      const read=document.createElement("span");
-      read.className="message-read-status";
-      read.setAttribute("role","img");
-      const checks=document.createElement("span");
-      checks.className="receipt-checks";
-      checks.setAttribute("aria-hidden","true");
-      read.appendChild(checks);
-      setReadReceipt(read,item.seen_at);
-      meta.appendChild(read);
-    }
-    // Keep the retention timestamp for local filtering; omit per-message countdown UI.
-    bubble.appendChild(meta);
-    const actions=document.createElement("div");
-    actions.className="message-side-actions";
-    const replyBtn=document.createElement("button");
-    replyBtn.type="button"; replyBtn.className="message-reply-button";
-    replyBtn.textContent="↩";
-    replyBtn.title="回复这条消息";
-    replyBtn.setAttribute("aria-label","回复"+(mine?"自己":"对方")+"的消息");
-    replyBtn.addEventListener("click",()=>beginReply(item));
-    actions.appendChild(replyBtn);
-    if(mine&&item.kind==="text"){
-      const editBtn=document.createElement("button");
-      editBtn.type="button"; editBtn.className="message-edit-button";
-      editBtn.textContent="✎";
-      editBtn.title="编辑这条消息";
-      editBtn.setAttribute("aria-label","编辑这条消息");
-      editBtn.addEventListener("click",()=>beginEdit(item));
-      actions.appendChild(editBtn);
-    }
-    row.dataset.chatMessageId=item.id;
-    // Keep the controls beside the message, not below its text (compact WhatsApp-style).
-    if(mine) row.append(actions,bubble);
-    else row.append(bubble,actions);
-    messagesEl.appendChild(row);
-  }
-  requestAnimationFrame(()=>{
-    // Preserve history reading position, and only stick to the bottom when the reader already was there.
-    messagesEl.scrollTop=shouldStickToBottom?messagesEl.scrollHeight:priorScrollTop;
-  });
-}
-
-function updateReadReceipts(items){
-  const byId=new Map(items.map(x=>[x.id,x]));
-  for(const row of messagesEl.querySelectorAll('[data-chat-message-id]')){
-    const m=byId.get(row.dataset.chatMessageId);
-    if(!m)continue;
-    const read=row.querySelector('.message-read-status');
-    if(read) setReadReceipt(read,m.seen_at);
-  }
-}
-
-async function withTimeout(promise){
-  const controller = new AbortController();
-  const timer = setTimeout(()=>controller.abort(), API_TIMEOUT_MS);
-  try{ return await promise(controller.signal); } finally { clearTimeout(timer); }
-}
-
-function showBackendIssue(error){
-  const banner=$("chatNetworkBanner");
-  if(!banner)return;
-  const problem=String(error?.message||"").slice(0,120);
-  $("networkBannerText").textContent=/fetch|network|abort|load failed|failed/i.test(problem)?
-    "云端暂时连接失败。当前消息未送达；请检查 Supabase Edge Function 地址、部署和网络。":
-    `聊天服务提示：${problem||"未连接"}。请检查 Supabase 部署。`;
-  banner.classList.remove("hidden");
-  chat.classList.add("has-network-issue");
-}
-function clearBackendIssue(){ $("chatNetworkBanner")?.classList.add("hidden");chat.classList.remove("has-network-issue"); }
-async function checkWorkerURL(raw,save){
-  const url=validWorkerUrl(raw);
-  if(!url)throw new Error("请输入 Supabase Edge Function 完整地址：https://项目ID.supabase.co/functions/v1/always-yours-chat");
-  const controller=new AbortController();
-  const timer=setTimeout(()=>controller.abort(),8000);
-  try{
-    const res=await fetch(`${url}/api/health`,{mode:"cors",cache:"no-store",signal:controller.signal});
-    const payload=await res.json().catch(()=>null);
-    if(!res.ok||!payload?.ok||payload.service!=="always-yours-chat-api")throw new Error("Supabase 函数未就绪：请检查数据库和私有图片存储。");
-    if(!payload.photos)throw new Error("Supabase 私有图片存储桶尚未配置。");
-    if(save){API_BASE=url;localStorage.setItem(WORKER_URL_KEY,url);}
-    return "连接检测通过：Supabase 聊天服务已就绪。";
-  }catch(error){
-    if(error?.name==="AbortError"||error instanceof TypeError)throw new Error("无法访问 Supabase：请确认 Edge Function 已部署、URL 正确且允许 GitHub 域名访问。");
-    throw error;
-  }finally{clearTimeout(timer);}
-}
-const workerUrlInput=$("workerUrlInput");
-if(workerUrlInput)workerUrlInput.value=API_BASE||"";
-$("testWorkerBtn")?.addEventListener("click",async()=>{
-  const btn=$("testWorkerBtn"),label=$("workerTestResult");
-  btn.disabled=true;label.textContent="正在检测 Supabase 连接…";
-  try{label.textContent=await checkWorkerURL(workerUrlInput.value,true);label.classList.add("is-success");clearBackendIssue();}
-  catch(error){label.textContent=error.message;label.classList.remove("is-success");}
-  finally{btn.disabled=false;}
-});
-$("networkSettingsBtn")?.addEventListener("click",()=>{
-  if(outgoingBusy){toast("消息还在发送，暂时不能切换 ♡");return;}
-  showGate();roomId=null;cryptoKey=null;
-  // Connection is preconfigured in routes.js. No user-visible URL form.
-  setStatus("连接已预设。如果无法连接，请稍后重试。");
-});
-async function apiGetMessages({before=null,beforeId=null}={}){
-  if(!API_BASE)throw new Error("Supabase 服务暂时不可用，请检查网络。");
-  const requestedRoom=roomId;
-  const url=new URL(`${API_BASE}/api/messages`);
-  url.searchParams.set("limit",String(PAGE_SIZE));
-  if(before!==null && beforeId){url.searchParams.set("before",String(before));url.searchParams.set("before_id",beforeId);}
-  return withTimeout(async(signal)=>{
-    const res=await fetch(url.href,{method:"GET",headers:{"X-Room-Key":requestedRoom},signal,cache:"no-store"});
-    const data=await res.json().catch(()=>({}));
-    if(!res.ok) throw new Error(data.error||"Could not read messages");
-    return {messages:Array.isArray(data.messages)?data.messages:[],hasMore:Boolean(data.hasMore)};
-  });
-}
-
-async function apiSendMessage(payload){
-  if(!API_BASE)throw new Error("尚未配置 Supabase 服务地址，消息未发送。");
-  return withTimeout(async(signal)=>{
-    const res=await fetch(`${API_BASE}/api/messages`,{
-      method:"POST",
-      // Older clients are still accepted by the backend during the safe rollout.
-      // Current clients additionally state the sending role for integrity checking.
-      headers:{"Content-Type":"application/json","X-Room-Key":roomId,"X-User":selectedName},
-      body:JSON.stringify(payload),
-      signal,
-      cache:"no-store"
-    });
-    const data=await res.json().catch(()=>({}));
-    if(!res.ok) throw new Error(data.error||"Could not send message");
-    return data;
-  });
-}
-
-async function apiEditMessage(id,payload){
-  return withTimeout(async(signal)=>{
-    const res=await fetch(`${API_BASE}/api/messages/${encodeURIComponent(id)}`,{
-      method:"PATCH",
-      headers:{"Content-Type":"application/json","X-Room-Key":roomId,"X-User":selectedName},
-      body:JSON.stringify(payload),
-      signal,
-      cache:"no-store"
-    });
-    const data=await res.json().catch(()=>({}));
-    if(!res.ok) throw new Error(data.error||"Could not edit message");
-    return data;
-  });
-}
-
-async function apiMarkRead(ids){
-  const list=[...new Set(ids||[])].slice(0,MAX_VISIBLE_MESSAGES);
-  if(!list.length || !roomId) return;
-  return withTimeout(async(signal)=>{
-    const res=await fetch(`${API_BASE}/api/read`,{
-      method:"POST",
-      headers:{"Content-Type":"application/json","X-Room-Key":roomId,"X-User":selectedName},
-      body:JSON.stringify({ids:list}),
-      signal,
-      cache:"no-store"
-    });
-    const data=await res.json().catch(()=>({}));
-    if(!res.ok) throw new Error(data.error||"Could not mark messages as seen");
-    return data;
-  });
-}
-
-async function apiPresence(online=true){
-  return withTimeout(async(signal)=>{
-    const res=await fetch(`${API_BASE}/api/presence`,{
-      method:"POST",
-      headers:{"Content-Type":"application/json","X-Room-Key":roomId,"X-User":selectedName},
-      body:JSON.stringify({online}),
-      signal,
-      cache:"no-store",
-      keepalive:!online
-    });
-    const data=await res.json().catch(()=>({}));
-    if(!res.ok) throw new Error(data.error||"Could not update presence");
-    return data;
-  });
-}
-
-async function apiGetPresence(){
-  return withTimeout(async(signal)=>{
-    const res=await fetch(`${API_BASE}/api/presence`,{method:"GET",headers:{"X-Room-Key":roomId},signal,cache:"no-store"});
-    const data=await res.json().catch(()=>({}));
-    if(!res.ok) throw new Error(data.error||"Could not read presence");
-    return data;
-  });
-}
-
-
-
-async function apiUploadMedia(encryptedBuffer, mediaKey){
-  if(!API_BASE)throw new Error("尚未配置 Supabase 服务地址，照片未上传。");
-  return withTimeout(async(signal)=>{
-    const res=await fetch(`${API_BASE}/api/media`,{
-      method:"POST",
-      headers:{"Content-Type":"application/octet-stream","X-Room-Key":roomId,"X-Media-Key":mediaKey},
-      body:encryptedBuffer,
-      signal,
-      cache:"no-store"
-    });
-    const data=await res.json().catch(()=>({}));
-    if(!res.ok) throw new Error(data.error||"Could not upload photo");
-    return data;
-  });
-}
-
-async function apiGetMedia(mediaKey){
-  return withTimeout(async(signal)=>{
-    const res=await fetch(`${API_BASE}/api/media?key=${encodeURIComponent(mediaKey)}`,{
-      method:"GET",
-      headers:{"X-Room-Key":roomId},
-      signal,
-      cache:"no-store"
-    });
-    if(!res.ok) throw new Error("Photo is no longer available.");
-    return await res.arrayBuffer();
-  });
-}
-
-async function encryptBinary(buffer){
-  const iv=crypto.getRandomValues(new Uint8Array(12));
-  const cipher=await crypto.subtle.encrypt({name:"AES-GCM",iv},cryptoKey,buffer);
-  return {iv:bytesToBase64(iv),ciphertext:cipher};
-}
-
-// Strip image metadata, resize large mobile photos and prefer compact WebP/JPEG.
-// Output is encrypted before it ever reaches Supabase Storage.
-async function compressImage(file){
-  if(file.type==="image/gif" || /\.gif$/i.test(file.name||"")){
-    if(file.size>2*1024*1024)throw new Error("GIF 最大支持 2 MB，请选择较小的动图。");
-    // Re-encoding with canvas would destroy animation; preserve GIF bytes and encrypt them directly.
-    const magic=new Uint8Array(await file.slice(0,6).arrayBuffer());
-    const sig=String.fromCharCode(...magic);
-    if(sig!=="GIF87a"&&sig!=="GIF89a")throw new Error("所选文件不是有效的 GIF 动图。");
-    return new File([file],`our-gif-${Date.now()}.gif`,{type:"image/gif"});
-  }
-  const MAX_ORIGINAL = 25 * 1024 * 1024;
-  const TARGET = 750 * 1024;
-  const MAX_OUTPUT = 1250 * 1024;
-  if(file.size > MAX_ORIGINAL) throw new Error("请选择小于 25 MB 的照片。");
-  if(!file.type.startsWith("image/")) throw new Error("请先选择一张照片。");
-  // Safari fallback for devices without createImageBitmap or with unsupported HEIC decoding.
-  let bitmap, release=()=>{};
-  if(typeof createImageBitmap==="function") {
-    try { bitmap=await createImageBitmap(file,{imageOrientation:"from-image"}); }
-    catch { try { bitmap=await createImageBitmap(file); } catch {} }
-  }
-  if(bitmap) release=()=>bitmap.close();
-  else {
-    const tempUrl=URL.createObjectURL(file);
-    try {
-      bitmap=await new Promise((resolve,reject)=>{
-        const image=new Image();
-        image.onload=()=>resolve(image);
-        image.onerror=()=>reject(new Error("无法读取这张照片，请改用 JPG 或 PNG。"));
-        image.src=tempUrl;
-      });
-    } finally { URL.revokeObjectURL(tempUrl); }
-  }
-  const sourceWidth=bitmap.naturalWidth||bitmap.width, sourceHeight=bitmap.naturalHeight||bitmap.height;
-  const canvas=document.createElement("canvas");
-  const ctx=canvas.getContext("2d",{alpha:false});
-  if(!ctx){release();throw new Error("当前设备不支持图片压缩。");}
-  const preferred = "image/webp";
-  let edge=1600, blob=null, mime=preferred;
-  try {
-    for(let pass=0;pass<5;pass++) {
-      const scale=Math.min(1,edge/Math.max(sourceWidth,sourceHeight));
-      canvas.width=Math.max(1,Math.round(sourceWidth*scale));
-      canvas.height=Math.max(1,Math.round(sourceHeight*scale));
-      ctx.clearRect(0,0,canvas.width,canvas.height);
-      ctx.fillStyle="#fff"; ctx.fillRect(0,0,canvas.width,canvas.height);
-      ctx.drawImage(bitmap,0,0,canvas.width,canvas.height);
-      for(const quality of [.82,.70,.58,.47]) {
-        let next=await new Promise(r=>canvas.toBlob(r,mime,quality));
-        if(!next || next.type!==mime) {
-          mime="image/jpeg";
-          next=await new Promise(r=>canvas.toBlob(r,mime,quality));
-        }
-        if(next && (!blob || next.size < blob.size)) blob=next;
-        if(blob && blob.size<=TARGET) break;
-      }
-      if(blob && blob.size<=TARGET) break;
-      edge=Math.max(720,Math.round(edge*.79));
-    }
-  } finally { release(); canvas.width=0; canvas.height=0; }
-  if(!blob || blob.size > MAX_OUTPUT) throw new Error("照片仍然太大，请选择较小的图片。");
-  const ext=blob.type==="image/jpeg"?"jpg":"webp";
-  return new File([blob],`our-memory-${Date.now()}.${ext}`,{type:blob.type||mime});
-}
-
-function clearSelectedPhoto(){
-  if(selectedPhotoPreviewUrl){ URL.revokeObjectURL(selectedPhotoPreviewUrl); selectedPhotoPreviewUrl=null; }
-  selectedPhotoFile=null;
-  if(photoPreviewImg) photoPreviewImg.removeAttribute("src");
-  photoPreview?.classList.add("hidden");
-  if(photoInput) photoInput.value="";
-  if(gifInput) gifInput.value="";
-  if(input) input.placeholder="想和 TA 说些什么…";
-  updateSendButton();
-}
-
-function updateSendButton(){
-  if(!sendBtn) return;
-  const hasText=Boolean(input?.value.trim());
-  const hasPhoto=Boolean(selectedPhotoFile);
-  sendBtn.textContent=hasPhoto?(selectedPhotoFile.type==="image/gif"?"发送 GIF ♡":"发送照片 ♡"):(editingMessageId?"保存修改 ♡":(replyingTo?"回复 ♡":"发送 ♡"));
-  sendBtn.disabled=!hasText && !hasPhoto;
-}
-
-async function choosePhoto(file){
-  if(editingMessageId) cancelEdit();
-  if(!file || (!file.type.startsWith("image/")&&!/\.gif$/i.test(file.name||""))) return;
-  try{
-    const prepared=await compressImage(file);
-    if(selectedPhotoPreviewUrl) URL.revokeObjectURL(selectedPhotoPreviewUrl);
-    selectedPhotoFile=prepared;
-    selectedPhotoPreviewUrl=URL.createObjectURL(prepared);
-    photoPreviewImg.src=selectedPhotoPreviewUrl;
-    photoPreviewName.textContent=file.name;
-    const beforeKB=Math.round(file.size/1024);
-    const afterKB=Math.max(1,Math.round(prepared.size/1024));
-    const saved=file.size>0?Math.max(0,Math.round((1-prepared.size/file.size)*100)):0;
-    photoPreviewMeta.textContent=prepared.type==="image/gif"?
-      `GIF 动画保留 · ${afterKB} KB · 端到端加密 · 30 天保存`:
-      `已压缩 ${beforeKB} KB → ${afterKB} KB · 节省 ${saved}% · 发送前加密`;
-    photoPreview.classList.remove("hidden");
-    input.placeholder=prepared.type==="image/gif"?"为 GIF 留一句话…":"给照片加一句话…";
-    input.focus();
-    updateSendButton();
-  }catch(error){
-    console.error(error);
-    toast(error.message||"无法处理这张图片或 GIF。");
-    clearSelectedPhoto();
-  }
-}
-
-async function savePhotoBlob(blob,mime,name){
-  const ext=mime.includes("gif")?"gif":mime.includes("png")?"png":mime.includes("jpeg")||mime.includes("jpg")?"jpg":"webp";
-  const safeName=(name||`always-yours-${Date.now()}.${ext}`).replace(/[^a-zA-Z0-9._-]+/g,"-");
-  const file=new File([blob],safeName,{type:mime||blob.type||"image/webp"});
-  try{
-    if(navigator.share && navigator.canShare && navigator.canShare({files:[file]})){
-      await navigator.share({title:"Always Yours ♡",text:"A little memory for us.",files:[file]});
-      toast("Choose Save Image / Save to Photos ♡");
-      return;
-    }
-  }catch(error){
-    if(error?.name==="AbortError") return;
-  }
-  const url=URL.createObjectURL(blob);
-  mediaObjectUrls.add(url);
-  const a=document.createElement("a");
-  a.href=url; a.download=safeName; a.rel="noopener";
-  document.body.appendChild(a); a.click(); a.remove();
-  toast("Photo saved to your downloads ♡");
-  setTimeout(()=>{URL.revokeObjectURL(url);mediaObjectUrls.delete(url)},1500);
-}
-
-async function hydrateImageMessage(container,item){
-  const loading=document.createElement("div"); loading.className="image-loading"; loading.textContent="Opening our little memory…";
-  container.appendChild(loading);
-  try{
-    const encrypted=await apiGetMedia(item.media_key);
-    const plain=await crypto.subtle.decrypt({name:"AES-GCM",iv:base64ToBytes(item.image_iv)},cryptoKey,encrypted);
-    const blob=new Blob([plain],{type:item.mime||"image/webp"});
-    const url=URL.createObjectURL(blob); mediaObjectUrls.add(url);
-    loading.remove();
-    const frame=document.createElement("div"); frame.className="image-frame";
-    const img=document.createElement("img"); img.className="message-image"; img.alt=item.mime==="image/gif"?"动画 GIF":"收到的照片"; img.loading="lazy"; img.src=url;
-    img.addEventListener("click",()=>openPhotoViewer({url,blob,name:item.name||"always-yours-photo.webp",mime:item.mime||"image/webp"}));
-    frame.appendChild(img); container.appendChild(frame);
-    if(item.text){ const cap=document.createElement("div"); cap.className="image-caption"; cap.textContent=item.text; container.appendChild(cap); }
-    const actions=document.createElement("div"); actions.className="image-actions";
-    const save=document.createElement("button"); save.type="button"; save.className="image-action-button"; save.textContent="Save to Photos / Gallery ♡";
-    save.addEventListener("click",()=>savePhotoBlob(blob,item.mime||"image/webp",item.name)); actions.appendChild(save);
-    container.appendChild(actions);
-  }catch(error){
-    loading.className="image-error"; loading.textContent="This photo has expired or is no longer available. ♡";
-  }
-}
-
-async function decodeItems(raw){
-  const out=[];
-  for(const item of raw){
-    if(Number(item.expires_at||0)<=Date.now()) continue;
-    try{
-      let payload;
-      const cached=messagePlaintextCache.get(item.id);
-      if(cached?.iv===item.iv && cached.ciphertext===item.ciphertext){payload=cached.payload;}
-      else{
-        payload=await decryptPayload(item.iv,item.ciphertext);
-        messagePlaintextCache.set(item.id,{iv:item.iv,ciphertext:item.ciphertext,payload});
-        if(messagePlaintextCache.size>400){messagePlaintextCache.delete(messagePlaintextCache.keys().next().value);}
-      }
-      out.push({
-        id:item.id,
-        sender:item.sender,
-        created_at:item.created_at,
-        expires_at:item.expires_at,
-        edited_at:Number(item.edited_at||0) || 0,
-        seen_at:Number(item.seen_at||0) || 0,
-        kind:payload.kind,
-        text:payload.text || "",
-        media_key:payload.mediaKey || item.media_key || "",
-        image_iv:payload.imageIv || "",
-        mime:payload.mime || "image/webp",
-        name:payload.name || "always-yours-photo.webp",
-        reply:payload.reply && typeof payload.reply==="object" && /^[a-f0-9-]{36}$/i.test(payload.reply.id||"") ? {
-          id:payload.reply.id, sender:payload.reply.sender==="Ko Ko"?"Ko Ko":"Chit Chit",
-          kind:String(payload.reply.kind||"text"),text:String(payload.reply.text||"").slice(0,120)
-        }:null
-      });
-    }catch{}
-  }
-  return out;
-}
-
-
-async function markVisibleMessagesRead(items){
-  if(!roomId || !items?.length) return;
-  const unreadIds=items.filter(item=>!userIsMine(item.sender) && !readMarkedIds.has(item.id)).map(item=>item.id);
-  if(!unreadIds.length) return;
-  try{
-    await apiMarkRead(unreadIds);
-    unreadIds.forEach(id=>readMarkedIds.add(id));
-  }catch{}
-}
-
-function renderPresenceStatus(data){
-  ensurePresenceUi();
-  if(!presenceEl) return;
-  const partner=otherUser(selectedName);
-  const record=data?.presence?.[partner];
-  const online=Boolean(record?.online);
-  const text=online ? `${partner} · Online now` : (record?.last_seen ? `${partner} · ${lastSeenLabel(record.last_seen)}` : `${partner} · not online yet`);
-  presenceEl.classList.toggle("is-online",online);
-  presenceEl.classList.toggle("is-away",!online);
-  const textEl=presenceEl.querySelector(".presence-text");
-  if(textEl) textEl.textContent=text;
-}
-function lastSeenLabel(value){
-  const diff=Math.max(0,Date.now()-Number(value||0));
-  if(diff<60000) return "just now";
-  const mins=Math.floor(diff/60000);
-  if(mins<60) return `last seen ${mins}m ago`;
-  const hours=Math.floor(mins/60);
-  if(hours<24) return `last seen ${hours}h ago`;
-  return `last seen ${Math.floor(hours/24)}d ago`;
-}
-async function syncPresence(){
-  if(!roomId || presenceSyncBusy || document.visibilityState==="hidden") return;
-  presenceSyncBusy=true;
-  try{ renderPresenceStatus(await apiGetPresence()); }catch{} finally{ presenceSyncBusy=false; }
-}
-function startPresence(){
-  stopPresence();
-  apiPresence(true).catch(()=>{});
-  syncPresence();
-  presenceTimer=setInterval(()=>{
-    if(document.visibilityState==="hidden") return;
-    apiPresence(true).catch(()=>{});
-    syncPresence();
-  },30000);
-}
-function stopPresence(){ if(presenceTimer){clearInterval(presenceTimer);presenceTimer=null;} }
-
-function updateLoadOlderButton(){
-  const button=$("loadOlderMessages");
-  if(!button)return;
-  button.hidden=!hasMoreHistory && !historyBusy;
-  button.disabled=historyBusy;
-  button.textContent=historyBusy?"正在加载以前的回忆…":"查看更早的消息 ♡";
-}
-function mergeHistory(recent,old){
-  const merged=new Map();
-  for(const item of old){if(Number(item.expires_at)>Date.now())merged.set(item.id,item);}
-  for(const item of recent){merged.set(item.id,item);}
-  return [...merged.values()].sort((a,b)=>Number(a.created_at)-Number(b.created_at)||a.id.localeCompare(b.id));
-}
-async function loadOlderMessages(){
-  if(historyBusy||!hasMoreHistory||!roomId||!historyMessages.length)return;
-  historyBusy=true;updateLoadOlderButton();
-  const epoch=viewEpoch;
-  const oldest=historyMessages[0];
-  const preservedTop=messagesEl.scrollTop;
-  const preservedHeight=messagesEl.scrollHeight;
-  try{
-    const response=await apiGetMessages({before:oldest.created_at,beforeId:oldest.id});
-    if(epoch!==viewEpoch)return;
-    const older=await decodeItems(response.messages);
-    if(epoch!==viewEpoch)return;
-    historyMessages=mergeHistory(older,historyMessages);
-    hasMoreHistory=response.hasMore;
-    const ids=historyMessages.map(x=>`${x.id}:${x.edited_at||0}:${x.seen_at||0}`).join("|");
-    lastMessageIds=ids;
-    lastContentIds=historyMessages.map(x=>`${x.id}:${x.edited_at||0}`).join("|");
-    renderMessages(historyMessages);
-    if(document.visibilityState!=="hidden")markVisibleMessagesRead(older);
-    // Keep the current place in the timeline after older messages are prepended.
-    requestAnimationFrame(()=>{if(epoch===viewEpoch)messagesEl.scrollTop=preservedTop+(messagesEl.scrollHeight-preservedHeight);});
-  }catch(e){if(epoch===viewEpoch)toast("较早的消息暂时无法加载，请稍后重试 ♡");}
-  finally{if(epoch===viewEpoch){historyBusy=false;updateLoadOlderButton();}}
-}
-$("loadOlderMessages")?.addEventListener("click",loadOlderMessages);
-async function syncMessages({silent=false}={}){
-  if(!roomId || !cryptoKey || syncing)return;
-  syncing=true;
-  const epoch=viewEpoch;
-  try{
-    const response=await apiGetMessages();
-    if(epoch!==viewEpoch)return;
-    const recent=await decodeItems(response.messages);
-    if(epoch!==viewEpoch)return;
-    const items=mergeHistory(recent,historyMessages);
-    historyMessages=items;
-    // Only replace the "older history available" flag before the first user request to load history.
-    if(!items.length || items.length===recent.length)hasMoreHistory=response.hasMore;
-    updateLoadOlderButton();
-    const ids=items.map(x=>`${x.id}:${x.edited_at||0}:${x.seen_at||0}`).join("|");
-    const changed=ids!==lastMessageIds;
-    const contentIds=items.map(x=>`${x.id}:${x.edited_at||0}`).join("|");
-    const contentChanged=contentIds!==lastContentIds;
-    lastMessageIds=ids;
-    lastContentIds=contentIds;
-    if(changed && 'BroadcastChannel' in window){
-      const channel=new BroadcastChannel('always-yours-chat-events');
-      channel.postMessage({type:'messages-updated'});
-      channel.close();
-    }
-    // Keep the encrypted offline cache small rather than putting a month of plaintext in storage.
-    saveCache(items.slice(-MAX_VISIBLE_MESSAGES));
-    if(contentChanged || !messagesEl.children.length)renderMessages(items);
-    else if(changed)updateReadReceipts(items);
-    if(document.visibilityState!=="hidden")markVisibleMessagesRead(recent);
-    syncPresence();
-    updateConnection("已连接 · 已同步");
-    clearBackendIssue();
-    if(!firstSync && recent.some(m=>m.sender!==selectedName && m.created_at>Date.now()-60000) && changed)showNewHint();
-    firstSync=false;
-    lastRenderedCount=items.length;
-  }catch(error){
-    if(epoch!==viewEpoch)return;
-    const cached=await loadCache();
-    if(epoch!==viewEpoch)return;
-    if(cached.length && !messagesEl.children.length)renderMessages(cached);
-    updateConnection(navigator.onLine?"服务器未连接":"离线 · 最近消息仅在本机");
-    showBackendIssue(error);
-    if(!silent && navigator.onLine)toast("聊天服务器暂时未连接，请稍后重试。");
-  }finally{syncing=false;}
-}
-function startPolling(){
-  stopPolling();
-  syncMessages({silent:true});
-  pollTimer=setInterval(()=>{ if(document.visibilityState!=="hidden") syncMessages({silent:true}); }, POLL_MS);
-}
-function stopPolling(){ if(pollTimer){clearInterval(pollTimer);pollTimer=null;} }
-
-async function connectRoom(secret){
-  if(!roleChosen||!validRole(selectedName)){setStatus("请先选择 HE 或 SHE。");return;}
-  secret=sanitizeSecret(secret);
-  if(secret.length<10){setStatus("共同密钥至少需要 10 个字符。");return;}
-  setStatus("正在安全保存设备连接…");
-  try{
-    const id=(await sha256Hex(`${ROOM_SALT}:${secret}`)).slice(0,40);
-    const key=await deriveKey(secret);
-    await deviceRecord("put",{room:id,key}); // Non-extractable WebCrypto key, no raw passphrase stored.
-    roomId=id;cryptoKey=key;secretInput.value="";
-    $("setup").classList.add("hidden");openPreparedRoom();
-  }catch(error){console.error(error);setStatus("设备保存失败。请开启浏览器存储后重试。");}
-}
-
-function replySummary(item){
-  const preview=item.kind==="image"?(item.mime==="image/gif"?"🎞️ GIF 动图":"📷 照片")+(item.text?" · "+item.text:"") : String(item.text||"消息");
-  return {id:item.id,sender:item.sender,kind:item.kind,text:preview.slice(0,120)};
-}
-function clearReply(){
-  replyingTo=null;
-  replyPreview?.classList.add("hidden");
-  updateSendButton();
-}
-function beginReply(item){
-  if(!item||!item.id)return;
-  if(editingMessageId)cancelEdit();
-  replyingTo=replySummary(item);
-  if(replyPreviewLabel)replyPreviewLabel.textContent=`↩ 回复 ${item.sender==="Ko Ko"?"HE · Ko Ko":"SHE · Chit Chit"}`;
-  if(replyPreviewText)replyPreviewText.textContent=replyingTo.text;
-  replyPreview?.classList.remove("hidden");
-  input.placeholder="写下你的回复…";
-  input.focus({preventScroll:true});
-}
-$("cancelReplyBtn")?.addEventListener("click",clearReply);
-
-function beginEdit(item){
-  if(!item || item.kind!=="text" || !userIsMine(item.sender)) return;
-  clearReply();
-  editingMessageId=item.id;
-  editingMessageReply=item.reply||null;
-  ensureEditBar();
-  input.value=item.text||"";
-  input.style.height="auto";
-  input.style.height=Math.min(input.scrollHeight,130)+"px";
-  if(editBar){
-    editBar.classList.remove("hidden");
-    const label=editBar.querySelector("#editBarText");
-    if(label) label.textContent=(item.text||"").slice(0,80);
-  }
-  sendBtn.textContent="保存修改 ♡";
-  sendBtn.disabled=!String(input.value||"").trim();
-  input.placeholder="编辑这条消息…";
-  input.focus({preventScroll:true});
-}
-function cancelEdit(){
-  editingMessageId=null;
-  editingMessageReply=null;
-  if(editBar) editBar.classList.add("hidden");
-  if(input) input.placeholder="想和 TA 说些什么…";
-  updateSendButton();
-}
-async function editMessage(){
-  if(outgoingBusy)return;
-  const id=editingMessageId;
-  const text=String(input.value||"").trim();
-  if(!id) return sendMessage();
-  if(!text){ toast("An edited message cannot be empty."); return; }
-  if(text.length>2000){ toast("Message is too long."); return; }
-  outgoingBusy=true;sendBtn.disabled=true;
-  try{
-    const encrypted=await encryptPayload({kind:"text",text,reply:editingMessageReply||undefined});
-    await apiEditMessage(id,encrypted);
-    cancelEdit();
-    input.value="";
-    input.style.height="auto";
-    try{localStorage.removeItem("alwaysYoursDraft")}catch{}
-    await syncMessages({silent:true});
-    toast("Message updated ♡");
-  }catch(error){
-    console.error(error);
-    toast(error.message||"Could not edit message.");
-  }finally{
-    outgoingBusy=false;
-    updateSendButton();
-    input.focus();
-  }
-}
-
-async function sendMessage(kind="text", value=input.value){
-  if(outgoingBusy)return;
-  const textValue=String(value||"").trim();
-  const hasPhoto=Boolean(selectedPhotoFile);
-  if(!roomId || !cryptoKey || !validRole(selectedName) || (!textValue && !hasPhoto)) return;
-  if(textValue.length>2000){ toast("Message is too long."); return; }
-  outgoingBusy=true;sendBtn.disabled=true;
-  const messageId=crypto.randomUUID();
-  try{
-    if(hasPhoto){
-      const arrayBuffer=await selectedPhotoFile.arrayBuffer();
-      const encryptedImage=await encryptBinary(arrayBuffer);
-      const mediaKey=`${roomId}/${crypto.randomUUID()}.bin`;
-      setStatus("Sending our little photo…");
-      await apiUploadMedia(encryptedImage.ciphertext,mediaKey);
-      const encryptedMessage=await encryptPayload({
-        kind:"image",
-        reply:replyingTo||undefined,
-        text:textValue,
-        mediaKey,
-        imageIv:encryptedImage.iv,
-        mime:selectedPhotoFile.type||"image/webp",
-        name:selectedPhotoFile.name||"always-yours-photo.webp"
-      });
-      await apiSendMessage({id:messageId,sender:selectedName,media_key:mediaKey,...encryptedMessage});
-      clearSelectedPhoto();
-    }else{
-      const encrypted=await encryptPayload({kind,text:textValue,reply:replyingTo||undefined});
-      await apiSendMessage({id:messageId,sender:selectedName,...encrypted});
-      input.value="";
-      input.style.height="auto";
-      try{localStorage.removeItem("alwaysYoursDraft")}catch{}
-    }
-    clearReply();
-    stickerPanel.classList.add("hidden");
-    if(emojiPanel) emojiPanel.classList.add("hidden");
-    $("stickerBtn")?.setAttribute("aria-expanded","false");
-    $("emojiBtn")?.setAttribute("aria-expanded","false");
-    setStatus("");
-    clearBackendIssue();
-    await syncMessages({silent:true});
-  }catch(error){
-    console.warn("Message send uncertain or failed:",String(error?.message||error).slice(0,140));
-    // A timed-out POST can have reached Supabase: verify its unique ID before telling the user to retry.
-    let delivered=false;
-    try{
-      const page=await apiGetMessages();
-      delivered=page.messages.some(item=>item.id===messageId);
-    }catch{}
-    if(delivered){
-      clearSelectedPhoto(); input.value="";input.style.height="auto"; clearReply();
-      await syncMessages({silent:true});
-      toast("消息已在云端确认送达 ♡");
-    }else{
-      toast(navigator.onLine?"暂时无法确认送达，请检查聊天记录后再重发。":"当前离线，消息尚未确认送达。");
-      updateConnection("未确认送达 · 请检查连接");
-      showBackendIssue(error);
-    }
-  }finally{
-    outgoingBusy=false;
-    updateSendButton();
-    input.focus();
-  }
-}
-
-function syncNameChoice(){
-  document.querySelectorAll(".name-option").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.name===selectedName)));
-  if(selectedPerson)selectedPerson.textContent=`${selectedName=== "Ko Ko" ? "HE" : "SHE"} 已选择`;
-}
-for(const btn of document.querySelectorAll(".name-option"))btn.addEventListener("click",()=>chooseRole(btn.dataset.name));
-syncNameChoice();
-$("toggleSecret").addEventListener("click",()=>{
-  const show=secretInput.type==="password";secretInput.type=show?"text":"password";
-  $("toggleSecret").textContent=show?"隐藏":"显示";
-  $("toggleSecret").setAttribute("aria-label",show?"隐藏密钥":"显示密钥");
-});
-$("enterBtn").addEventListener("click",()=>connectRoom(secretInput.value));
-secretInput.addEventListener("keydown",e=>{if(e.key==="Enter")connectRoom(secretInput.value);});
-$("changeSecretBtn").addEventListener("click",()=>{
-  if(outgoingBusy){toast("消息正在发送，请稍等再切换身份 ♡");return;}
-  showGate();roomId=null;cryptoKey=null;setStatus("");$("setup").classList.add("hidden");
-});
-$("resetDeviceBtn").addEventListener("click",async()=>{
-  if(!confirm("要重新配置这台设备吗？此操作不会删除云端消息，但需要再次输入之前的共同密钥。"))return;
-  await deviceRecord("delete");roomId=null;cryptoKey=null;
-  revealSetup("请重新输入之前的共同密钥。");
-});
-sendBtn.addEventListener("click",()=>editingMessageId?editMessage():sendMessage());
-photoBtn?.addEventListener("click",()=>photoInput?.click());
-gifBtn?.addEventListener("click",()=>toggleGifPanel());
-const gifPanel=$("gifPanel");
-const gifUrlInput=$("gifUrlInput");
-const gifImportBtn=$("gifImportBtn");
-const gifPickBtn=$("gifPickBtn");
-const gifStatus=$("gifStatus");
-const CURATED_GIFS=[
-  {file:"pulse-love.gif",label:"心动"},
-  {file:"hugs.gif",label:"抱抱"},
-  {file:"miss-you.gif",label:"想你了"},
-  {file:"good-night.gif",label:"晚安"},
-  {file:"kiss.gif",label:"亲亲"},
-  {file:"forever.gif",label:"永远是你"}
-];
-function hideGifPanel(){gifPanel?.classList.add("hidden");gifBtn?.setAttribute("aria-expanded","false");}
-function toggleGifPanel(){
-  const opening=gifPanel?.classList.contains("hidden");
-  if(!gifPanel)return;
-  gifPanel.classList.toggle("hidden",!opening);
-  gifBtn?.setAttribute("aria-expanded",String(opening));
-  emojiPanel?.classList.add("hidden");stickerPanel?.classList.add("hidden");
-  if(opening)gifUrlInput?.focus({preventScroll:true});
-}
-function setGifStatus(message){if(gifStatus)gifStatus.textContent=message;}
-async function selectRomanticGif(filename,label){
-  setGifStatus(`准备 ${label} 动图…`);
-  try{
-    const url=new URL(`./romantic-gifs/${filename}`,window.location.href);
-    const res=await fetch(url,{cache:"force-cache"});
-    if(!res.ok)throw new Error("内置动图加载失败");
-    const file=new File([await res.blob()],filename,{type:"image/gif"});
-    await choosePhoto(file);
-    if(selectedPhotoFile){hideGifPanel();toast(`已选「${label}」♡ 点击发送即可加密分享`);}
-  }catch(e){setGifStatus(e.message||"动图暂时不可用");}
-}
-function normalizeRomanticGifUrl(value){
-  const raw=String(value||"").trim();
-  let u;
-  try { u=new URL(raw); }catch{throw new Error("请输入 GIF 图片的网址（https://…）");}
-  if(u.protocol!=="https:"||u.username||u.password||u.port)throw new Error("只接受 HTTPS GIF 网址");
-  const host=u.hostname.toLowerCase();
-  // GIPHY GIF page links can be converted into their official media endpoint.
-  if(host==="giphy.com"||host==="www.giphy.com"){
-    const last=u.pathname.split("/").filter(Boolean).pop()||"";
-    const gifId=last.split("-").pop();
-    if(!/^[a-zA-Z0-9]{8,40}$/.test(gifId))throw new Error("GIPHY 页面地址不完整，请使用复制图片地址");
-    u=new URL(`https://media.giphy.com/media/${gifId}/giphy.gif`);
-  }
-  const allowed=host==="media.giphy.com"||host==="i.giphy.com"||host==="media.tenor.com"||host==="c.tenor.com"||host==="giphy.com"||host==="www.giphy.com";
-  if(!allowed)throw new Error("仅支持 GIPHY 和 Tenor 的 GIF 图片直链");
-  if(!/\.gif$/i.test(u.pathname))throw new Error("请复制 .gif 图片地址，而不是网页地址");
-  u.search="";u.hash="";
-  return u.href;
-}
-async function importOnlineGif(){
-  const btn=gifImportBtn;
-  try{
-    const url=normalizeRomanticGifUrl(gifUrlInput?.value);
-    btn.disabled=true;
-    setGifStatus("正在安全获取 GIF…（最多 2 MB）");
-    const controller=new AbortController();
-    const timeout=setTimeout(()=>controller.abort(),12000);
-    let file;
-    try{
-      const response=await fetch(url,{credentials:"omit",mode:"cors",redirect:"follow",signal:controller.signal,cache:"no-store"});
-      if(!response.ok)throw new Error("图片下载失败，请换一个 GIF");
-      if(Number(response.headers.get("Content-Length")||0)>2*1024*1024)throw new Error("GIF 超过 2 MB，请换较小的 GIF");
-      if(!response.body)throw new Error("此图片网站暂不支持获取 GIF");
-      const chunks=[];let size=0;const reader=response.body.getReader();
-      while(true){const {done,value}=await reader.read();if(done)break;size+=value.length;
-        if(size>2*1024*1024){await reader.cancel();throw new Error("GIF 超过 2 MB，请换较小的动图");}
-        chunks.push(value);
-      }
-      file=new File(chunks,`our-romantic-gif-${Date.now()}.gif`,{type:"image/gif"});
-    }finally{clearTimeout(timeout);}
-    await choosePhoto(file);
-    if(selectedPhotoFile){hideGifPanel();toast("GIF 已选好，确认发送后会加密上传 ♡");}
-  }catch(e){setGifStatus(e.name==="AbortError"?"下载超时，请换一个 GIF 直链":e instanceof TypeError?"图片站点限制了跨域下载；试试另存 GIF 后本地上传":e.message);}
-  finally{if(btn)btn.disabled=false;}
-}
-function initializeGifPanel(){
-  if(!gifPanel)return;
-  // Chat-relative sheet never shifts the whole page or overflows beyond the header.
-  chat.appendChild(gifPanel);
-  const grid=gifPanel.querySelector(".romantic-gif-grid");
-  for(const entry of CURATED_GIFS){
-    const btn=document.createElement("button");btn.type="button";btn.className="romantic-gif-option";btn.title=`选择 ${entry.label} GIF`;
-    const img=document.createElement("img");img.src=`./romantic-gifs/${entry.file}`;img.alt=`${entry.label} GIF`;img.width=120;img.height=94;img.loading="lazy";
-    const caption=document.createElement("span");caption.textContent=entry.label;
-    btn.append(img,caption);btn.addEventListener("click",()=>selectRomanticGif(entry.file,entry.label));
-    grid?.appendChild(btn);
-  }
-  gifImportBtn?.addEventListener("click",importOnlineGif);
-  gifUrlInput?.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();importOnlineGif();}});
-  gifPickBtn?.addEventListener("click",()=>gifInput?.click());
-  $("closeGifPanel")?.addEventListener("click",hideGifPanel);
-}
-initializeGifPanel();
-gifInput?.addEventListener("change",()=>{const file=gifInput.files?.[0];if(file)choosePhoto(file);});
-photoInput?.addEventListener("change",()=>{ const file=photoInput.files?.[0]; if(file) choosePhoto(file); });
-removePhotoBtn?.addEventListener("click",clearSelectedPhoto);
-updateSendButton();
-input.addEventListener("input",()=>{ input.style.height="auto"; input.style.height=Math.min(input.scrollHeight,130)+"px"; updateSendButton(); });
-input.addEventListener("keydown",e=>{ if(e.key==="Enter"&&!e.shiftKey){ e.preventDefault(); editingMessageId?editMessage():sendMessage(); } });
-// Previous versions cached plaintext drafts. Do not persist unencrypted new drafts.
-try{localStorage.removeItem("alwaysYoursDraft");}catch{}
-
-function buildStickerPanel(){
-  stickerPanel.innerHTML="";
-  const head=document.createElement("div");
-  head.className="picker-head";
-  head.innerHTML='<div><span class="picker-overline">JUST FOR US ♡</span><strong>心动小贴纸</strong><small>点一下，把爱意送给 TA</small></div>';
-  const close=document.createElement("button");
-  close.type="button";close.className="picker-close";close.textContent="×";close.setAttribute("aria-label","关闭贴纸面板");
-  close.addEventListener("click",()=>{stickerPanel.classList.add("hidden");$("stickerBtn").setAttribute("aria-expanded","false");});
-  head.appendChild(close);stickerPanel.appendChild(head);
-  const makeTitle=(title)=>{const el=document.createElement("div");el.className="picker-section-label";el.textContent=title;stickerPanel.appendChild(el);};
-  const iconGrid=document.createElement("div");iconGrid.className="sticker-grid compact-sticker-grid";
-  const wordsGrid=document.createElement("div");wordsGrid.className="sticker-words-grid";
-  for(const s of STICKERS){
-    const isWord=/[\u3400-\u9fff]/.test(s);
-    const b=document.createElement("button");
-    b.type="button";b.className=isWord?"sticker-word":"sticker compact-sticker";
-    b.textContent=s;
-    b.title=`发送 ${s}`;b.setAttribute("aria-label",`发送 ${s}`);
-    b.addEventListener("click",()=>sendMessage("sticker",s));
-    (isWord?wordsGrid:iconGrid).appendChild(b);
-  }
-  makeTitle("心动表情");stickerPanel.appendChild(iconGrid);
-  makeTitle("暖心短句");stickerPanel.appendChild(wordsGrid);
-}
-buildStickerPanel();
-
-function buildEmojiPanel(){
-  if(!emojiPanel) return;
-  const groups={
-    "常用": EMOJIS,
-    "心情": ["😊","🥰","😘","😍","🫶","🥺","😚","😌","🤭","☺️","😇","🤗","😋","😉"],
-    "爱意": ["🫶","💕","💗","💖","💞","💋","🌹","💘","🩷","🤍","❤️‍🔥","💐","💓","💝"],
-    "温柔": ["🌙","✨","🥺","🤍","🩷","💗","💞","🌷","🌸","🪽","☁️","⭐","💫","🫧"]
-  };
-  let current="常用";
-  const render=()=>{
-    emojiPanel.innerHTML="";
-    const head=document.createElement("div");
-    head.className="emoji-panel-head";
-    head.innerHTML='<div><span class="picker-overline">LITTLE FEELINGS ♡</span><strong>挑一个心情</strong><small>让每一句话更可爱</small></div>';
-    const close=document.createElement('button');close.type='button';close.className='picker-close';close.textContent='×';close.setAttribute('aria-label','关闭表情面板');
-    close.addEventListener('click',()=>{emojiPanel.classList.add('hidden');$('emojiBtn').setAttribute('aria-expanded','false');});
-    head.appendChild(close);
-    emojiPanel.appendChild(head);
-    const tabs=document.createElement("div");
-    tabs.className="emoji-tabs";
-    Object.keys(groups).forEach(name=>{
-      const tab=document.createElement("button");
-      tab.type="button"; tab.className="emoji-tab"; tab.textContent=name;
-      tab.setAttribute("aria-selected",String(name===current));
-      tab.addEventListener("click",(event)=>{event.preventDefault();event.stopPropagation();current=name;render();});
-      tabs.appendChild(tab);
-    });
-    emojiPanel.appendChild(tabs);
-    const grid=document.createElement("div"); grid.className="emoji-grid";
-    groups[current].forEach(e=>{
-      const b=document.createElement("button");
-      b.type="button"; b.className="emoji-choice"; b.textContent=e; b.title=`Use ${e}`;
-      b.addEventListener("click",(event)=>{event.preventDefault();event.stopPropagation();input.value += e;input.focus();updateSendButton();});
-      grid.appendChild(b);
-    });
-    emojiPanel.appendChild(grid);
-    const foot=document.createElement("div");
-    foot.className="emoji-panel-foot"; foot.textContent="轻点表情加入文字，再按发送 ♡";
-    emojiPanel.appendChild(foot);
-  };
-  render();
-}
-buildEmojiPanel();
-
-function ensurePhotoViewer(){
-  if(document.getElementById("photoViewer")) return document.getElementById("photoViewer");
-  const modal=document.createElement("div");
-  modal.id="photoViewer"; modal.className="photo-viewer hidden"; modal.setAttribute("aria-hidden","true");
-  modal.innerHTML=`
-    <div class="photo-viewer-backdrop" data-photo-close="1"></div>
-    <div class="photo-viewer-sheet" role="dialog" aria-modal="true" aria-label="Photo viewer">
-      <div class="photo-viewer-topbar">
-        <div class="photo-viewer-title"><span class="photo-viewer-heart">♡</span><span id="photoViewerName">Our little memory</span></div>
-        <button type="button" class="photo-viewer-close" id="photoViewerClose" aria-label="Back to chat">Back to chat</button>
-      </div>
-      <div class="photo-viewer-stage" id="photoViewerStage">
-        <img id="photoViewerImg" alt="Shared photo">
-      </div>
-      <div class="photo-viewer-controls">
-        <button type="button" class="viewer-tool" id="photoZoomOut" aria-label="Zoom out">−</button>
-        <button type="button" class="viewer-zoom" id="photoZoomReset" aria-label="Reset zoom">100%</button>
-        <button type="button" class="viewer-tool" id="photoZoomIn" aria-label="Zoom in">+</button>
-        <button type="button" class="viewer-tool viewer-save" id="photoViewerSave">Save ♡</button>
-      </div>
-    </div>`;
-  document.body.appendChild(modal);
-  let scale=1, state=null;
-  const img=modal.querySelector("#photoViewerImg");
-  const stage=modal.querySelector("#photoViewerStage");
-  const label=modal.querySelector("#photoViewerName");
-  const zoomLabel=modal.querySelector("#photoZoomReset");
-  const applyScale=()=>{scale=Math.min(3.5,Math.max(.5,scale)); img.style.transform=`scale(${scale})`; zoomLabel.textContent=`${Math.round(scale*100)}%`;};
-  const close=()=>{modal.classList.add("hidden");modal.setAttribute("aria-hidden","true");document.body.classList.remove("photo-viewer-open");img.style.transform="scale(1)";scale=1;state=null;};
-  window.__alwaysYoursPhotoViewer={open(next){
-    state=next; scale=1; applyScale(); img.src=next.url; img.alt=next.name||"Shared photo"; label.textContent=next.name||"Our little memory";
-    modal.classList.remove("hidden"); modal.setAttribute("aria-hidden","false"); document.body.classList.add("photo-viewer-open");
-  },close};
-  modal.querySelector("#photoViewerClose").addEventListener("click",close);
-  modal.querySelector("[data-photo-close]").addEventListener("click",close);
-  modal.querySelector("#photoZoomOut").addEventListener("click",()=>{scale-=.25;applyScale();});
-  modal.querySelector("#photoZoomIn").addEventListener("click",()=>{scale+=.25;applyScale();});
-  modal.querySelector("#photoZoomReset").addEventListener("click",()=>{scale=1;applyScale();});
-  modal.querySelector("#photoViewerSave").addEventListener("click",()=>{if(state) savePhotoBlob(state.blob,state.mime,state.name);});
-  stage.addEventListener("wheel",e=>{if(modal.classList.contains("hidden"))return;e.preventDefault();scale += e.deltaY<0?.15:-.15;applyScale();},{passive:false});
-  img.addEventListener("dblclick",()=>{scale=scale>1?1:2;applyScale();});
-  document.addEventListener("keydown",e=>{
-    if(modal.classList.contains("hidden")) return;
-    if(e.key==="Escape" || e.key==="Backspace"){e.preventDefault();close();}
-    if(e.key==="+"){scale+=.25;applyScale();}
-    if(e.key==="-"){scale-=.25;applyScale();}
-    if(e.key==="0"){scale=1;applyScale();}
-  });
-  return modal;
-}
-function openPhotoViewer(data){ ensurePhotoViewer(); window.__alwaysYoursPhotoViewer?.open(data); }
-
-$("emojiBtn").addEventListener("click",()=>{ const open=emojiPanel.classList.toggle("hidden"); stickerPanel.classList.add("hidden"); hideGifPanel(); $("emojiBtn").setAttribute("aria-expanded",String(!open)); $("stickerBtn").setAttribute("aria-expanded","false"); });
-$("stickerBtn").addEventListener("click",()=>{ const open=stickerPanel.classList.toggle("hidden"); emojiPanel.classList.add("hidden"); hideGifPanel(); $("stickerBtn").setAttribute("aria-expanded",String(!open)); $("emojiBtn").setAttribute("aria-expanded","false"); });
-
-document.addEventListener("click",e=>{
-  const target=e.target;
-  if(emojiPanel && !emojiPanel.classList.contains("hidden") && !emojiPanel.contains(target) && target!==$("emojiBtn")){emojiPanel.classList.add("hidden");$("emojiBtn").setAttribute("aria-expanded","false");}
-  if(stickerPanel && !stickerPanel.classList.contains("hidden") && !stickerPanel.contains(target) && target!==$("stickerBtn")){stickerPanel.classList.add("hidden");$("stickerBtn").setAttribute("aria-expanded","false");}
-  if(gifPanel && !gifPanel.classList.contains("hidden") && !gifPanel.contains(target) && target!==gifBtn)hideGifPanel();
-});
-
-function isStandalone(){
-  return window.matchMedia?.("(display-mode: standalone)").matches || window.navigator.standalone === true;
-}
-function deviceType(){
-  const ua=navigator.userAgent||"";
-  const iPad = /iPad/i.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-  const iPhone = /iPhone|iPod/i.test(ua);
-  const android = /Android/i.test(ua);
-  if(iPad) return "ipad";
-  if(iPhone) return "ios";
-  if(android) return "android";
-  return /Macintosh/i.test(ua) ? "mac" : "desktop";
-}
-function openInstallModal(){
-  if (!installModal) return;
-  installModal.querySelector("h3").textContent = "安装 Our Love Hub ♡";
-  installLead.textContent = "整个网站只有一个桌面入口。请从 Our Love Hub 总首页添加到主屏幕，避免单独安装 Chat。";
-  installSteps.innerHTML = '<div class="install-step"><span class="install-step-num">1</span><div class="install-step-text"><strong>打开总首页</strong><span>点击下方按钮进入 Our Love Hub。</span></div></div><div class="install-step"><span class="install-step-num">2</span><div class="install-step-text"><strong>添加到主屏幕</strong><span>iPhone：在 Safari 点分享 → 添加到主屏幕。其他浏览器选择安装应用。</span></div></div>';
-  installAction.textContent = "前往 Our Love Hub 总首页 ↗";
-  installAction.classList.remove("hidden");
-  installModal.classList.remove("hidden");
-  document.body.classList.add("install-open");
-}
-function closeInstallModal(){
-  installModal?.classList.add("hidden");
-  document.body.classList.remove("install-open");
-}
-function refreshInstallButtons(){
-  const installed=isStandalone();
-  for(const b of installButtons) b?.classList.toggle("hidden", installed);
-}
-// All install actions use the root hub, not a separate chat PWA.
-window.addEventListener("beforeinstallprompt",e=>{ e.preventDefault(); deferredInstallPrompt=null; });
-function hubInstallUrl(){ return new URL('../', location.href).href; }
-for(const button of installButtons) button?.addEventListener('click',openInstallModal);
-closeInstall?.addEventListener('click',closeInstallModal);
-installModal?.addEventListener('click',e=>{ if(e.target.dataset.closeInstall!==undefined) closeInstallModal(); });
-installAction?.addEventListener('click',()=>{ window.location.assign(hubInstallUrl()); });
-window.addEventListener("load",refreshInstallButtons);
-
-window.addEventListener("online",()=>{ updateConnection("Back online · syncing…"); syncMessages({silent:true}); });
-window.addEventListener("offline",()=>updateConnection("Offline · last messages kept here"));
-document.addEventListener("visibilitychange",()=>{ if(!roomId) return; if(document.visibilityState!=="hidden"){ apiPresence(true).catch(()=>{}); syncMessages({silent:true}); syncPresence(); } else { apiPresence(false).catch(()=>{}); } });
-window.addEventListener("beforeunload",()=>{ apiPresence(false).catch(()=>{}); stopPolling(); stopPresence(); window.__alwaysYoursPhotoViewer?.close(); if(selectedPhotoPreviewUrl){try{URL.revokeObjectURL(selectedPhotoPreviewUrl)}catch{}} for(const url of mediaObjectUrls){try{URL.revokeObjectURL(url)}catch{}} });
-
-// Web Push is independent of the browser page: messages are delivered to the scoped Service Worker.
-// The device never uploads the chat passphrase or decryptable message bodies.
-const notifyBtn=$("notifyBtn");
-const pushDiagnostics=$("pushDiagnostics");
-const pushDiagStatus=$("pushDiagStatus");
-const pushDiagResult=$("pushDiagResult");
-const pushDiagTest=$("pushDiagTest");
-const pushDiagSync=$("pushDiagSync");
-let verifiedPushRole=null;
-let pushSyncBusy=false;
-let lastPushSync=0;
-const PUSH_LOCAL_KEY="alwaysYoursPushRegistration";
-function b64urlToBytes(value){
-  const pad="=".repeat((4-value.length%4)%4);
-  return base64ToBytes(value.replace(/-/g,"+").replace(/_/g,"/")+pad);
-}
-function pushIdentity(){return roomId && validRole(selectedName) ? `${roomId}:${selectedName}` : "";}
-function pushAvailable(){return !!API_BASE && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;}
-async function scopedChatRegistration(){
-  if(!('serviceWorker' in navigator))throw new Error('当前浏览器不支持后台通知');
-  const reg=await navigator.serviceWorker.register('./sw.js',{scope:'./'});
-  if(!reg.active){
-    const pending=reg.installing||reg.waiting;
-    if(pending) await Promise.race([
-      new Promise(resolve=>{if(pending.state==='activated')return resolve();pending.addEventListener('statechange',()=>{if(pending.state==='activated')resolve();});}),
-      new Promise((_,reject)=>setTimeout(()=>reject(new Error('后台服务还未启动，请刷新后再试')),8000))
-    ]);
-  }
-  if(!reg.active)throw new Error('聊天通知后台尚未准备好，请刷新页面');
-  return reg;
-}
-async function getPushConfig(){
-  const response=await fetch(`${API_BASE}/api/push/config`,{cache:'no-store'});
-  const data=await response.json().catch(()=>({}));
-  if(!response.ok||!data.publicKey)throw new Error(data.error||'推送服务器未准备好');
-  return data.publicKey;
-}
-async function savePushSubscription(sub,publicKey){
-  const response=await fetch(`${API_BASE}/api/push/subscribe`,{
-    method:'POST',headers:{'Content-Type':'application/json','X-Room-Key':roomId,'X-User':selectedName},
-    body:JSON.stringify({subscription:sub.toJSON()}),cache:'no-store'
-  });
-  const data=await response.json().catch(()=>({}));
-  if(!response.ok)throw new Error(data.error||'Supabase 未接受当前设备订阅');
-  const identity=pushIdentity();
-  try{localStorage.setItem(PUSH_LOCAL_KEY,identity);}catch{}
-  verifiedPushRole=identity;
-  lastPushSync=Date.now();
-  try{const reg=await scopedChatRegistration();reg.active?.postMessage({type:'always-yours-push-profile',roomId,role:selectedName,publicKey,apiBase:API_BASE});}catch{}
-  return data;
-}
-async function repairPushBinding({create=false,force=false}={}){
-  if(!pushAvailable() || !pushIdentity() || Notification.permission!=='granted')return false;
-  if(pushSyncBusy)return false;
-  const identity=pushIdentity();
-  if(!force && verifiedPushRole===identity && Date.now()-lastPushSync<3*60*1000)return true;
-  pushSyncBusy=true;
-  try{
-    const reg=await scopedChatRegistration();
-    const publicKey=await getPushConfig();
-    let sub=await reg.pushManager.getSubscription();
-    // Only the explicit button click can create a fresh subscription / prompt.
-    if(!sub&&create)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64urlToBytes(publicKey)});
-    if(!sub)return false;
-    await savePushSubscription(sub,publicKey);
-    return true;
-  }finally{
-    pushSyncBusy=false;
-    refreshNotifyButton().catch(()=>{});
-  }
-}
-async function refreshNotifyButton(){
-  if(!notifyBtn)return;
-  if(!pushAvailable()){
-    notifyBtn.disabled=true;notifyBtn.textContent='🔕 不支持系统推送';return;
-  }
-  notifyBtn.disabled=false;
-  const active=Notification.permission==='granted' && verifiedPushRole===pushIdentity();
-  notifyBtn.classList.toggle('is-enabled',active);
-  notifyBtn.textContent=active?'✓ 已绑定消息提醒':'🔔 开启消息提醒';
-  notifyBtn.setAttribute('aria-label',active?'消息推送已绑定当前 HE/SHE 身份':'开启或重新绑定系统推送');
-}
-notifyBtn?.addEventListener('click',async()=>{
-  if(!roomId){toast('请先进入聊天');return;}
-  notifyBtn.disabled=true;
-  try{
-    if(!pushAvailable())throw new Error('当前浏览器不支持 Web Push。iPhone 请先从 Safari 添加到主屏幕。');
-    const permission=await Notification.requestPermission();
-    if(permission!=='granted')throw new Error('请在浏览器或手机系统中允许此网站通知。');
-    const ok=await repairPushBinding({create:true,force:true});
-    if(!ok)throw new Error('通知订阅失败，请在「更多 → 通知检测」中检查');
-    toast('已为当前身份绑定推送。建议再发送一次测试通知 ♡');
-  }catch(e){toast(e.message||'无法开启通知');console.warn('Push configuration:',e.message);}
-  finally{notifyBtn.disabled=false;refreshNotifyButton().catch(()=>{});}
-});
-function pushMessage(msg){if(pushDiagStatus)pushDiagStatus.textContent=msg;}
-function showPushDiagnostics(show){
-  if(!pushDiagnostics)return;
-  pushDiagnostics.classList.toggle('hidden',!show);
-  if(show){pushMessage('正在检测当前设备的系统通知…');loadPushDiagnostics().catch(e=>pushMessage(e.message));}
-}
-$('openPushDiagnostics')?.addEventListener('click',()=>showPushDiagnostics(true));
-$('closePushDiagnostics')?.addEventListener('click',()=>showPushDiagnostics(false));
-pushDiagnostics?.addEventListener('click',e=>{if(e.target?.dataset?.dismissPush!==undefined)showPushDiagnostics(false);});
-function formatPushAttempt(a){
-  if(a.status_code===102)return '排队：正在等待 8 秒后的测试';
-  if(a.status_code>=200&&a.status_code<300)return '推送服务已接收（手机是否显示仍需实测）';
-  if(a.status_code===404||a.status_code===410)return '订阅已失效，请重新开启提醒';
-  if(a.status_code===401||a.status_code===403)return '推送服务拒绝认证，请检查 VAPID 密钥';
-  return a.status_code ? `推送失败（HTTP ${a.status_code}）` : '推送失败（网络或加密错误）';
-}
-async function localPushReceipt(reg){
- if(!reg?.active)return null;
- return new Promise(resolve=>{
-  const onMessage=event=>{
-   if(event.data?.type==='always-yours-push-receipt'){
-    clearTimeout(timer);navigator.serviceWorker.removeEventListener('message',onMessage);
-    resolve(event.data.at||null);
+  missing++;
+ }
+ return {shared,messages:missing};
+}
+let lastPaint='',refreshBusy=false,haveSnapshot=false,seenMessages=new Set();
+let notificationAudio=null;
+function playHeartNote(){
+ try{
+   if(!localStorage.getItem('ay-v2-sound'))return;
+   const C=window.AudioContext||window.webkitAudioContext;if(!C)return;
+   if(!notificationAudio)notificationAudio=new C();
+   if(notificationAudio.state!=='running')return;
+   const t=notificationAudio.currentTime;
+   for(const [delay,freq] of [[0,659.25],[0.13,783.99]]){
+     const o=notificationAudio.createOscillator(),g=notificationAudio.createGain();
+     o.type='sine';o.frequency.value=freq;g.gain.setValueAtTime(0.0001,t+delay);
+     g.gain.exponentialRampToValueAtTime(0.06,t+delay+0.015);
+     g.gain.exponentialRampToValueAtTime(0.0001,t+delay+0.17);
+     o.connect(g).connect(notificationAudio.destination);o.start(t+delay);o.stop(t+delay+0.2);
    }
-  };
-  const timer=setTimeout(()=>{navigator.serviceWorker.removeEventListener('message',onMessage);resolve(null);},1200);
-  navigator.serviceWorker.addEventListener('message',onMessage);
-  reg.active.postMessage({type:'always-yours-push-last-received'});
- });
+   if(navigator.vibrate)navigator.vibrate([70,45,70]);
+ }catch{}
 }
-async function loadPushDiagnostics(){
-  if(!pushDiagStatus||!roomId)return;
-  const supported=pushAvailable();
-  const permission=supported?Notification.permission:'不支持';
-  const reg=supported?await scopedChatRegistration():null;
-  const sub=reg?await reg.pushManager.getSubscription():null;
-  let line=`当前身份：${selectedName==='Ko Ko'?'HE':'SHE'} · 通知权限：${permission==='granted'?'允许':permission==='denied'?'被阻止':permission==='default'?'尚未授权':permission}`;
-  line+=` · 本机订阅：${sub?'存在':'没有'}`;
-  if(reg)line+=` · 后台：${reg.active?'正常':'未启动'}`;
-  const lastLocal=await localPushReceipt(reg);
-  line+=`\n本机最后实际收到的后台推送：${lastLocal?new Date(lastLocal).toLocaleString():'尚无记录'}`;
-  const response=await fetch(`${API_BASE}/api/push/status`,{cache:'no-store',headers:{'X-Room-Key':roomId,'X-User':selectedName}});
-  const data=await response.json().catch(()=>({}));
-  if(!response.ok)throw new Error(data.error||'服务器状态查询失败');
-  line+=`
-Supabase 当前身份订阅设备：${data.registeredDevices} · 对方订阅设备：${data.partnerDevices}`;
-  pushMessage(line);
-  const attempts=data.latestAttempts||[];
-  pushDiagResult.textContent=attempts.length?('最近推送：'+formatPushAttempt(attempts[0])):'暂无推送记录。可以点击测试通知。';
+async function enablePush(){
+ if(!state.role)throw new Error('请先进入已授权的聊天');
+ if(!('serviceWorker' in navigator)||!('PushManager' in window)||!('Notification' in window))throw new Error('当前浏览器不支持后台通知');
+ if(notificationAudio===null){const C=window.AudioContext||window.webkitAudioContext;if(C)notificationAudio=new C();}
+ if(notificationAudio?.state==='suspended')await notificationAudio.resume();
+ localStorage.setItem('ay-v2-sound','1');
+ const permission=Notification.permission==='granted'?'granted':await Notification.requestPermission();
+ if(permission!=='granted')throw new Error('尚未获得系统通知权限。iPhone/iPad 请从 Safari「添加到主屏幕」，从主屏幕打开后再开启。');
+ const registration=await navigator.serviceWorker.register('./sw.js',{scope:'./',updateViaCache:'none'});
+ await navigator.serviceWorker.ready;
+ const cfg=await request('/push/config');
+ if(!cfg.configured||!cfg.publicKey)throw new Error('服务器推送配置尚未就绪');
+ const sub=await registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:un64(cfg.publicKey)});
+ await request('/push/subscribe','POST',{subscription:sub.toJSON()});
+ $('notify').textContent='🔔 已开启';
+ status('手机通知已订阅 · 页面内轻柔提示音已开启');
 }
-pushDiagSync?.addEventListener('click',async()=>{
-  pushDiagSync.disabled=true;
-  try{
-    if(!pushAvailable())throw new Error('当前浏览器不支持 Web Push');
-    if(Notification.permission!=='granted')throw new Error('请先点击聊天顶部的「开启消息提醒」');
-    const ok=await repairPushBinding({create:false,force:true});
-    if(!ok)throw new Error('没有本机推送订阅，请先点击顶部「开启消息提醒」');
-    await loadPushDiagnostics();toast('接收身份已重新绑定 ♡');
-  }catch(e){pushMessage(e.message);}
-  finally{pushDiagSync.disabled=false;}
-});
-pushDiagTest?.addEventListener('click',async()=>{
-  pushDiagTest.disabled=true;
-  try{
-    if(Notification.permission!=='granted')throw new Error('请先开启系统通知权限');
-    const ok=await repairPushBinding({create:false,force:true});
-    if(!ok)throw new Error('本设备没有订阅，请先开启消息提醒');
-    const response=await fetch(`${API_BASE}/api/push/test`,{method:'POST',headers:{'Content-Type':'application/json','X-Room-Key':roomId,'X-User':selectedName},body:'{}',cache:'no-store'});
-    const data=await response.json().catch(()=>({}));
-    if(!response.ok)throw new Error(data.error||'无法发送测试通知');
-    pushMessage(`已预约 ${data.registeredDevices} 台当前身份设备的测试通知。请立即锁屏/关闭浏览器，约 8 秒后查看。`);
-    pushDiagResult.textContent='注意：发送到推送服务成功，也不能保证设备一定响铃；请检查安卓通知权限及电池限制。';
-  }catch(e){pushMessage(e.message||'测试失败');}
-  finally{pushDiagTest.disabled=false;}
-});
-document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&roomId)repairPushBinding().catch(()=>{});});
-// Restore identity automatically on this browser when its encrypted room key exists.
-// Switching HE/SHE remains available in the chat header.
-(async function restoreChatIdentity(){
-  if(!rememberedRole || !validRole(rememberedRole))return;
-  const stored=await deviceCredentials();
-  if(!stored || roleChosen)return;
-  await chooseRole(rememberedRole);
-})().catch(err=>console.warn('Unable to restore previous chat identity',err));
 
-
-// Optional device enrollment, stage A only. A pending key grants NO chat privilege.
-// The signing private key is generated non-extractable and stored in this browser's IndexedDB.
-const PAIR_DB_NAME='always-yours-identity-keys-v1';
-const devicePairModal=$('deviceEnrollment');
-const devicePairStatus=$('devicePairStatus');
-const devicePairRole=$('devicePairRole');
-const devicePairCreate=$('prepareDeviceKey');
-const devicePairCopy=$('copyDeviceFingerprint');
-const devicePairCheck=$('checkDeviceStatus');
-const deviceApprovalPanel=$('deviceApprovalPanel');
-const deviceApprovalPassword=$('deviceAdminToken');
-const deviceApprovalLoad=$('loadDeviceApprovals');
-const deviceApprovalResult=$('deviceApprovalResult');
-let approvalBusy=false;
-function clearApprovalReview(){
-  if(deviceApprovalPassword)deviceApprovalPassword.value='';
-  if(deviceApprovalResult)deviceApprovalResult.textContent='尚未加载申请。只有正确的管理员口令才能查看与批准。';
-}
-function validPairFingerprint(fp){return typeof fp==='string'&&/^[A-Za-z0-9_-]{43}$/.test(fp);}
-function pairShortFingerprint(fp){return validPairFingerprint(fp)?(fp.slice(0,10)+'…'+fp.slice(-8)):'无效指纹';}
-async function deviceApprovalApi(endpoint,body,expectedRoom){
-  const response=await fetch(`${API_BASE}/api/devices/${endpoint}`,{
-    method:'POST',cache:'no-store',
-    headers:{'Content-Type':'application/json','X-Room-Key':expectedRoom,'X-User':selectedName},
-    body:JSON.stringify(body)
-  });
-  const data=await response.json().catch(()=>({}));
-  if(!response.ok)throw new Error(data.error||'设备审批暂时不可用');
-  return data;
-}
-async function loadDeviceApprovals(){
-  if(approvalBusy||!validRole(selectedName)||!roomId)return;
-  const secret=deviceApprovalPassword?.value||'';
-  if(secret.length<32){
-    if(deviceApprovalResult)deviceApprovalResult.textContent='请先在独立 Supabase 的 Edge Function Secrets 设置至少 32 个字符的 CHAT_DEVICE_ADMIN_TOKEN，然后输入这个口令。';
-    return;
+async function refresh(){
+ if(!state.role||refreshBusy||document.hidden)return;refreshBusy=true;
+ try{
+  const data=await request('/messages');
+  const signature=JSON.stringify((data.messages||[]).map(m=>m.id));
+  if(signature===lastPaint)return;
+  const incoming=(data.messages||[]).filter(m=>m.sender!==state.role&&haveSnapshot&&!seenMessages.has(m.id));
+  for(const m of data.messages||[])seenMessages.add(m.id);
+  if(incoming.length&&document.visibilityState==='visible')playHeartNote();
+  haveSnapshot=true;
+  const elements=[];
+  for(const m of data.messages||[]){
+   const b=document.createElement('div');b.className='bubble'+(m.sender===state.role?' own':'');
+   const content=document.createElement('div');content.className='msg';
+   try{content.textContent=await decryptMessage(m);}catch{content.textContent='[此设备无法解密的消息]';}
+   const meta=document.createElement('div');meta.className='meta';meta.textContent=new Date(m.created_at).toLocaleString('zh-CN',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
+   b.append(content,meta);elements.push(b);
   }
-  approvalBusy=true;deviceApprovalLoad.disabled=true;
-  const originalRole=selectedName,originalRoom=roomId;
-  try{
-    const data=await deviceApprovalApi('pending',{adminToken:secret},originalRoom);
-    if(originalRole!==selectedName||originalRoom!==roomId)throw new Error('身份发生变化，请重新查看申请');
-    if(!deviceApprovalResult)return;
-    deviceApprovalResult.replaceChildren();
-    const list=Array.isArray(data.devices)?data.devices:[];
-    if(!list.length){deviceApprovalResult.textContent='当前没有待审核的 HE / SHE 设备申请。';return;}
-    const lead=document.createElement('p');lead.textContent='待审核 '+list.length+' 台设备。请与申请者在设备上显示的完整指纹逐字核对。';deviceApprovalResult.appendChild(lead);
-    list.forEach(item=>{
-      if(!validPairFingerprint(item.fingerprint)||!validRole(item.user_name))return;
-      const row=document.createElement('div');row.className='device-approval-row';
-      const title=document.createElement('strong');title.textContent=(item.user_name==='Ko Ko'?'HE · Ko Ko':'SHE · Chit Chit')+' · 待审核';
-      const fingerprint=document.createElement('code');fingerprint.textContent=item.fingerprint;
-      const actions=document.createElement('div');actions.className='device-approval-buttons';
-      const approve=document.createElement('button');approve.type='button';approve.textContent='✓ 确认批准这台设备';
-      approve.addEventListener('click',async()=>{
-        if(approvalBusy||selectedName!==originalRole||roomId!==originalRoom)return;
-        const currentSecret=deviceApprovalPassword?.value||'';
-        if(currentSecret.length<32){toast('请重新输入管理员授权口令');return;}
-        if(!window.confirm('请再次确认：\n'+title.textContent+'\n设备指纹：'+item.fingerprint+'\n\n已在申请设备上核对完整指纹，确定批准吗？'))return;
-        approvalBusy=true;approve.disabled=true;deviceApprovalLoad.disabled=true;
-        try{
-          const result=await deviceApprovalApi('approve',{adminToken:currentSecret,user_name:item.user_name,fingerprint:item.fingerprint},originalRoom);
-          if(originalRole!==selectedName||originalRoom!==roomId)throw new Error('身份发生变化，请重新查看审批状态');
-          if(!result.ok||result.deviceState!=='approved')throw new Error('服务器未确认授权成功');
-          row.replaceChildren();
-          const done=document.createElement('strong');done.textContent='✓ 已批准 '+title.textContent.replace(' · 待审核','');row.appendChild(done);
-          deviceApprovalPassword.value='';
-          toast('设备申请已批准（当前仍是测试模式）');
-        }catch(e){toast(e.message||'审批失败');approve.disabled=false;}
-        finally{approvalBusy=false;deviceApprovalLoad.disabled=false;}
-      });
-      const skip=document.createElement('button');skip.type='button';skip.className='device-approval-skip';skip.textContent='暂不授权';skip.addEventListener('click',()=>{row.remove();});
-      actions.append(approve,skip);row.append(title,fingerprint,actions);deviceApprovalResult.appendChild(row);
-    });
-  }catch(err){if(deviceApprovalResult)deviceApprovalResult.textContent='暂时无法查看设备申请：'+(err.message||'请检查 Supabase 配置');}
-  finally{approvalBusy=false;deviceApprovalLoad.disabled=false;}
+  if(!elements.length){const empty=document.createElement('div');empty.className='system';empty.textContent='等待属于你们的第一条加密消息 ♡';elements.push(empty);}
+  const box=$('messages'),wasBottom=(box.scrollHeight-box.scrollTop-box.clientHeight)<150;
+  box.replaceChildren(...elements);if(wasBottom)box.scrollTop=box.scrollHeight;
+  lastPaint=signature;status('设备已授权 · 新消息已启用端到端加密');
+ }catch(e){status('读取失败：'+e.message);}
+ finally{refreshBusy=false;}
 }
-deviceApprovalLoad?.addEventListener('click',loadDeviceApprovals);
-
-let devicePairFingerprint='';
-let pairingBusy=false;
-function pairB64Url(bytes){
-  const arr=bytes instanceof Uint8Array?bytes:new Uint8Array(bytes);
-  let binary='';for(const b of arr)binary+=String.fromCharCode(b);
-  return btoa(binary).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+function approvalText(message,stage='待审核'){
+ $('approvalState').textContent=stage;
+ $('approvalMessage').textContent=message;
 }
-async function pairingDb(){
- return new Promise((resolve,reject)=>{
-   const req=indexedDB.open(PAIR_DB_NAME,1);
-   req.onupgradeneeded=()=>{if(!req.result.objectStoreNames.contains('keys'))req.result.createObjectStore('keys');};
-   req.onsuccess=()=>resolve(req.result);
-   req.onerror=()=>reject(req.error||new Error('无法存储设备签名密钥'));
- });
+function openApproval(role){
+ lastApprovalFocus=document.activeElement;
+ $('approvalRole').textContent=role==='Ko Ko'?'HE · Ko Ko':'SHE · Chit Chit';
+ $('approvalFingerprint').textContent='正在生成安全设备指纹…';
+ $('approvalCopy').disabled=true;
+ $('approvalApply').classList.add('hidden');
+ $('approvalApply').disabled=true;
+ $('deviceApproval').classList.remove('hidden');
+ $('approvalRetry').disabled=true;
+ approvalText('正在检查本机设备是否已经获得授权…','检查中…');
+ $('approvalClose').focus({preventScroll:true});
 }
-async function pairingStore(role,value){
- const db=await pairingDb();
- const key=roomId+':'+role;
- return new Promise((resolve,reject)=>{
-   const tx=db.transaction('keys',value?'readwrite':'readonly');
-   const req=value?tx.objectStore('keys').put(value,key):tx.objectStore('keys').get(key);
-   req.onsuccess=()=>resolve(req.result);
-   req.onerror=()=>reject(req.error||new Error('读取设备密钥失败'));
-   tx.oncomplete=()=>db.close();
- });
+function closeApproval(){
+ if(state.busy)return;
+ $('deviceApproval').classList.add('hidden');
+ state.role=null;state.identity=null;state.fp=null;state.session=null;
+ $('gateStatus').textContent='选择身份后，将自动检查本机授权状态。';
+ (lastApprovalFocus?.isConnected?lastApprovalFocus:document.querySelector('[data-role]'))?.focus({preventScroll:true});
 }
-function pairStatus(text){if(devicePairStatus)devicePairStatus.textContent=text;}
-function pairFingerprintLabel(value){return value;} // Exact 43-character value, case-sensitive; do not shorten approval fingerprint.
-async function currentDeviceFingerprint(){
- const entry=await pairingStore(selectedName);
- if(!entry?.pair?.publicKey||!entry?.pair?.privateKey||entry.pair.privateKey.extractable) return null;
- const publicKey=await crypto.subtle.exportKey('jwk',entry.pair.publicKey);
- const material='AY-DEVICE-FP-V1|'+publicKey.x+'|'+publicKey.y;
- const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(material));
- return {entry,publicKey,fp:pairB64Url(digest)};
-}
-async function showDevicePairing(show){
- if(!devicePairModal)return;
- if(show&&(!roomId||!cryptoKey||!validRole(selectedName))){toast('请先进入聊天，再准备当前身份的设备授权');return;}
- devicePairModal.classList.toggle('hidden',!show);
- if(!show){clearApprovalReview();return;}
- devicePairRole.textContent=selectedName==='Ko Ko'?'HE · Ko Ko':'SHE · Chit Chit';
- devicePairFingerprint='';devicePairCopy.disabled=true;
- pairStatus('正在检查这台设备是否已经准备了独立身份密钥…');
+async function chooseRole(role,apply=false){
+ if(state.busy)return;
+ const isSamePending=state.role===role&&!$('deviceApproval').classList.contains('hidden');
+ state.busy=true;clearInterval(state.timer);state.session=null;state.encryption=null;state.role=role;lastPaint='';haveSnapshot=false;seenMessages=new Set();
+ if(!isSamePending)openApproval(role);
+ $('approvalRetry').disabled=true;
+ $('approvalApply').classList.add('hidden');
+ $('approvalApply').disabled=true;
+ let approvalVerified=false;
  try{
-   const current=await currentDeviceFingerprint();
-   if(!current){pairStatus('尚未准备设备身份。点击「申请本机设备授权」后，才会生成本机独立签名密钥。');return;}
-   devicePairFingerprint=current.fp;devicePairCopy.disabled=false;
-   pairStatus('本机已经保存身份私钥。\n设备指纹：'+pairFingerprintLabel(current.fp)+'\n点击「申请本机设备授权」可再次检查服务器的待审核状态。');
- }catch(err){pairStatus('无法检查设备身份：'+(err.message||'请检查浏览器是否允许本地存储'));}
-}
-$('openDeviceEnrollment')?.addEventListener('click',()=>{
- document.querySelector('.chat-more-menu')?.removeAttribute('open');
- showDevicePairing(true);
-});
-$('closeDeviceEnrollment')?.addEventListener('click',()=>showDevicePairing(false));
-devicePairModal?.addEventListener('click',event=>{
- if(event.target?.dataset?.closeDevicePair!==undefined)showDevicePairing(false);
-});
-
-devicePairCreate?.addEventListener('click',async()=>{
- if(pairingBusy||!roomId||!cryptoKey||!validRole(selectedName))return;
- pairingBusy=true;devicePairCreate.disabled=true;
- const role=selectedName,expectedRoom=roomId;
- try{
-   let item=await pairingStore(role);
-   if(!item?.pair?.privateKey){
-     const pair=await crypto.subtle.generateKey({name:'ECDSA',namedCurve:'P-256'},false,['sign','verify']);
-     if(pair.privateKey.extractable)throw new Error('设备密钥保护失败');
-     item={pair};
-     await pairingStore(role,item);
+  approvalText('正在验证本机身份，请稍候…','检查中…');
+  const data=await findSigningIdentity(role);
+  state.identity=data.pair;state.fp=data.fp;
+  $('approvalFingerprint').textContent=data.fp;
+  $('approvalCopy').disabled=false;
+  const deviceState=await checkOrApplyDevice(data,apply);
+  if(deviceState!=='approved'){
+   if(deviceState==='pending'){
+    approvalText('申请已提交，正在等待管理员确认。\n请将设备指纹交给管理员核对，批准后点击「重新检查授权」。','待管理员审批');
+   }else if(deviceState==='revoked'){
+    approvalText('这台设备的授权已被撤销，无法进入聊天。请联系管理员处理。','已撤销');
+   }else if(deviceState==='unregistered'){
+    approvalText('本机尚未提交授权申请。点击「申请本机设备授权」，由管理员在独立页面批准后，再返回检查。','未申请');
+    $('approvalApply').classList.remove('hidden');
+    $('approvalApply').disabled=false;
+   }else{
+    approvalText('此设备没有有效授权。可以先刷新检查；仍有问题请联系管理员。','尚未授权');
    }
-   const current=await currentDeviceFingerprint();
-   if(!current||selectedName!==role||roomId!==expectedRoom)throw new Error('身份已切换，请重新打开设备授权页面');
-   const nonce=pairB64Url(crypto.getRandomValues(new Uint8Array(16)));
-   const data=new TextEncoder().encode(['AY-DEVICE-ENROLL-V1',expectedRoom,role,nonce].join('\n'));
-   const proof=await crypto.subtle.sign({name:'ECDSA',hash:'SHA-256'},current.entry.pair.privateKey,data);
-   pairStatus('正在登记当前设备公钥（不会上传私钥、共同密钥或聊天正文）…');
-   const response=await fetch(`${API_BASE}/api/devices/enroll`,{
-     method:'POST',cache:'no-store',
-     headers:{'Content-Type':'application/json','X-Room-Key':expectedRoom,'X-User':role},
-     body:JSON.stringify({publicKey:{kty:'EC',crv:'P-256',x:current.publicKey.x,y:current.publicKey.y},nonce,signature:pairB64Url(proof)})
-   });
-   const result=await response.json().catch(()=>({}));
-   if(!response.ok)throw new Error(result.error||'设备登记失败');
-   if(result.fingerprint!==current.fp)throw new Error('服务器返回的指纹不一致，请停止操作');
-   devicePairFingerprint=current.fp;devicePairCopy.disabled=false;
-   if(deviceApprovalPanel&&result.deviceState==='pending'){deviceApprovalPanel.classList.add('device-approval-ready');}
-   const labels={pending:'待审核（尚未获得授权）',approved:'已由管理员批准（尚未开启强制验证）',revoked:'已撤销'};
-   pairStatus('当前身份：'+(role==='Ko Ko'?'HE · Ko Ko':'SHE · Chit Chit')+
-     '\n设备指纹：'+pairFingerprintLabel(current.fp)+
-     '\n服务器状态：'+(labels[result.deviceState]||result.deviceState)+
-     '\n现有聊天仍可正常使用；这不是独立身份验证已经生效的证明。');
- }catch(err){pairStatus('未完成设备登记：'+(err.message||String(err))+'\n原有聊天不受影响。');}
- finally{pairingBusy=false;devicePairCreate.disabled=false;}
+   $('gateStatus').textContent='本机授权待确认 · 请在授权窗口查看状态。';
+   return;
+  }
+  approvalVerified=true;
+  approvalText('设备已获批准，正在完成服务器私钥验证和加密准备…','已批准');
+  await login();await setupEncryption();
+  try{localStorage.setItem('ay-secure-role-v1',role);}catch{}
+  $('deviceApproval').classList.add('hidden');
+  $('gate').classList.add('hidden');$('chat').classList.remove('hidden');
+  $('who').textContent=(role==='Ko Ko'?'HE · Ko Ko':'SHE · Chit Chit')+' · 已验证设备';
+  $('messages').replaceChildren();if('Notification' in window&&Notification.permission==='granted'){request('/push/status').then(d=>{if(d.registered)$('notify').textContent='🔔 已开启';}).catch(()=>{});}await refresh();state.timer=setInterval(refresh,5000);
+ }catch(e){
+  $('chat').classList.add('hidden');$('gate').classList.remove('hidden');
+  const message=e?.message||'未知错误';
+  if(approvalVerified){
+   approvalText('服务器确认已批准本机，但安全登录尚未完成：'+message+'\n请刷新测试页后点击「重新检查授权」。不需要重复申请或修改管理员审批。','登录验证失败');
+  }else{
+   approvalText('无法完成本机授权检查：'+message+'\n请确认网络正常，然后点击「重新检查授权」。','检查失败');
+  }
+ }finally{
+  state.busy=false;$('approvalRetry').disabled=false;
+  if(state.role&& !$('chat').classList.contains('hidden'))refresh();
+ }
+}
+document.querySelectorAll('[data-role]').forEach(b=>b.addEventListener('click',()=>chooseRole(b.dataset.role)));
+$('approvalRetry').addEventListener('click',()=>{if(state.role)chooseRole(state.role);});
+$('approvalApply').addEventListener('click',()=>{if(state.role)chooseRole(state.role,true);});
+$('approvalCopy').addEventListener('click',async()=>{
+ if(!state.fp)return;
+ try{await navigator.clipboard.writeText(state.fp);$('approvalCopy').textContent='✓ 已复制';}
+ catch{ $('approvalFingerprint').textContent=state.fp+'\n（复制失败，请长按指纹手动复制）';$('approvalCopy').textContent='请长按复制'; }
+ setTimeout(()=>{if($('approvalCopy'))$('approvalCopy').textContent='复制设备指纹';},2200);
 });
-// This is a read-only diagnostic proof. The user-generated nonce is NOT a future
-// authorization challenge; enabling real access control will require a server-issued,
-// expiring, single-use challenge and an explicit two-device enrollment decision.
-devicePairCheck?.addEventListener('click',async()=>{
- if(pairingBusy||!roomId||!cryptoKey||!validRole(selectedName))return;
- pairingBusy=true;devicePairCheck.disabled=true;devicePairCreate.disabled=true;
- const role=selectedName,expectedRoom=roomId;
+$('approvalClose').addEventListener('click',closeApproval);
+$('approvalSwitch').addEventListener('click',closeApproval);
+$('deviceApproval').addEventListener('keydown',e=>{
+ if(e.key==='Escape'){e.preventDefault();closeApproval();}
+ if(e.key==='Tab'){
+  const focusable=Array.from($('deviceApproval').querySelectorAll('button:not(:disabled)'));
+  if(!focusable.length)return;
+  const first=focusable[0],last=focusable[focusable.length-1];
+  if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}
+  else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}
+ }
+});
+$('exit').addEventListener('click',()=>{
+ try{localStorage.removeItem('ay-secure-role-v1');}catch{}
+ clearInterval(state.timer);state.role=null;state.session=null;state.identity=null;state.encryption=null;haveSnapshot=false;seenMessages=new Set();
+ $('chat').classList.add('hidden');$('gate').classList.remove('hidden');
+ $('gateStatus').textContent='选择身份后，将自动检查本机授权状态。';
+});
+$('composer').addEventListener('submit',async e=>{
+ e.preventDefault();if(state.busy||!state.role)return;const input=$('message'),message=input.value.trim();if(!message)return;
+ state.busy=true;$('send').disabled=true;try{const payload=await encryptMessage(message);await request('/messages','POST',payload);input.value='';lastPaint='';await refresh();}catch(err){status('发送失败：'+err.message);}finally{state.busy=false;$('send').disabled=false;refresh();}
+});
+$('message').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();$('composer').requestSubmit();}});
+$('notify').addEventListener('click',async()=>{
+ $('notify').disabled=true;
+ try{await enablePush();playHeartNote();}catch(e){status('开启提醒失败：'+e.message);}
+ finally{$('notify').disabled=false;}
+});
+$('syncHistory').addEventListener('click',async()=>{
+ $('syncHistory').disabled=true;
  try{
-   const current=await currentDeviceFingerprint();
-   if(!current){pairStatus('本机尚未生成独立签名密钥。请先点击「申请本机设备授权」。');return;}
-   const nonce=pairB64Url(crypto.getRandomValues(new Uint8Array(16)));
-   const message=new TextEncoder().encode(['AY-DEVICE-STATUS-V1',expectedRoom,role,nonce].join('\n'));
-   const signature=await crypto.subtle.sign({name:'ECDSA',hash:'SHA-256'},current.entry.pair.privateKey,message);
-   if(selectedName!==role||roomId!==expectedRoom)throw new Error('检查期间身份已改变，请重新操作');
-   pairStatus('正在检查本机签名与服务器登记状态…');
-   const reply=await fetch(`${API_BASE}/api/devices/status`,{
-     method:'POST',cache:'no-store',
-     headers:{'Content-Type':'application/json','X-Room-Key':expectedRoom,'X-User':role},
-     body:JSON.stringify({publicKey:{kty:'EC',crv:'P-256',x:current.publicKey.x,y:current.publicKey.y},nonce,signature:pairB64Url(signature)})
-   });
-   const result=await reply.json().catch(()=>({}));
-   if(!reply.ok)throw new Error(result.error||'检查失败，请稍后再试');
-   if(selectedName!==role||roomId!==expectedRoom)throw new Error('身份已切换，请重新进行设备验证');
-   if(!result.signatureValid||result.fingerprint!==current.fp)throw new Error('服务器的签名或指纹核对失败，请停止操作');
-   const messages={pending:'待审核，尚未取得授权',approved:'管理员已批准，但尚未启用强制认证',revoked:'已撤销，不能作为将来的授权设备',not_registered:'尚未向服务器提交设备登记'};
-   devicePairFingerprint=current.fp;devicePairCopy.disabled=false;
-   pairStatus('本机签名校验：通过\n当前身份：'+(role==='Ko Ko'?'HE · Ko Ko':'SHE · Chit Chit')+
-     '\n设备指纹：'+pairFingerprintLabel(current.fp)+
-     '\n服务器状态：'+(messages[result.deviceState]||'未知状态')+
-     '\n强制设备认证：未开启（现有聊天不受限制）');
- }catch(error){pairStatus('设备状态检查失败：'+(error.message||String(error))+'\n不会影响现有聊天和通知。');}
- finally{pairingBusy=false;devicePairCheck.disabled=false;devicePairCreate.disabled=false;}
+  status('正在为新设备重新封装旧消息密钥，请保持页面开启…');
+  const x=await shareVisibleHistory();
+  status(x.shared?`已经安全共享 ${x.messages} 条消息的 ${x.shared} 个设备解密凭证。请让新设备刷新聊天。`:'当前没有需要向新设备补发的可解密记录（最多检查最近80条）。');
+ }catch(e){status('历史同步失败：'+e.message);}
+ finally{$('syncHistory').disabled=false;}
 });
-// Security migration diagnostic: test a real server-issued, single-use challenge.
-// Does not authorize messages or bypass the existing shared encryption key.
-const deviceChallengeTest=document.createElement('button');
-deviceChallengeTest.type='button';
-deviceChallengeTest.className=devicePairCheck?.className||'';
-deviceChallengeTest.textContent='测试已授权设备签名';
-deviceChallengeTest.setAttribute('aria-label','测试服务器一次性签名认证');
-if(devicePairCheck?.parentElement)devicePairCheck.insertAdjacentElement('afterend',deviceChallengeTest);
-deviceChallengeTest.addEventListener('click',async()=>{
- if(pairingBusy||!roomId||!cryptoKey||!validRole(selectedName))return;
- pairingBusy=true;deviceChallengeTest.disabled=true;
- if(devicePairCheck)devicePairCheck.disabled=true;
- if(devicePairCreate)devicePairCreate.disabled=true;
- const role=selectedName,expectedRoom=roomId;
- try{
-   const current=await currentDeviceFingerprint();
-   if(!current)throw new Error('本机尚未登记独立签名密钥');
-   pairStatus('正在向服务器申请一次性挑战码…');
-   const commonHeaders={'Content-Type':'application/json','X-Room-Key':expectedRoom,'X-User':role};
-   const challengeRes=await fetch(`${API_BASE}/api/devices/challenge`,{
-     method:'POST',cache:'no-store',headers:commonHeaders,body:JSON.stringify({fingerprint:current.fp})
-   });
-   const challenge=await challengeRes.json().catch(()=>({}));
-   if(!challengeRes.ok)throw new Error(challenge.error||'无法领取挑战');
-   if(!/^[0-9a-f-]{36}$/.test(challenge.challengeId||'')||!/^[A-Za-z0-9_-]{43}$/.test(challenge.challenge||''))
-     throw new Error('服务器挑战格式无效');
-   if(selectedName!==role||roomId!==expectedRoom)throw new Error('身份已切换，请重新验证');
-   const payload=new TextEncoder().encode(['AY-DEVICE-CHALLENGE-V1',expectedRoom,role,challenge.challengeId,challenge.challenge].join('\n'));
-   const signature=await crypto.subtle.sign({name:'ECDSA',hash:'SHA-256'},current.entry.pair.privateKey,payload);
-   const verifyRes=await fetch(`${API_BASE}/api/devices/challenge/verify`,{
-     method:'POST',cache:'no-store',headers:commonHeaders,
-     body:JSON.stringify({challengeId:challenge.challengeId,signature:pairB64Url(signature)})
-   });
-   const result=await verifyRes.json().catch(()=>({}));
-   if(!verifyRes.ok)throw new Error(result.error||'服务器验签失败');
-   if(selectedName!==role||roomId!==expectedRoom)throw new Error('身份已切换，请重新验证');
-   if(result.approvedDeviceVerified!==true||result.fingerprint!==current.fp||result.enforced!==false)
-     throw new Error('服务器认证结果异常，请停止操作');
-   pairStatus('服务器一次性挑战验证：通过 ✓\n身份：'+(role==='Ko Ko'?'HE':'SHE')+
-     '\n设备指纹：'+current.fp+'\n强制认证仍未启用，现有聊天不受影响。');
- }catch(error){pairStatus('挑战验证未通过：'+(error.message||String(error))+'\n现有聊天仍然可以使用。');}
- finally{pairingBusy=false;deviceChallengeTest.disabled=false;
-   if(devicePairCheck)devicePairCheck.disabled=false;
-   if(devicePairCreate)devicePairCreate.disabled=false;}
+$('testPush').addEventListener('click',async()=>{
+ $('testPush').disabled=true;
+ try{const x=await request('/push/test','POST',{});status('已安排约 '+(x.afterSeconds||6)+' 秒后的锁屏提醒；请立即切到后台或锁屏测试。');}
+ catch(e){status('测试通知失败：'+e.message);}
+ finally{$('testPush').disabled=false;}
 });
-devicePairCopy?.addEventListener('click',async()=>{
- if(!devicePairFingerprint)return;
- try{await navigator.clipboard.writeText(devicePairFingerprint);toast('完整设备指纹已复制（不是私钥或密码）');}
- catch{pairStatus('设备指纹：'+pairFingerprintLabel(devicePairFingerprint)+'\n请核对完整设备指纹。');}
+if(navigator.serviceWorker)navigator.serviceWorker.addEventListener('message',event=>{
+ if(event.data?.type==='ay-v2-new-message')refresh();
 });
-document.addEventListener('keydown',event=>{
- if(event.key==='Escape'&&!devicePairModal?.classList.contains('hidden'))showDevicePairing(false);
-});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&state.role)refresh();});
+try{const previous=localStorage.getItem('ay-secure-role-v1');if(previous==='Ko Ko'||previous==='Chit Chit'){setTimeout(()=>chooseRole(previous),200);}}catch{}

@@ -1,209 +1,46 @@
 <!doctype html>
-<html lang="zh-CN">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#f8ebf4">
-  <meta name="description" content="A tiny private space for two hearts.">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="Our Love Hub">
-  <link rel="manifest" href="../manifest.webmanifest">
-  <link rel="icon" type="image/png" sizes="32x32" href="../assets/favicon-32.png">
-  <link rel="apple-touch-icon" sizes="180x180" href="../assets/apple-touch-icon.png">
-  <link rel="stylesheet" href="styles.css?v=20261010-device-status-v35">
-  <title>Always Yours ♡ · Our Love Hub</title>
-</head>
-<body>
-  <main class="shell">
-    <section id="gate" class="card gate-card couple-gate">
-      <img class="unified-logo" src="../assets/icon-192.png" alt="Our Love Hub 统一爱心 Logo" width="74" height="74">
-      <div class="eyebrow">OUR LOVE HUB · 2024.03.23</div>
-      <h1>Always Yours<span class="brand-heart"> ♡</span></h1>
-      <p class="intro">只有我们两个人。选 HE 或 SHE，直接进入聊天 ♡</p>
-      <div class="identity-label">今天你是…</div>
-      <div class="role-grid" role="group" aria-label="选择聊天身份">
-        <button type="button" class="role-card name-option" data-name="Ko Ko" aria-label="HE — 男朋友">
-          <span class="role-symbol" aria-hidden="true">♡</span>
-          <strong>HE</strong><small>男朋友 · Ko Ko</small><span class="role-enter">进入聊天 ↗</span>
-        </button>
-        <button type="button" class="role-card name-option" data-name="Chit Chit" aria-label="SHE — 女朋友">
-          <span class="role-symbol" aria-hidden="true">✿</span>
-          <strong>SHE</strong><small>女朋友 · Chit Chit</small><span class="role-enter">进入聊天 ↗</span>
-        </button>
-      </div>
-      <div id="selectedPerson" class="sr-only" aria-live="polite"></div>
-      <div id="setup" class="first-setup hidden" aria-live="polite">
-        <div class="setup-caption">仅首次连接这台设备（无需生日验证）</div>
-        <p>输入你们之前使用的共同密钥一次，保留原有聊天的端到端加密。以后只需点击 HE / SHE。</p>
-        <p class="setup-security-note">安全提示：共同密钥不应只是生日、姓名或简单数字。建议使用足够长且只有你们知道的随机密码；切换 HE/SHE 不是独立账号认证。</p>
-        <label for="secret" class="setup-label">共同密钥（不会上传或写入 GitHub）</label>
-        <div class="secret-wrap">
-          <input id="secret" type="password" autocomplete="off" spellcheck="false" placeholder="两台设备输入相同的旧密钥" minlength="10">
-          <button id="toggleSecret" class="icon-button secret-toggle" type="button" aria-label="显示密钥">显示</button>
-        </div>
-        <button id="enterBtn" class="primary-button" type="button">保存本设备并进入 ♡</button>
-      </div>
-      <div id="status" class="status" role="status" aria-live="polite"></div>
-      <div class="gate-bottom">
-        <button id="gateInstallBtn" class="install-pill" type="button"><span class="install-pill-icon">♡</span><span><strong>添加到主屏幕</strong><small>统一安装 Our Love Hub</small></span></button>
-        <button id="resetDeviceBtn" class="quiet-link" type="button">重新配置此设备</button>
-      </div>
-      <div class="tiny-note">仅你我可读 · 端到端加密 · 30 天后自动清理</div>
-    </section>
-
-    <section id="chat" class="card chat-card hidden" aria-label="Private chat">
-      <header class="chat-header" aria-label="聊天导航">
-        <div class="chat-brand-row">
-          <a class="chat-home-back" href="../Our-Journey/" aria-label="返回 Our Love Hub 主页（Our Journey）" title="返回 Our Love Hub 主页">
-            <svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true" focusable="false"><path d="M19 12H5m0 0 6.5-6.5M5 12l6.5 6.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            <span>主页</span>
-          </a>
-          <img src="../assets/icon-192.png" alt="Our Love Hub" class="chat-brand-logo" width="42" height="42">
-          <div class="chat-brand-copy">
-            <h2>Always Yours <span>♡</span></h2>
-            <div class="chat-status-line">
-              <p id="roomLabel" class="room-label">HE / SHE</p>
-            </div>
-          </div>
-        </div>
-        <div class="header-actions" aria-label="聊天操作">
-          <button id="changeSecretBtn" class="ghost-button compact-role-button" type="button" aria-label="切换聊天身份 HE 或 SHE">切换身份</button>
-          <button id="notifyBtn" class="ghost-button notify-button" type="button" aria-label="开启手机消息提醒">🔔 消息提醒</button>
-          <details class="chat-more-menu">
-            <summary aria-label="更多设置" title="更多设置">···</summary>
-            <div class="chat-more-panel">
-              <button id="openPushDiagnostics" class="ghost-button" type="button">🔔 通知检测与测试</button>
-              <button id="openDeviceEnrollment" class="ghost-button" type="button">🛡️ 双人设备授权准备</button>
-              <button id="installBtn" class="ghost-button install-ghost" type="button">♡ 添加 Our Love Hub 到桌面</button>
-              <p>桌面只保留一个 Our Love Hub 入口</p>
-            </div>
-          </details>
-        </div>
-      </header>
-
-      <div id="chatNetworkBanner" class="chat-network-banner hidden" role="status" aria-live="polite"><span id="networkBannerText">聊天服务器暂时未连接，消息尚不能送达。</span><button type="button" id="networkSettingsBtn">检查连接</button></div>
-      <div class="v3-story-ribbon" aria-hidden="true"><span>✧</span> OUR LITTLE UNIVERSE <span>·</span> EVERY MESSAGE, A MEMORY <span>✧</span></div>
-      <div class="history-older-control"><button id="loadOlderMessages" type="button" hidden>查看更早的消息 ♡</button></div>
-      <div id="messages" class="messages" aria-live="polite"></div>
-      <div id="emptyState" class="empty-state">
-        <div class="empty-heart">♡</div>
-        <strong>属于我们的第一条消息，等着你 ♡</strong>
-        <span>每句话都是我们的秘密 · 消息珍藏 30 天</span>
-      </div>
-
-      <div class="composer-wrap">
-        <div id="newMessageHint" class="new-message-hint hidden" aria-live="polite">收到新消息 ♡</div>
-        <div id="emojiPanel" class="emoji-panel hidden" aria-label="Emoji picker"></div>
-        <div id="stickerPanel" class="sticker-panel hidden" aria-label="Stickers"></div>
-        <div id="gifPanel" class="gif-panel hidden" aria-label="浪漫 GIF 选择器">
-          <div class="gif-panel-head"><div><span>OUR LITTLE GIFS ♡</span><strong>给 TA 的动图</strong><small>选择后预览，点发送才会加密上传</small></div><button type="button" id="closeGifPanel" aria-label="关闭 GIF 选择">×</button></div>
-          <div class="romantic-gif-grid" aria-label="预置浪漫动图"></div>
-          <div class="gif-panel-actions"><button type="button" id="gifPickBtn">＋ 上传自己的 GIF</button><div class="gif-find-links"><a href="https://giphy.com/search/love" target="_blank" rel="noopener noreferrer">GIPHY 找动图 ↗</a><a href="https://tenor.com/search/love-gifs" target="_blank" rel="noopener noreferrer">Tenor 找动图 ↗</a></div></div>
-          <label class="gif-url-label" for="gifUrlInput">粘贴 GIPHY / Tenor 的 GIF 图片直链</label>
-          <div class="gif-url-row"><input id="gifUrlInput" type="url" spellcheck="false" autocomplete="off" placeholder="https://media.giphy.com/...gif" aria-label="网络 GIF 图片地址"><button id="gifImportBtn" type="button">导入 ♡</button></div>
-          <p id="gifStatus" class="gif-panel-hint" aria-live="polite">GIF 网页请先「复制图片地址」，最大 2 MB。部分网站限制跨域，请保存后上传。</p>
-        </div>
-        <div id="replyPreview" class="reply-compose-preview hidden" aria-live="polite">
-          <div class="reply-compose-icon">↩</div>
-          <div class="reply-compose-content"><strong id="replyPreviewLabel">回复</strong><span id="replyPreviewText"></span></div>
-          <button id="cancelReplyBtn" type="button" aria-label="取消回复">×</button>
-        </div>
-        <div class="composer-heading">
-          <label for="messageInput">写给 TA 的悄悄话 <span aria-hidden="true">♡</span></label>
-          <span>只属于我们的小对话</span>
-        </div>
-        <div id="photoPreview" class="photo-preview hidden" aria-live="polite">
-          <div class="photo-preview-thumb-wrap"><img id="photoPreviewImg" class="photo-preview-img" alt="Selected photo preview"></div>
-          <div class="photo-preview-info"><strong id="photoPreviewName">Photo selected</strong><span id="photoPreviewMeta">Compressed securely before sending.</span></div>
-          <button id="removePhotoBtn" class="photo-remove-button" type="button" aria-label="移除照片">×</button>
-        </div>
-        <div class="composer">
-          <textarea id="messageInput" rows="2" maxlength="2000" aria-label="输入聊天消息" placeholder="想和 TA 说些什么…"></textarea>
-          <button id="sendBtn" class="send-button" type="button">发送 ♡</button>
-        </div>
-        <div class="composer-tools" aria-label="表情与图片工具">
-          <button id="emojiBtn" class="tool-button" type="button" aria-label="选择 Emoji 表情" title="选择 Emoji 表情" aria-expanded="false">☺</button>
-          <button id="stickerBtn" class="tool-button" type="button" aria-label="发送甜蜜贴纸" title="甜蜜贴纸" aria-expanded="false">♡</button>
-          <button id="photoBtn" class="tool-button photo-tool-button" type="button" aria-label="选择照片" title="选择照片">▧</button>
-          <input id="photoInput" class="photo-input" type="file" accept="image/png,image/jpeg,image/webp,image/heic,image/heif">
-          <button id="gifBtn" class="tool-button gif-tool-button" type="button" aria-label="选择浪漫 GIF 或从网络导入" title="浪漫 GIF 和网络导入" aria-expanded="false">GIF</button>
-          <input id="gifInput" class="photo-input" type="file" accept="image/gif,.gif">
-          <div class="tool-spacer"></div>
-          <span id="connectionState" class="connection-state">连接中…</span>
-        </div>
-        <div class="composer-foot"><span>🔒 我们的秘密由端到端加密守护</span><span>✧ 文字和照片保存 30 天</span></div>
-      </div>
-    </section>
-  </main>
-
-  <div id="deviceEnrollment" class="device-pair-panel hidden" role="dialog" aria-modal="true" aria-labelledby="deviceEnrollmentTitle">
-    <div class="device-pair-backdrop" data-close-device-pair></div>
-    <section class="device-pair-sheet">
-      <div class="device-pair-head">
-        <div><span>JUST THE TWO OF US ♡</span><h3 id="deviceEnrollmentTitle">设备授权准备</h3></div>
-        <button id="closeDeviceEnrollment" type="button" aria-label="关闭设备授权准备">×</button>
-      </div>
-      <p>为当前 <strong id="devicePairRole">HE / SHE</strong> 身份生成一把属于这台浏览器的签名密钥。私钥只保存在本机，不会上传，也不影响现有的聊天加密密钥。</p>
-      <div id="devicePairStatus" class="device-pair-status" role="status" aria-live="polite">尚未准备。</div>
-      <div class="device-pair-actions">
-        <button id="prepareDeviceKey" type="button">♡ 申请本机设备授权</button>
-        <button id="checkDeviceStatus" type="button">检查本机状态</button>
-        <button id="copyDeviceFingerprint" type="button" disabled>复制设备指纹</button>
-      </div>
-      <section class="device-approval-panel" id="deviceApprovalPanel" aria-labelledby="deviceApprovalTitle">
-        <div class="device-approval-heading">
-          <h4 id="deviceApprovalTitle">♡ 手动确认授权设备</h4>
-          <span>测试模式 · 暂不限制现有聊天</span>
-        </div>
-        <p>提交申请后，您可在这里核对 HE / SHE 身份、设备指纹并手动批准。首次批准需要独立 Supabase 管理员口令；单纯选择 HE/SHE 不能获得审批权限。</p>
-        <label class="device-approval-label" for="deviceAdminToken">管理员授权口令（仅当前页面使用，不会保存）</label>
-        <input id="deviceAdminToken" type="password" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="输入您在 Supabase 设置的独立授权口令" maxlength="256">
-        <button class="device-approval-load" id="loadDeviceApprovals" type="button">↻ 查看待审核设备</button>
-        <div id="deviceApprovalResult" class="device-approval-result" aria-live="polite">尚未加载申请。只有正确的管理员口令才能查看与批准。</div>
-      </section>
-      <p class="device-pair-tip">本阶段只登记待审核公钥，不会自动批准，也不会限制现有 HE/SHE 聊天。以后需要两台设备分别确认，再开启强制设备验证。</p>
-    </section>
-  </div>
-
-  <div id="pushDiagnostics" class="push-diag hidden" role="dialog" aria-modal="true" aria-labelledby="pushDiagTitle">
-    <div class="push-diag-backdrop" data-dismiss-push></div>
-    <section class="push-diag-sheet">
-      <div class="push-diag-head"><div><span>FOR YOUR HEART ONLY ♡</span><h3 id="pushDiagTitle">手机通知检测</h3></div>
-        <button id="closePushDiagnostics" type="button" aria-label="关闭通知检测">×</button>
-      </div>
-      <p class="push-diag-explain">检查 HE / SHE 是否绑定正确。锁屏通知由浏览器和系统负责，网页关闭后不依赖定时刷新。</p>
-      <div id="pushDiagStatus" class="push-diag-status" role="status">正在检查…</div>
-      <div id="pushDiagResult" class="push-diag-last"></div>
-      <div class="push-diag-actions">
-        <button id="pushDiagSync" type="button">↻ 重新绑定当前身份</button>
-        <button id="pushDiagTest" class="push-diag-primary" type="button">🔔 8 秒后发送测试通知</button>
-      </div>
-      <p class="push-diag-tip">安卓：请检查 Chrome／安装应用的通知权限、电池后台限制及系统勿扰。苹果：从主屏幕应用中允许通知。这里不会展示聊天内容。</p>
-    </section>
-  </div>
-
-  <div id="installModal" class="install-modal hidden" role="dialog" aria-modal="true" aria-labelledby="installTitle">
-    <div class="install-backdrop" data-close-install></div>
-    <div class="install-sheet">
-      <button id="closeInstall" class="modal-close" type="button" aria-label="Close">×</button>
-      <div class="install-icon-wrap"><img src="../assets/icon-192.png" alt="Always Yours app icon"></div>
-      <div class="eyebrow">KEEP OUR LITTLE ROOM CLOSE</div>
-      <h3 id="installTitle">添加 Our Love Hub ♡</h3>
-      <p id="installLead" class="install-lead">Put our private room on your device so it opens like an app.</p>
-      <div id="installSteps" class="install-steps"></div>
-      <button id="installAction" class="primary-button install-action" type="button">前往 Our Love Hub ♡</button>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#f8eafa"><meta name="robots" content="noindex,nofollow"><title>Always Yours ♡ Our Love Hub</title><link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="../assets/apple-touch-icon.png"><link rel="icon" href="../assets/favicon-32.png"><link rel="stylesheet" href="styles.css?v=20261010"></head><body>
+<main class="page">
+<header class="top"><a href="../Our-Journey/" class="back">← Our Journey</a><span class="testbadge">PRIVATE · HE ♡ SHE</span></header>
+<section id="gate" class="shell gate">
+  <img class="logo" src="../assets/icon-192.png" alt="Our Love Hub" onerror="this.style.display='none'">
+  <div class="eyebrow">OUR LOVE HUB · 2024.03.23</div><h1>Always Yours <span>♡</span></h1>
+  <p class="lead">仅已获批准的 HE / SHE 设备可以使用这间私人聊天室。<strong>无需输入共同密钥。</strong></p>
+  <div class="roles"><button type="button" data-role="Ko Ko"><span class="symbol">♡</span><strong>HE</strong><small>Ko Ko · 男朋友</small></button><button type="button" data-role="Chit Chit"><span class="symbol">✿</span><strong>SHE</strong><small>Chit Chit · 女朋友</small></button></div>
+  <p id="gateStatus" class="status" role="status" aria-live="polite">选择身份后，将自动检查本机授权状态。</p>
+  <div class="notes">本聊天使用独立端到端加密。新设备不能自动解密加入前的消息。首次使用时自动在本机生成独立的消息解密私钥。未授权设备只能提交申请，无法进入聊天。</div>
+</section>
+<!-- Local device approval only. Remote approvals deliberately stay in separate Device-Approval website. -->
+<div id="deviceApproval" class="approvalOverlay hidden" role="presentation">
+  <section class="approvalDialog" role="dialog" aria-modal="true" aria-labelledby="approvalTitle" aria-describedby="approvalExplanation">
+    <button id="approvalClose" class="approvalClose" type="button" aria-label="关闭设备授权窗口">×</button>
+    <div class="approvalEmblem" aria-hidden="true">♡</div>
+    <div class="eyebrow">OUR LOVE HUB · PRIVATE DEVICE</div>
+    <h2 id="approvalTitle">本机设备授权</h2>
+    <p id="approvalExplanation" class="approvalDescription">只有您批准的设备才能使用这间私人聊天室。</p>
+    <div class="approvalSummary">
+      <div class="approvalSummaryRow"><span>当前选择</span><strong id="approvalRole">—</strong></div>
+      <div class="approvalSummaryRow"><span>授权状态</span><strong id="approvalState" class="approvalState">检查中…</strong></div>
     </div>
-  </div>
-
-  <div id="toast" class="toast" role="status" aria-live="polite"></div>
-
-  <script src="routes.js"></script>
-  <script type="module" src="app.js?v=20261010-device-status-v35"></script>
-  <script>
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('./sw.js').catch(() => {});
-    }
-  </script>
-</body>
-</html>
+    <div class="approvalDevice">
+      <div class="deviceLabel">本机设备指纹</div>
+      <div id="approvalFingerprint" class="fingerprint">正在生成安全设备指纹…</div>
+    </div>
+    <p id="approvalMessage" class="approvalMessage" role="status" aria-live="polite">正在检查设备授权，请稍候…</p>
+    <div class="approvalActions">
+      <button id="approvalApply" class="approvalPrimary approvalApply hidden" type="button">申请本机设备授权 ♡</button>
+      <button id="approvalRetry" class="approvalSecondary" type="button">重新检查授权 ♡</button>
+      <button id="approvalCopy" class="approvalSecondary" type="button" disabled>复制设备指纹</button>
+    </div>
+    <button id="approvalSwitch" class="approvalSwitch" type="button">← 返回 HE / SHE 选择</button>
+    <p class="approvalFootnote">这里只能申请和检查本机授权；设备批准由管理员在独立管理网页中完成。审批前无法读取或发送聊天内容。</p>
+  </section>
+</div>
+<section id="chat" class="shell chat hidden" aria-label="仅限授权设备的私人聊天">
+ <div class="chatHead"><div><div class="eyebrow">JUST THE TWO OF US ♡</div><h2>Always Yours ♡</h2><div id="who" class="who"></div></div><div class="chatActions"><button id="notify" class="outline" type="button" title="开启锁屏消息提醒和页面提示声">♧ 开启提醒</button><button id="testPush" class="outline" type="button" title="发送6秒后的推送测试">测试铃铛</button><button id="syncHistory" class="outline" type="button" title="将本机能解密的旧消息重新加密给新获批设备">同步新设备历史</button><button id="exit" class="outline" type="button">切换身份</button></div></div>
+ <div id="chatStatus" class="status" role="status" aria-live="polite"></div>
+ <div id="messages" class="messages"></div>
+ <form id="composer" class="composer"><label for="message">写给 TA 的悄悄话 ♡</label><div class="write"><textarea id="message" rows="2" maxlength="3200" placeholder="想和 TA 说些什么…" required></textarea><button type="submit" id="send">发送 ♡</button></div><div class="hint">仅已授权设备可读取加密消息 · 消息保留30天 · 新设备仅可读取授权后为其加密的消息</div></form>
+</section>
+<footer>2024.03.23 ♡ M + T · Our Love Hub · Just for two ♡</footer>
+</main><script src="app.js?v=20261010" defer></script></body></html>
