@@ -5,10 +5,11 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow,noarchive">
 <meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-VXqoCcBbhq4BqAcVPdkxXrrtZHZ03QvhX7xbivIN1Vg='; style-src 'unsafe-inline'; connect-src https://zegjegutcigbydtzggur.supabase.co; base-uri 'none'; object-src 'none'; form-action 'none'; img-src 'self' data:; upgrade-insecure-requests">
 <meta name="theme-color" content="#f9ebf7">
 <title>设备授权管理 ♡ Our Love Hub</title>
 <style>
-:root{color-scheme:light;--ink:#61455d;--muted:#947d96;--line:#ebcfe9;--a:#b477ae;--b:#9986d2}*{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Noto Sans Myanmar","Microsoft YaHei",sans-serif;color:var(--ink)}body{background:radial-gradient(ellipse at 0 5%,#f8dfec,transparent 65%),radial-gradient(ellipse at 100% 100%,#e9dfff,transparent 60%),#fffafe;padding:max(20px,env(safe-area-inset-top)) 16px max(26px,env(safe-area-inset-bottom));}main{max-width:720px;margin:4vh auto 0;border:1px solid #fff;border-radius:32px;padding:clamp(22px,5vw,48px);background:rgba(255,255,255,.78);box-shadow:0 22px 60px #a36aa01c;}header{display:flex;justify-content:space-between;gap:12px;align-items:center}.eyebrow{color:#b46a9e;font-weight:800;letter-spacing:.14em;font-size:11px}h1{font-family:Georgia,"Songti SC",serif;font-size:clamp(27px,6vw,40px);margin:14px 0 9px;}p{line-height:1.8;color:var(--muted)}a{color:var(--a);font-size:14px;text-decoration:none;font-weight:700}label{display:block;margin:25px 0 9px;font-weight:700;font-size:14px}.field{width:100%;font:inherit;padding:16px 17px;border-radius:17px;border:1px solid var(--line);background:#fff;outline-color:var(--a);color:var(--ink);min-height:54px}.actions{display:flex;gap:12px;flex-wrap:wrap;margin:13px 0 22px}button{border:1px solid var(--line);border-radius:16px;padding:14px 20px;color:var(--ink);font-weight:750;background:white;cursor:pointer;min-height:49px;font-size:14px}button.primary{border:0;background:linear-gradient(120deg,var(--a),var(--b));color:#fff;flex:1}button:disabled{opacity:.5;cursor:wait}.status{font-size:14px;padding:13px 16px;border-radius:14px;background:#f8f0fa;color:#78557c;margin:12px 0}.status.error{background:#fff0f0;color:#a5455b}.status.ok{background:#edf8f0;color:#396a56}.panel{margin-top:18px;border:1px solid var(--line);border-radius:20px;padding:18px;background:#fffafc}.panel h2{font-size:17px;margin:2px 0 12px}.item{border:1px solid #e7cfe5;border-radius:15px;background:#fff;padding:15px;margin:10px 0}.role{font-weight:800;color:#a26099}.finger{overflow-wrap:anywhere;word-break:break-all;background:#faf1fa;color:#765875;padding:12px;border-radius:12px;margin:11px 0;line-height:1.65;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12px;user-select:all}.meta{font-size:12px;color:var(--muted)}.approve{display:block;margin-left:auto;border-color:#dbb9dc;background:#f9eff9}.hint{font-size:13px;margin-top:20px}#results:empty{display:none}@media(max-width:420px){.actions{flex-direction:column}.actions button{width:100%}.approve{width:100%}main{border-radius:24px;margin-top:8px;padding:21px}}
+:root{visibility:hidden;color-scheme:light;--ink:#61455d;--muted:#947d96;--line:#ebcfe9;--a:#b477ae;--b:#9986d2}*{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Noto Sans Myanmar","Microsoft YaHei",sans-serif;color:var(--ink)}body{background:radial-gradient(ellipse at 0 5%,#f8dfec,transparent 65%),radial-gradient(ellipse at 100% 100%,#e9dfff,transparent 60%),#fffafe;padding:max(20px,env(safe-area-inset-top)) 16px max(26px,env(safe-area-inset-bottom));}main{max-width:720px;margin:4vh auto 0;border:1px solid #fff;border-radius:32px;padding:clamp(22px,5vw,48px);background:rgba(255,255,255,.78);box-shadow:0 22px 60px #a36aa01c;}header{display:flex;justify-content:space-between;gap:12px;align-items:center}.eyebrow{color:#b46a9e;font-weight:800;letter-spacing:.14em;font-size:11px}h1{font-family:Georgia,"Songti SC",serif;font-size:clamp(27px,6vw,40px);margin:14px 0 9px;}p{line-height:1.8;color:var(--muted)}a{color:var(--a);font-size:14px;text-decoration:none;font-weight:700}label{display:block;margin:25px 0 9px;font-weight:700;font-size:14px}.field{width:100%;font:inherit;padding:16px 17px;border-radius:17px;border:1px solid var(--line);background:#fff;outline-color:var(--a);color:var(--ink);min-height:54px}.actions{display:flex;gap:12px;flex-wrap:wrap;margin:13px 0 22px}button{border:1px solid var(--line);border-radius:16px;padding:14px 20px;color:var(--ink);font-weight:750;background:white;cursor:pointer;min-height:49px;font-size:14px}button.primary{border:0;background:linear-gradient(120deg,var(--a),var(--b));color:#fff;flex:1}button:disabled{opacity:.5;cursor:wait}.status{font-size:14px;padding:13px 16px;border-radius:14px;background:#f8f0fa;color:#78557c;margin:12px 0}.status.error{background:#fff0f0;color:#a5455b}.status.ok{background:#edf8f0;color:#396a56}.panel{margin-top:18px;border:1px solid var(--line);border-radius:20px;padding:18px;background:#fffafc}.panel h2{font-size:17px;margin:2px 0 12px}.item{border:1px solid #e7cfe5;border-radius:15px;background:#fff;padding:15px;margin:10px 0}.role{font-weight:800;color:#a26099}.finger{overflow-wrap:anywhere;word-break:break-all;background:#faf1fa;color:#765875;padding:12px;border-radius:12px;margin:11px 0;line-height:1.65;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12px;user-select:all}.meta{font-size:12px;color:var(--muted)}.approve{display:block;margin-left:auto;border-color:#dbb9dc;background:#f9eff9}.hint{font-size:13px;margin-top:20px}#results:empty{display:none}@media(max-width:420px){.actions{flex-direction:column}.actions button{width:100%}.approve{width:100%}main{border-radius:24px;margin-top:8px;padding:21px}}
 /* R4: admin-only device inventory and management */
 .hero-note{border-left:3px solid #d7add6;padding:10px 13px;background:#fff8fc;border-radius:10px;font-size:13px;margin:13px 0}
 .stats{font-size:13px;font-weight:700;margin:5px 0 12px}
@@ -28,6 +29,12 @@
 .danger:hover{background:#ffe8ec}
 .footnote{font-size:12px;color:var(--muted);line-height:1.7}
 @media(max-width:500px){.nick-controls{flex-direction:column;align-items:stretch}.nick-controls input,.nick-controls button{width:100%}.row-actions button{flex:1}.item{padding:13px}}
+
+/* R5 audit trail and hardened idle lock status */
+#audit[hidden]{display:none}
+.audit-entry{border-top:1px solid var(--line);padding:11px 2px;font-size:13px;line-height:1.65;overflow-wrap:anywhere}
+.audit-entry:first-of-type{border-top:0}
+.audit-meta{font-size:12px;color:var(--muted)}
 </style>
 </head>
 <body><main>
@@ -35,30 +42,43 @@
 <h1>设备授权管理 ♡</h1>
 <p>在这里安全管理 HE / SHE 的设备：核对指纹、批准申请、备注昵称、查看已记录的申请 IP，以及解除设备授权。所有更改均在服务器验证管理员口令。</p>
 <label for="token">管理员授权口令（至少 10 位）</label>
-<input id="token" class="field" type="password" minlength="10" maxlength="256" autocomplete="off" spellcheck="false" placeholder="只在本次审批使用，不会保存" aria-describedby="privacy" />
-<div class="actions"><button type="button" id="toggle">显示 / 隐藏口令</button><button class="primary" type="button" id="refresh">查看设备授权记录 ↻</button></div>
-<div class="hero-note">IP 仅供辅助识别，不等于设备所在地；VPN、运营商网络可能改变 IP。只有升级后新申请且服务器成功记录的设备才显示申请 IP。解除授权将立即阻止新版 Chat V2 继续访问，但旧版聊天 API 尚未完全隔离。</div>
+<input id="token" class="field" type="password" minlength="10" maxlength="256" autocomplete="new-password" spellcheck="false" placeholder="不会保存，5 分钟无操作自动锁定" aria-describedby="privacy" />
+<div class="actions"><button type="button" id="toggle">显示 / 隐藏口令</button><button class="primary" type="button" id="refresh">查看设备授权记录 ↻</button><button type="button" id="auditBtn">查看操作记录</button></div>
+<div class="hero-note">IP 仅供辅助识别，不等于设备所在地；VPN、运营商网络可能改变 IP。只有升级后新申请且服务器成功记录的设备才显示申请 IP（网络转发标头可能不可靠，只作辅助线索，绝不用于授权）。解除授权将立即阻止新版 Chat V2 继续访问，但旧版聊天 API 尚未完全隔离。</div>
 <div id="status" class="status" role="status" aria-live="polite">尚未读取授权记录。请使用您在 Supabase 设置的原始管理员口令，而非摘要。</div>
 <section id="results" aria-live="polite"></section>
-<p class="hint" id="privacy">安全提示：管理员口令只用于当前请求，不保存到浏览器存储或 GitHub。只批准通过独立渠道核实过指纹的设备。解除授权不会删除既有聊天数据，也不能远程抹除设备曾保存的内容。旧版聊天 API 的安全隔离仍需继续处理。<strong>不要在公共设备操作。</strong></p>
+<section id="audit" class="panel" hidden aria-live="polite"></section>
+<p class="hint" id="privacy">安全提示：管理员口令只在本页面的短时会话内使用，不保存到浏览器存储或 GitHub；无操作 5 分钟自动清空口令和设备列表。只批准通过独立渠道核实过指纹的设备。解除授权不会删除既有聊天数据，也不能远程抹除设备曾保存的内容。旧版聊天 API 的安全隔离仍需继续处理。<strong>不要在公共设备操作。</strong></p>
 </main>
 <script>
 'use strict';
-const LEGACY_API='https://zegjegutcigbydtzggur.supabase.co/functions/v1/always-yours-chat';
 const ADMIN_API='https://zegjegutcigbydtzggur.supabase.co/functions/v1/always-yours-device-admin';
 const input=document.getElementById('token'),status=document.getElementById('status'),results=document.getElementById('results');
 const refresh=document.getElementById('refresh'),toggle=document.getElementById('toggle');
-let busy=false,serial=0;
+const audit=document.getElementById('audit'),auditBtn=document.getElementById('auditBtn');
+if(window.top===window.self)document.documentElement.style.visibility='visible';
+let busy=false,serial=0,lastActivity=Date.now();
+const MAX_IDLE_MS=5*60*1000;
+function activity(){lastActivity=Date.now();}
+function lockAdmin(){
+ input.value='';input.type='password';results.replaceChildren();audit.replaceChildren();audit.hidden=true;
+ note('出于安全考虑，管理员会话已锁定。请重新输入管理员口令。');
+}
+function checkIdle(){if(Date.now()-lastActivity>=MAX_IDLE_MS&&(input.value||results.children.length||!audit.hidden))lockAdmin();}
+setInterval(checkIdle,15000);
+window.addEventListener('focus',checkIdle);
+document.addEventListener('pointerdown',activity,{passive:true});
+input.addEventListener('input',activity);
 function note(message,kind=''){status.textContent=message;status.className='status '+kind;}
 function node(tag,cls,text){const e=document.createElement(tag);if(cls)e.className=cls;if(text!==undefined)e.textContent=text;return e;}
 function validDevice(d){return ['Ko Ko','Chit Chit'].includes(d.user_name)&&/^[A-Za-z0-9_-]{43}$/.test(d.fingerprint||'');}
 function showTime(ms){const n=Number(ms);return Number.isFinite(n)&&n>0?new Date(n).toLocaleString():'暂无';}
 async function request(url,body){
- const adminToken=input.value;
+ checkIdle();const adminToken=input.value;activity();
  if(adminToken.length<10)throw new Error('请输入至少 10 位管理员口令。');
  const response=await fetch(url,{method:'POST',mode:'cors',cache:'no-store',referrerPolicy:'no-referrer',headers:{'Content-Type':'application/json'},body:JSON.stringify({adminToken,...body})});
  let json={};try{json=await response.json();}catch{}
- if(!response.ok||!json.ok)throw new Error(json.error||`请求失败 (${response.status})`);
+ if(!response.ok||!json.ok){if(response.status===401||response.status===403){input.value='';results.replaceChildren();audit.replaceChildren();audit.hidden=true;}throw new Error(json.error||`请求失败 (${response.status})`);}
  return json;
 }
 const admin=(action,payload={})=>request(ADMIN_API+'/'+action,payload);
@@ -124,7 +144,7 @@ function renderDevice(d){
    if(typed===null)return;
    if(typed!==suffix){note('指纹核对失败，已取消操作。','error');return;}
    await runTask(async()=>{
-    await request(LEGACY_API+'/api/owner/devices/approve',{user_name:d.user_name,fingerprint:d.fingerprint});
+    await admin('approve',{user_name:d.user_name,fingerprint:d.fingerprint,confirm:'APPROVE',fingerprintSuffix:suffix});
     note('设备批准成功。','ok');
    });
    if(!busy&&status.classList.contains('ok'))await load();
@@ -162,8 +182,30 @@ function renderDevice(d){
  controls.appendChild(save);nicknameBox.append(label,controls);card.appendChild(nicknameBox);
  return card;
 }
+function showAudit(){
+ if(!audit.hidden){audit.hidden=true;return;}
+ return runTask(async()=>{
+  const data=await admin('activity');
+  const events=Array.isArray(data.events)?data.events:[];
+  audit.replaceChildren();audit.appendChild(node('h2','','最近管理员安全操作 · '+events.length+' 条'));
+  if(!events.length)audit.appendChild(node('p','','尚无管理员操作记录。'));
+  const labels={nickname:'保存设备备注',approve:'批准设备',revoke:'解除授权',auth_denied:'管理员验证失败',list:'查看设备',activity:'查看审计'};
+  const outcomes={started:'处理中',success:'成功',denied:'拒绝',conflict:'状态已变化',failed:'失败'};
+  for(const e of events){
+   const item=node('div','audit-entry');
+   item.appendChild(node('div','',`${labels[e.action]||'后台操作'} · ${outcomes[e.outcome]||'未知状态'}`));
+   const when=e.created_at?new Date(e.created_at).toLocaleString():'时间未知';
+   const who=['Ko Ko','Chit Chit'].includes(e.user_name)?e.user_name:'未指定身份';
+   item.appendChild(node('div','audit-meta',`${when} · ${who}${e.fingerprint_suffix?' · 指纹尾号 '+e.fingerprint_suffix:''}`));
+   audit.appendChild(item);
+  }
+  audit.hidden=false;
+  note('仅显示操作类型、时间与状态；审计记录不含管理员口令或明文 IP。','ok');
+ });
+}
 refresh.addEventListener('click',load);
+auditBtn.addEventListener('click',showAudit);
 toggle.addEventListener('click',()=>{input.type=input.type==='password'?'text':'password';});
 input.addEventListener('keydown',e=>{if(e.key==='Enter')load();});
-window.addEventListener('pagehide',()=>{input.value='';results.replaceChildren();});
+window.addEventListener('pagehide',()=>{lockAdmin();});
 </script></body></html>
