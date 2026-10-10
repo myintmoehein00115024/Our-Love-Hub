@@ -813,14 +813,17 @@ function renderSendRecovery(){
  const p=state.pendingSend;
  panel.classList.toggle('hidden',!p||!p.uncertain);
  if(!p||!p.uncertain){if(discard){discard.dataset.confirm='';discard.textContent='放弃本机重试';}return;}
- $('sendRecoveryText').textContent=(p.kind==='edit'?'上次编辑':'上次发送')+
+ $('sendRecoveryText').textContent=(p.kind==='edit'?'上次编辑':p.kind==='emoji'?'上次贴纸':'上次发送')+
   '尚未确认。请先核对状态；同一份草稿再点「发送」会复用原加密请求，不会创建新消息编号。';
 }
 function clearPendingPacket(p){
  if(state.pendingSend===p){state.pendingSend=null;renderSendRecovery();}
 }
 async function checkPendingPacket(p){
- const path='/messages/status?kind='+encodeURIComponent(p.kind)+
+ // An emoji sticker is a normal encrypted message for server acknowledgement.
+ // /messages/status accepts only send|edit, never the UI-only kind=emoji.
+ const kind=p.kind==='edit'?'edit':'send';
+ const path='/messages/status?kind='+encodeURIComponent(kind)+
    '&id='+encodeURIComponent(p.packet.id)+'&iv='+encodeURIComponent(p.packet.iv);
  return request(path);
 }
@@ -937,7 +940,7 @@ $('sendCheck').addEventListener('click',async()=>{
      await clearMatchingComposer(p);
      if(!active())return;
      clearPendingPacket(p);lastPaint='';announceLocalChange();
-     status('已确认上次'+(p.kind==='edit'?'编辑':'消息')+'保存在服务器 ♡');
+     status('已确认上次'+(p.kind==='edit'?'编辑':p.kind==='emoji'?'贴纸':'消息')+'保存在服务器 ♡');
      await refresh();
    }else if(p.kind!=='edit'&&ack.found){
      status('消息编号被其他加密版本占用，不能认定发送成功');
@@ -1066,6 +1069,15 @@ document.addEventListener('visibilitychange',()=>{
 });
 window.addEventListener('focus',syncSWChatReadiness);
 window.addEventListener('blur',syncSWChatReadiness);
+// R27: a pending encrypted packet is intentionally kept in RAM, not persisted.
+// When a send is uncertain, warn before a desktop refresh/leave that would erase
+// its original UUID and IV. Mobile browsers may ignore beforeunload prompts.
+window.addEventListener('beforeunload',event=>{
+ const p=state.pendingSend;
+ if(!p?.uncertain||!sendContext(p.role,p.fp,p.epoch))return;
+ event.preventDefault();
+ event.returnValue='';
+});
 window.addEventListener('pagehide',()=>{
  try{navigator.serviceWorker?.controller?.postMessage({type:'ay-v2-chat-readiness',ready:false});}catch{}
 });
