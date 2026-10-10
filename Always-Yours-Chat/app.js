@@ -8,6 +8,80 @@ const state={role:null,identity:null,fp:null,session:null,expires:0,authPromise:
 // R28: a visible page can suppress push notifications only after a recent, successful
 // signed message sync. Local browser connectivity alone does not prove the chat is live.
 let lastForegroundSync=0;
+// R30: per-tab signed presence. A foreground page is only "online" after a
+// recent successful encrypted-message sync; any old heartbeat expires server-side.
+const presenceTabId=b64(crypto.getRandomValues(new Uint8Array(16)));
+let presenceTimer=null,presenceBusy=null,presenceLastPublished=false;
+function setPartnerPresence(message,tone='unknown'){
+ const node=$('partnerPresence'),dot=$('partnerPresenceDot');if(!node||!dot)return;
+ node.textContent=message;dot.dataset.state=tone;
+}
+function partnerPresenceLabel(info){
+ const partner=state.role==='Ko Ko'?'SHE':'HE';
+ if(info?.online===true)return {text:partner+' · 在线（最近同步成功）',tone:'online'};
+ const time=info?.lastSeen?Date.parse(info.lastSeen):NaN;
+ if(!Number.isFinite(time))return {text:partner+' · 暂无在线记录',tone:'unknown'};
+ const minutes=Math.max(0,Math.floor((Date.now()-time)/60000));
+ if(minutes<1)return {text:partner+' · 刚刚在线',tone:'recent'};
+ if(minutes<60)return {text:partner+' · '+minutes+' 分钟前在线',tone:'recent'};
+ if(minutes<24*60)return {text:partner+' · '+Math.floor(minutes/60)+' 小时前在线',tone:'offline'};
+ return {text:partner+' · 超过一天未见在线记录',tone:'offline'};
+}
+// iOS standalone Safari and some Android browsers can report hasFocus=false
+// even when their only visible tab is in the foreground. Keep the signed, recent
+// message-sync requirement; don't let a focus quirk imply permanent offline.
+function chatForegroundFocused(){
+ if(document.hidden)return false;
+ const mobile=/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)||
+   window.navigator.standalone===true;
+ return document.hasFocus()||mobile;
+}
+function presenceIdentityValid(role,fp,epoch){
+ return role===state.role&&fp===state.fp&&epoch===state.authEpoch&&
+   !$('chat').classList.contains('hidden');
+}
+async function pollPartnerPresence(){
+ if(presenceBusy||!state.role||$('chat').classList.contains('hidden')||document.hidden)return;
+ if(!navigator.onLine){setPartnerPresence('网络断开 · 在线状态未知');return;}
+ const role=state.role,fp=state.fp,epoch=state.authEpoch;
+ const current=()=>presenceIdentityValid(role,fp,epoch)&&!document.hidden;
+ const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),12000);
+ const work=(async()=>{
+  try{
+   // Browser online status is not enough: only an authenticated foreground sync
+   // makes us available to the other person.
+   if(chatForegroundFocused()&&lastForegroundSync>0&&Date.now()-lastForegroundSync<20000){
+    await request('/presence','POST',{tabId:presenceTabId,visible:true,eventMs:Date.now()},controller.signal);
+    if(current())presenceLastPublished=true;
+   }
+   const response=await request('/presence','GET',null,controller.signal);
+   if(!current())return;
+   if(response.ok!==true||typeof response.online!=='boolean')throw Error('在线状态响应不完整');
+   const result=partnerPresenceLabel(response);
+   setPartnerPresence(result.text,result.tone);
+  }catch(e){if(current())setPartnerPresence('在线状态暂不可用 · 可继续聊天');}
+ })();
+ presenceBusy=work;
+ try{await work;}finally{clearTimeout(timeout);if(presenceBusy===work)presenceBusy=null;}
+}
+function publishPresenceAway(){
+ if(!presenceLastPublished||!state.role||!state.fp||!navigator.onLine)return;
+ presenceLastPublished=false;
+ // Best effort on page hide; browsers may suspend requests. Expiry is mandatory
+ // on the server, so the badge never depends on this request succeeding.
+ void request('/presence','POST',{tabId:presenceTabId,visible:false,eventMs:Date.now()}).catch(()=>{});
+}
+function stopPresencePolling(){
+ clearInterval(presenceTimer);presenceTimer=null;
+ presenceBusy=null;presenceLastPublished=false;
+ setPartnerPresence('在线状态等待连接','unknown');
+}
+function startPresencePolling(){
+ clearInterval(presenceTimer);
+ setPartnerPresence('正在查询对方在线状态…','unknown');
+ void pollPartnerPresence();
+ presenceTimer=setInterval(()=>{void pollPartnerPresence();},18000);
+}
 let lastApprovalFocus=null;
 const validB64=/^[A-Za-z0-9_-]+$/;
 function b64(bytes){const v=bytes instanceof Uint8Array?bytes:new Uint8Array(bytes);let s='';for(const c of v)s+=String.fromCharCode(c);return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');}
@@ -51,6 +125,7 @@ async function jsonFetch(url,body){const r=await fetch(url,{method:'POST',header
 // R20: Coalesce concurrent logins. Sign each request with a stable session
 // snapshot, and discard responses from an identity that has since been exited.
 function resetAuthEpoch(){
+ stopPresencePolling();
  state.authEpoch++;
  state.authPromise=null;
  lastForegroundSync=0;
@@ -345,7 +420,7 @@ async function loadOlderHistory(){
 }
 let lastPaint='',refreshBusy=false,refreshQueued=false,refreshAbort=null,haveSnapshot=false,seenMessages=new Set();
 function markForegroundSynced(){
- if(document.hidden||!document.hasFocus())return;
+ if(!chatForegroundFocused())return;
  lastForegroundSync=Date.now();
  syncSWChatReadiness();
 }
@@ -366,6 +441,7 @@ $('jumpLatest').addEventListener('click',()=>{$('messages').scrollTo({top:$('mes
 // announces readiness before a successful foreground message fetch.
 function resumeForegroundChat(){
  lastForegroundSync=0;syncSWChatReadiness();
+ setPartnerPresence('正在重新确认在线状态…','unknown');
  if(!state.role||$('chat').classList.contains('hidden')||document.hidden)return;
  if(!navigator.onLine){status('网络尚未恢复，等待连接后同步。');return;}
  lastPaint='';
@@ -378,6 +454,7 @@ window.addEventListener('online',()=>{
 });
 window.addEventListener('offline',()=>{
  lastForegroundSync=0;syncSWChatReadiness();
+ setPartnerPresence('网络断开 · 在线状态未知','unknown');
  if(refreshAbort)refreshAbort.abort();
  if(state.role&&!$('chat').classList.contains('hidden'))status('目前离线 · 暂时不能发送和同步。已输入的内容会保留在此页面。');
 });
@@ -537,7 +614,7 @@ function openImageViewer(uri,kind){
  $('viewerTitle').textContent=kind==='gif'?'我们的 GIF ♡':'我们的照片 ♡';
  $('viewerImage').alt=kind==='gif'?'聊天 GIF 动图预览':'聊天照片预览';
  $('viewerImage').src=uri;
- $('viewerHint').textContent='双指放大 · 拖动查看 · 点击保存图片，可保存至本机';
+ $('viewerHint').textContent='iPhone：点「打开原图」后长按图片 → 存储到照片；Android/电脑：用下载文件或系统分享。';
  $('photoViewer').classList.remove('hidden');document.body.classList.add('viewerOpen');
  setViewerZoom(1);$('viewerClose').focus({preventScroll:true});
 }
@@ -554,21 +631,57 @@ function localMediaBlob(uri){
  for(let i=0;i<decoded.length;i++)bytes[i]=decoded.charCodeAt(i);
  return new Blob([bytes],{type:match[1]});
 }
-async function saveViewedImage(){
- if(!viewerState.uri)return;
- const kind=viewerState.kind,blob=localMediaBlob(viewerState.uri);
- const filename='our-love-'+new Date().toISOString().replace(/[:.]/g,'-')+(kind==='gif'?'.gif':'.jpg');
- const file=new File([blob],filename,{type:blob.type});
- // On iOS the native share sheet can save to Photos or Files.
- if(typeof navigator.share==='function'&&typeof navigator.canShare==='function'&&navigator.canShare({files:[file]})){
-   try{await navigator.share({files:[file],title:'Our Love Hub · 私人照片'});$('viewerHint').textContent='已打开系统分享菜单；可选择存储图像或保存到文件。';return;}
-   catch(e){if(e?.name==='AbortError')return;}
- }
- const url=URL.createObjectURL(blob);
- try{const a=document.createElement('a');a.href=url;a.download=filename;document.body.append(a);a.click();a.remove();
-    $('viewerHint').textContent='已请求浏览器保存图片；在 iPhone 上可从下载项打开并保存到相册。';
- }finally{setTimeout(()=>URL.revokeObjectURL(url),30000);}
+function viewedFile(){
+ if(!viewerState.uri)throw Error('请先打开聊天图片');
+ const blob=localMediaBlob(viewerState.uri);
+ const filename='our-love-'+new Date().toISOString().replace(/[:.]/g,'-')+(viewerState.kind==='gif'?'.gif':'.jpg');
+ return {blob,filename};
 }
+function viewerNotice(text){$('viewerHint').textContent=text;}
+function downloadViewedImage(){
+ const {blob,filename}=viewedFile();
+ const url=URL.createObjectURL(blob);
+ try{
+  const a=document.createElement('a');a.href=url;a.download=filename;a.rel='noopener';
+  document.body.append(a);a.click();a.remove();
+  viewerNotice('已请求下载文件。iPhone 下载的图片通常在「文件」里；要进照片相册，请点「打开原图」后长按选择「存储到照片」。');
+ }finally{setTimeout(()=>URL.revokeObjectURL(url),120000);}
+}
+async function saveViewedImage(){
+ const {blob,filename}=viewedFile();
+ // User-triggered Web Share can offer "Save Image" on supported iPhone/Android
+ // versions. It never silently writes to Photos and never uploads to our server.
+ if(typeof navigator.share==='function'&&typeof navigator.canShare==='function'){
+  try{
+   const file=new File([blob],filename,{type:blob.type});
+   if(navigator.canShare({files:[file]})){
+    await navigator.share({files:[file],title:'Our Love Hub · 私人照片'});
+    viewerNotice('分享菜单已结束。若选择了「存储图像」，请到相册确认；如没有该选项，请用「打开原图」长按保存。');
+    return;
+   }
+  }catch(e){
+   if(e?.name==='AbortError'){viewerNotice('已取消系统分享。可选择「下载文件」或「打开原图」保存到相册。');return;}
+   viewerNotice('此浏览器未能调用系统分享。请使用「下载文件」，或在 iPhone 点「打开原图」并长按存储。');
+   return;
+  }
+ }
+ viewerNotice('本浏览器不支持图片文件分享到系统相册。请用「下载文件」，或点「打开原图」并长按存储。');
+}
+// The real link is followed by the browser's own user gesture (not a scripted
+// popup after await), important for Safari iOS and installed home-screen apps.
+let lastRawImageUrl=null;
+$('viewerRaw').addEventListener('click',e=>{
+ try{
+  const {blob}=viewedFile();
+  const url=URL.createObjectURL(blob);lastRawImageUrl=url;
+  e.currentTarget.href=url;
+  viewerNotice('原图已在新标签页打开（若被拦截，请允许打开）。iPhone：长按原图 →「存储到照片」。GIF 也可以长按保存。');
+  setTimeout(()=>{URL.revokeObjectURL(url);if(lastRawImageUrl===url)lastRawImageUrl=null;},600000);
+ }catch(err){e.preventDefault();viewerNotice('无法打开原图：'+err.message);}
+});
+$('viewerDownload').addEventListener('click',()=>{
+ try{downloadViewedImage();}catch(e){viewerNotice('无法下载图片：'+e.message);}
+});
 $('viewerClose').addEventListener('click',closeImageViewer);
 $('photoViewer').addEventListener('click',e=>{if(e.target===$('photoViewer'))closeImageViewer();});
 $('viewerPlus').addEventListener('click',()=>setViewerZoom(viewerState.zoom+.5));
@@ -812,7 +925,7 @@ async function chooseRole(role,apply=false){
   $('deviceApproval').classList.add('hidden');
   $('gate').classList.add('hidden');$('chat').classList.remove('hidden');document.body.classList.add('chatMode');syncSWChatReadiness();
   $('who').textContent=(role==='Ko Ko'?'HE · Ko Ko':'SHE · Chit Chit')+' · 已验证设备';if(soundOn()){$('sound').textContent='♪ 重启声音';$('sound').title='浏览器重开后须手动点击，才能重新播放网页提示音';}
-  $('messages').replaceChildren();if('Notification' in window&&Notification.permission==='granted'){request('/push/status').then(d=>{if(d.registered)$('notify').textContent='🔔 已开启';}).catch(()=>{});}await refresh();state.timer=setInterval(refresh,5000);
+  $('messages').replaceChildren();if('Notification' in window&&Notification.permission==='granted'){request('/push/status').then(d=>{if(d.registered)$('notify').textContent='🔔 已开启';}).catch(()=>{});}await refresh();state.timer=setInterval(refresh,5000);startPresencePolling();
  }catch(e){
   $('chat').classList.add('hidden');$('gate').classList.remove('hidden');document.body.classList.remove('chatMode');syncSWChatReadiness();
   const message=e?.message||'未知错误';
@@ -1138,12 +1251,13 @@ if(navigator.serviceWorker)navigator.serviceWorker.addEventListener('message',ev
 });
 document.addEventListener('visibilitychange',()=>{
  if(document.hidden){
+  publishPresenceAway();
   lastForegroundSync=0;if(refreshAbort)refreshAbort.abort();
   syncSWChatReadiness();
  }else resumeForegroundChat();
 });
 window.addEventListener('focus',resumeForegroundChat);
-window.addEventListener('blur',()=>{lastForegroundSync=0;syncSWChatReadiness();});
+window.addEventListener('blur',()=>{publishPresenceAway();lastForegroundSync=0;syncSWChatReadiness();});
 // iOS Safari may restore a page from BFCache without repeating a normal load.
 window.addEventListener('pageshow',event=>{if(event.persisted)resumeForegroundChat();});
 // R27: a pending encrypted packet is intentionally kept in RAM, not persisted.
@@ -1157,6 +1271,7 @@ window.addEventListener('beforeunload',event=>{
  event.returnValue='';
 });
 window.addEventListener('pagehide',()=>{
+ publishPresenceAway();
  lastForegroundSync=0;if(refreshAbort)refreshAbort.abort();
  try{navigator.serviceWorker?.controller?.postMessage({type:'ay-v2-chat-readiness',ready:false});}catch{}
 });
