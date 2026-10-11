@@ -47,10 +47,66 @@ $('lockJourney')?.addEventListener('click', () => {
   window.location.assign(window.OurLoveRoutes?.hub || new URL('../', window.location.href).href);
 });
 
-// Install only the unified root application; subpages never create separate apps.
-$('installOpen')?.addEventListener('click', () => {
-  window.location.assign(window.OurLoveRoutes?.hub || new URL('../', location.href).href);
-});
+// Install one root-scoped PWA. Show guidance here instead of redirecting the
+// unlocked root gate straight back to Journey (which looked like a refresh).
+const installButton = $('installOpen');
+const installDialog = $('olhInstallDialog');
+const INSTALL_COPY = {
+ zh: {
+   title:'将 Our Love Hub 添加到桌面 ♡',intro:'为了只有一个 Our Love Hub 图标，请从总首页安装。点击这个按钮不会自动安装，也不会刷新聊天页面。',
+   android:'Android · 在 Chrome 中打开总首页，点右上角 ⋮ →「安装应用」或「添加到主屏幕」。',
+   ios:'iPhone / iPad · 在 Safari 中打开总首页，点分享 →「添加到主屏幕」。',
+   desktop:'电脑 · 在 Chrome 或 Edge 中打开总首页，点击地址栏安装图标；没有图标时查看浏览器菜单。',
+   note:'已安装或已在主屏幕打开？不需要再次安装。不要从 2025、2026 子页面另外创建图标。',
+   go:'前往总首页安装 ↗',close:'关闭',open:'添加 Our Love Hub 到桌面'
+ },
+ en: {
+   title:'Add Our Love Hub to Home Screen ♡',intro:'Keep just one Our Love Hub icon. Install from the main home page; this button opens instructions rather than reloading the page.',
+   android:'Android · Open the main home page in Chrome, tap ⋮ → “Install app” or “Add to Home screen”.',
+   ios:'iPhone / iPad · Open the main home page in Safari, tap Share → “Add to Home Screen”.',
+   desktop:'Desktop · Open the main home page in Chrome or Edge, then use the install icon in the address bar or the browser menu.',
+   note:'Already installed? You do not need another icon. Avoid installing the 2025 and 2026 pages separately.',
+   go:'Open home page to install ↗',close:'Close',open:'Add Our Love Hub to Home Screen'
+ },
+ my: {
+   title:'Our Love Hub ကို ပင်မမျက်နှာပြင်မှာ ထည့်မယ် ♡',
+   intro:'Our Love Hub အိုင်ကွန်တစ်ခုတည်း ရှိစေဖို့ ပင်မစာမျက်နှာကနေ ထည့်သွင်းပါနော်။ ဒီခလုတ်ကို နှိပ်ရုံနဲ့ စာမျက်နှာ ပြန်မဖွင့်ပါဘူး။',
+   android:'Android · Chrome မှာ ပင်မစာမျက်နှာကို ဖွင့်ပြီး ⋮ → “Install app” သို့မဟုတ် “Add to Home screen” ကို ရွေးပါ။',
+   ios:'iPhone / iPad · Safari မှာ ပင်မစာမျက်နှာကို ဖွင့်ပြီး Share → “Add to Home Screen” ကို ရွေးပါ။',
+   desktop:'ကွန်ပျူတာ · Chrome သို့မဟုတ် Edge မှာ ပင်မစာမျက်နှာကို ဖွင့်ပြီး လိပ်စာတန်းက Install အိုင်ကွန် သို့မဟုတ် browser menu ကို သုံးပါ။',
+   note:'ထည့်သွင်းပြီးသားဆိုရင် ထပ်မံထည့်စရာ မလိုပါဘူး။ ၂၀၂၅၊ ၂၀၂၆ စာမျက်နှာတွေကနေ အိုင်ကွန်အသစ် မထည့်ပါနဲ့နော်။',
+   go:'ပင်မစာမျက်နှာသို့ သွားမယ် ↗',close:'ပိတ်ရန်',open:'Our Love Hub ကို ဖုန်းမျက်နှာပြင်သို့ ထည့်ရန်'
+ }
+};
+function updateInstallLanguage(){
+ const lang=window.OLHJourneyLanguage?.()||'my',t=INSTALL_COPY[lang]||INSTALL_COPY.my;
+ for(const key of ['title','intro','android','ios','desktop','note','go','close']){
+  const target=installDialog?.querySelector(`[data-install-text="${key}"]`);
+  if(target)target.textContent=t[key];
+ }
+ installDialog?.setAttribute('lang',lang==='zh'?'zh-CN':lang);
+ installButton?.setAttribute('aria-label',t.open);
+ const go=installDialog?.querySelector('#olhInstallGo');
+ // Bypass automatic redirect at the unlocked root ONLY for intentional install guidance.
+ if(go){const home=window.OurLoveRoutes?.hub||new URL('../',document.baseURI).href;
+  const u=new URL(home);u.searchParams.set('install','1');go.href=u.href;}
+}
+if(installDialog && installButton){
+ installButton.addEventListener('click',()=>{
+  updateInstallLanguage();
+  installDialog.showModal();
+  document.body.classList.add('dialog-open');
+ });
+ installDialog.addEventListener('close',()=>{
+  document.body.classList.remove('dialog-open');
+  installButton.focus({preventScroll:true});
+ });
+ installDialog.addEventListener('click',e=>{
+  if(e.target===installDialog)installDialog.close();
+ });
+ document.addEventListener('olh:languagechange',updateInstallLanguage);
+ updateInstallLanguage();
+}
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {

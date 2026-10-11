@@ -48,6 +48,7 @@
   <main id="gate" class="frame">
     <section class="gate-card" aria-labelledby="gateTitle">
       <label class="olh-gate-language" for="olhRootLanguage">🌐 <select id="olhRootLanguage" aria-label="Language / 语言 / ဘာသာစကား"><option value="my">မြန်မာ</option><option value="zh">中文</option><option value="en">English</option></select></label>
+      <p id="olhRootInstallGuide" hidden role="status" style="padding:12px 15px;border:1px solid #edd2e6;border-radius:15px;background:#fffbff;color:#795b75;font-size:13px;line-height:1.8;text-align:left"></p>
       <img class="logo gate-logo" src="./assets/icon-192.png" alt="Our Love Hub 爱心 Logo" width="112" height="112">
       <p class="eyebrow">M ♡ T · ONLY OURS</p>
       <h1 id="gateTitle">只属于我们的<br>小小世界</h1>
@@ -58,7 +59,7 @@
           <div class="date-wrap"><svg xmlns="http://www.w3.org/2000/svg" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/><path d="m9 16 2 2 4-4"/></svg><input id="anniversary" type="date" required aria-describedby="dateHint error" autocomplete="off"></div>
           <p class="hint" id="dateHint">选择正确的年、月、日，就能进入 ♡</p>
         </div>
-        <button class="enter" type="submit">打开我们的世界 &nbsp;♡</button>
+        <button class="enter" type="submit"><span>打开我们的世界</span> <span aria-hidden="true">♡</span></button>
         <p id="error" role="alert" aria-live="polite"></p>
       </form>
       <p class="footnote">From our first day · to forever</p>
@@ -81,8 +82,23 @@
       try { return !!sessionStorage.getItem(KEY); }
       catch (_) { return false; }
     }
-    // An unlocked tab goes straight to Our Journey; no intermediate dashboard.
-    if (unlocked()) { openJourney(); return; }
+    // Explicit install instructions must stay on the root page even when unlocked.
+    var installGuide = new URLSearchParams(location.search).get('install')==='1';
+    if (unlocked() && !installGuide) { openJourney(); return; }
+    if(installGuide){
+      var guide=document.getElementById('olhRootInstallGuide');
+      var instructions={
+       zh:'这是统一的 Our Love Hub 总入口。请使用浏览器菜单的「安装应用 / 添加到主屏幕」保存这里；不必另外安装 2025、2026 页面。',
+       en:'This is the one Our Love Hub home. Use your browser menu → “Install app / Add to Home Screen” here. Do not install the 2025 or 2026 pages separately.',
+       my:'ဒါက Our Love Hub ရဲ့ ပင်မဝင်ပေါက်ပါ။ ဒီစာမျက်နှာမှာ browser menu က “Install app / Add to Home Screen” ကို ရွေးပါ။ ၂၀၂၅၊ ၂၀၂၆ စာမျက်နှာတွေကို သီးခြား မထည့်ပါနဲ့နော်။'
+      };
+      function translateGuide(){
+       var language='my';try{var saved=localStorage.getItem('olh_language');if(['my','zh','en'].includes(saved))language=saved;}catch(_){}
+       guide.textContent=instructions[language];guide.hidden=false;
+      }
+      document.addEventListener('olh:languagechange',translateGuide);
+      translateGuide();
+    }
     form.addEventListener('submit',function(e){
       e.preventDefault();
       if (!input.value){

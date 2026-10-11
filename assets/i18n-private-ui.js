@@ -99,6 +99,15 @@ function traverse(root){if(root.nodeType===3){textNode(root);return;}
 }
 function apply(){if(busy)return;busy=true;try{
  document.documentElement.lang=lang==='my'?'my':lang==='zh'?'zh-CN':'en';
+ // Localized loading label only. Never translate, export, log, or store any actual fingerprint.
+ // This narrow guard is needed because the approved core app updates this label asynchronously.
+ if(page==='chat'){
+  const fp=document.getElementById('approvalFingerprint');
+  const labels={zh:'正在生成安全设备指纹…',en:'Generating secure device fingerprint…',my:'လုံခြုံသော စက်လက်ဗွေ ဖန်တီးနေပါသည်…'};
+  if(fp && Object.values(labels).includes(fp.textContent.trim())){
+    const target=labels[lang];if(fp.textContent!==target)fp.textContent=target;
+  }
+ }
  if(page==='admin')document.title=lang==='my'?'စက်ခွင့်ပြုချက် ♡ Our Love Hub':lang==='en'?'Device Approval ♡ Our Love Hub':'设备授权管理 ♡ Our Love Hub';
  for(const sel of safeRoots){document.querySelectorAll(sel).forEach(traverse);}
  const selector=document.querySelector('.olh-language-picker select');if(selector)selector.value=lang;

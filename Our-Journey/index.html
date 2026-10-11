@@ -12,10 +12,10 @@
   <link rel="apple-touch-icon" sizes="180x180" href="../assets/apple-touch-icon.png">
   <link rel="manifest" href="../manifest.webmanifest">
   <title>Our Journey · 只属于我们的故事 ♡</title>
-  <link rel="stylesheet" href="./styles.css?v=20261011-jlang1">
+  <link rel="stylesheet" href="./styles.css?v=20261011-install-audit">
   <script src="./routes.js" defer></script>
   <script src="./i18n-journey.js?v=20261011-jlang1" defer></script>
-  <script src="./app.js?v=20261011-jlang1" defer></script>
+  <script src="./app.js?v=20261011-install-audit" defer></script>
 </head>
 <body>
   <div class="ambient-hearts" aria-hidden="true"><span>♡</span><span>♡</span><span>♡</span></div>
@@ -39,6 +39,22 @@
       <a id="chatBell" class="chat-bell" href="../Always-Yours-Chat/" data-site-route="chat" aria-label="打开悄悄话，检查新消息" title="查看 HE / SHE 消息"><span class="bell-glyph" aria-hidden="true">♢</span><span class="bell-emoji" aria-hidden="true">🔔</span><span id="chatBellCount" class="chat-bell-count" hidden>0</span></a>
       <button class="install-button" id="installOpen" type="button" aria-label="前往 Our Love Hub 安装主应用" title="统一安装 Our Love Hub">♡ <span>添加到桌面</span></button>
     </header>
+
+    <dialog id="olhInstallDialog" class="olh-install-dialog" aria-labelledby="olhInstallTitle" aria-describedby="olhInstallIntro">
+      <div class="olh-install-panel">
+        <form method="dialog" class="olh-install-close-form"><button type="submit" class="olh-install-close" data-install-text="close">关闭</button></form>
+        <div class="olh-install-heart" aria-hidden="true">♡</div>
+        <h2 id="olhInstallTitle" data-install-text="title">将 Our Love Hub 添加到桌面 ♡</h2>
+        <p id="olhInstallIntro" data-install-text="intro">为了只有一个 Our Love Hub 图标，请从总首页安装。</p>
+        <div class="olh-install-steps">
+          <p data-install-text="android"></p>
+          <p data-install-text="ios"></p>
+          <p data-install-text="desktop"></p>
+        </div>
+        <p class="olh-install-note" data-install-text="note"></p>
+        <a id="olhInstallGo" class="olh-install-go" data-install-text="go" href="../?install=1">前往总首页安装 ↗</a>
+      </div>
+    </dialog>
 
     <main id="top">
       <section class="hero-panel" aria-labelledby="heroTitle">

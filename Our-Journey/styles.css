@@ -410,3 +410,23 @@ html[lang="my"] .topnav a{white-space:normal;line-height:1.45}
  html[lang="my"] .topnav a{font-size:11px;padding:6px 4px}
  html[lang="my"] .section-heading h2{font-size:clamp(25px,6.5vw,35px)}
 }
+
+/* R34: real install guidance dialog, with no automatic navigation on click. */
+.olh-install-dialog{position:fixed;inset:0;margin:auto;width:min(92vw,540px);max-height:min(88vh,780px);max-height:min(88dvh,780px);padding:0;
+  border:1px solid rgba(237,204,226,.9);border-radius:28px;box-shadow:0 22px 88px rgba(72,36,78,.3);color:#573b53;background:linear-gradient(145deg,#fffafd,#f8f0fd);}
+.olh-install-dialog::backdrop{background:rgba(57,34,60,.52);backdrop-filter:blur(5px)}
+.olh-install-panel{position:relative;padding:clamp(22px,4vw,36px);overflow-y:auto;max-height:min(88vh,780px);max-height:min(88dvh,780px);}
+.olh-install-close-form{display:flex;justify-content:flex-end;margin:0 0 4px}
+.olh-install-close{min-height:36px;background:#fff;border:1px solid #efd6e6;border-radius:999px;color:#866781;padding:5px 15px;font-size:12px;font-weight:700}
+.olh-install-heart{text-align:center;font:38px Georgia,serif;color:#bd86b1}
+.olh-install-dialog h2{text-align:center;font-size:clamp(20px,3vw,26px);line-height:1.6;margin:8px 0 13px}
+.olh-install-dialog p{font-size:14px;line-height:1.8;color:#80687e;margin:10px 0}
+.olh-install-steps{border:1px solid #edd9e9;border-radius:18px;padding:10px 15px;background:rgba(255,255,255,.79)}
+.olh-install-steps p+p{border-top:1px solid #f2e6f1;padding-top:10px}
+.olh-install-note{font-size:12px!important;color:#957e94!important}
+.olh-install-go{display:flex;justify-content:center;align-items:center;text-align:center;min-height:48px;margin-top:20px;padding:12px 15px;
+  color:#fff;background:linear-gradient(115deg,#b77ea9,#947ac5);border-radius:999px;font-weight:750;line-height:1.5}
+.olh-install-go:hover{filter:brightness(1.05)}
+html[lang="my"] .olh-install-dialog{font-family:"Noto Sans Myanmar","Myanmar Text","Padauk",system-ui,sans-serif}
+html[lang="my"] .olh-install-dialog h2,html[lang="my"] .olh-install-dialog p{line-height:1.9}
+@media(max-width:480px){.olh-install-panel{padding:18px}.olh-install-steps{padding:8px 12px}.olh-install-dialog p{font-size:13px}}
