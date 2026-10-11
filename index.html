@@ -36,11 +36,18 @@
     .footnote{font-size:.79rem;color:#a18b9b;margin:13px 0 0}
     @media(max-width:670px){.frame{padding-inline:17px}.gate-card{border-radius:27px}#gate{padding-block:28px}}
     @media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;transition:none!important}}
+
+    .olh-gate-language{display:flex;align-items:center;justify-content:flex-end;gap:9px;margin:-6px -2px 6px;color:#81617d;font-size:12px;font-weight:750}
+    .olh-gate-language select{max-width:155px;border:1px solid #edd3e5;border-radius:999px;padding:8px 12px;background:#fff8ff;color:#644460;font:700 12px/1.3 system-ui,sans-serif}
+    .olh-gate-language select:focus-visible{outline:3px solid #9479bd;outline-offset:3px}
+    html[lang="my"] .gate-card{font-family:"Noto Sans Myanmar","Myanmar Sangam MN","Pyidaungsu",system-ui,sans-serif}
+    html[lang="my"] .gate-card h1{font-family:"Noto Sans Myanmar","Myanmar Sangam MN","Pyidaungsu",sans-serif;letter-spacing:0;line-height:1.5;font-size:clamp(1.6rem,5vw,2.2rem)}
   </style>
 </head>
 <body>
   <main id="gate" class="frame">
     <section class="gate-card" aria-labelledby="gateTitle">
+      <label class="olh-gate-language" for="olhRootLanguage">🌐 <select id="olhRootLanguage" aria-label="Language / 语言 / ဘာသာစကား"><option value="my">မြန်မာ</option><option value="zh">中文</option><option value="en">English</option></select></label>
       <img class="logo gate-logo" src="./assets/icon-192.png" alt="Our Love Hub 爱心 Logo" width="112" height="112">
       <p class="eyebrow">M ♡ T · ONLY OURS</p>
       <h1 id="gateTitle">只属于我们的<br>小小世界</h1>
@@ -57,6 +64,7 @@
       <p class="footnote">From our first day · to forever</p>
     </section>
   </main>
+  <script defer src="./i18n-home.js?v=20261011-p3"></script>
   <script>
   (function(){
     'use strict';
@@ -78,12 +86,12 @@
     form.addEventListener('submit',function(e){
       e.preventDefault();
       if (!input.value){
-        error.textContent='先选择我们在一起的日期哦 ♡';
+        error.textContent=(window.OLHRootLanguage?.error('empty') || '先选择我们在一起的日期哦 ♡');
         input.focus();
         return;
       }
       if (input.value!==DAY){
-        error.textContent='好像不是那一天，再想想我们的故事 ♡';
+        error.textContent=(window.OLHRootLanguage?.error('wrong') || '好像不是那一天，再想想我们的故事 ♡');
         input.focus();
         return;
       }

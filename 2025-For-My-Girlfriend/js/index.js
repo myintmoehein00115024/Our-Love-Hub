@@ -35,12 +35,19 @@
       Date.UTC(monthAnchor.getFullYear(), monthAnchor.getMonth(), monthAnchor.getDate())
     ) / 86400000);
 
-    if (counter) counter.textContent = `我们已经一起走过 ${years} 年 ${months} 个月 ${days} 天，故事还在继续 ♡`;
+    let lang='my';
+    try{const selected=localStorage.getItem('olh_language');if(['my','zh','en'].includes(selected))lang=selected;}catch(_){}
+    const label=lang==='zh'?
+      `我们已经一起走过 ${years} 年 ${months} 个月 ${days} 天，故事还在继续 ♡`:
+      lang==='en'?
+      `We've been together for ${years} years, ${months} months and ${days} days. Our story continues ♡`:
+      `ကိုယ်တို့နှစ်ယောက် အတူရှိခဲ့တာ ${years} နှစ် ${months} လ ${days} ရက်ရှိပြီ။ ဇာတ်လမ်းလေး ဆက်လက်နေဆဲပါ ♡`;
+    if (counter) counter.textContent=label;
     if (totalDays) {
       const elapsed = Math.max(0, Math.floor((
         Date.UTC(current.getFullYear(),current.getMonth(),current.getDate()) -
         Date.UTC(2024,2,23)) / 86400000));
-      totalDays.textContent = elapsed.toLocaleString("zh-CN");
+      totalDays.textContent = elapsed.toLocaleString(lang==='en'?'en-US':lang==='my'?'my-MM':'zh-CN');
     }
   }
 
@@ -101,4 +108,5 @@
 
   updateRuntime();
   window.setInterval(updateRuntime, 60000);
+  window.addEventListener('olh:counter-refresh',updateRuntime);
 })();
