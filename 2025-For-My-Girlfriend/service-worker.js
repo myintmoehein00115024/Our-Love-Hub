@@ -1,4 +1,4 @@
-const CACHE_NAME = "thinthin-shell-v18-on-demand-audio-20261009";
+const CACHE_NAME = "thinthin-shell-v19-trilingual-offline-20261011";
 const SHELL = [
   "./",
   "./index.html",
@@ -12,6 +12,9 @@ const SHELL = [
   "./css/2025-responsive.css",
   "./css/2025-inner.css",
   "./js/index.js",
+  "./i18n-2025.js?v=20261011-p3",
+  "./i18n-inner-2025.js?v=20261011p4",
+  "./i18n-inner-2025.css?v=20261011p4",
   "./js/pwa-install.js",
   "./message/index.html",
   "./message/css/style.css",
@@ -55,7 +58,7 @@ self.addEventListener("fetch", event => {
         event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.put(req, clone)).catch(() => {}));
         return fresh;
       } catch (_) {
-        const cached = await caches.match(req);
+        const cached = await caches.match(req,{ignoreSearch:true});
         return cached || caches.match("./index.html");
       }
     })());
@@ -71,7 +74,7 @@ self.addEventListener("fetch", event => {
       }
       return fresh;
     } catch (_) {
-      const cached = await caches.match(req);
+      const cached = await caches.match(req,{ignoreSearch:true});
       return cached || Response.error();
     }
   })());

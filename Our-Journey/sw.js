@@ -1,6 +1,6 @@
 // Our Journey · stable offline shell with network-first updates.
-const CACHE = 'our-journey-v21-v2-unread-failclosed-20261010';
-const ESSENTIAL = ['./', './index.html', './styles.css', './routes.js', './app.js'];
+const CACHE = 'our-journey-v22-i18n-offline-20261011';
+const ESSENTIAL = ['./', './index.html', './styles.css', './routes.js', './app.js','./i18n-journey.js?v=20261011-jlang1'];
 const OPTIONAL = ['../manifest.webmanifest','../assets/icon-192.png','../assets/icon-512.png',
   '../assets/apple-touch-icon.png','../assets/favicon-32.png'];
 

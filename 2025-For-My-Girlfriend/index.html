@@ -202,6 +202,14 @@
       <a class="year2025-footer-home" href="../Our-Journey/" aria-label="返回 Our Journey">返回 Our Journey ↗</a>
     </footer>
   </main>
+<script>
+// Scope is 2025-only: does not intercept private Chat or create another installed app.
+if ('serviceWorker' in navigator && (location.protocol==='https:' || location.hostname==='localhost' || location.hostname==='127.0.0.1')) {
+  window.addEventListener('load',function(){
+    navigator.serviceWorker.register('./service-worker.js',{scope:'./',updateViaCache:'none'}).catch(function(){});
+  },{once:true});
+}
+</script>
 </body>
 
 </html>
