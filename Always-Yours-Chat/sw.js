@@ -5,23 +5,39 @@ const readyClients=new Map();
 const PUSH_LOCALE_CACHE='ay-v2-push-locale-v1';
 const PUSH_LOCALE_URL=new URL('./__push-language__',self.registration.scope).href;
 const PUSH_LOCALES=new Set(['my','zh','en']);
-let pushLocale=null;
-async function rememberPushLocale(value){
- if(!PUSH_LOCALES.has(value))return;
- pushLocale=value;
- const cache=await caches.open(PUSH_LOCALE_CACHE);
- await cache.put(PUSH_LOCALE_URL,new Response(value,{
-  headers:{'Content-Type':'text/plain','Cache-Control':'no-store'}
- }));
-}
-async function notificationLanguage(){
- if(PUSH_LOCALES.has(pushLocale))return pushLocale;
+const SITE_SCOPE=new URL('../',self.registration.scope).href;
+let localeSnapshot=null;
+let localeQueue=Promise.resolve();
+async function loadLocaleSnapshot(){
+ if(localeSnapshot)return localeSnapshot;
  try{
   const cache=await caches.open(PUSH_LOCALE_CACHE);
-  const value=await (await cache.match(PUSH_LOCALE_URL))?.text();
-  if(PUSH_LOCALES.has(value))return (pushLocale=value);
+  const raw=await (await cache.match(PUSH_LOCALE_URL))?.text();
+  if(PUSH_LOCALES.has(raw))return localeSnapshot={language:raw,updatedAt:0};
+  if(raw){
+   const parsed=JSON.parse(raw);
+   if(PUSH_LOCALES.has(parsed?.language)&&Number.isSafeInteger(parsed?.updatedAt))
+    return localeSnapshot={language:parsed.language,updatedAt:parsed.updatedAt};
+  }
  }catch{}
- return 'my'; // New installs default to Myanmar, matching site localization.
+ return localeSnapshot={language:'my',updatedAt:0};
+}
+function rememberPushLocale(language,updatedAt){
+ localeQueue=localeQueue.catch(()=>{}).then(async()=>{
+  const previous=await loadLocaleSnapshot();
+  if(updatedAt<previous.updatedAt)return;
+  const next={language,updatedAt};
+  const cache=await caches.open(PUSH_LOCALE_CACHE);
+  await cache.put(PUSH_LOCALE_URL,new Response(JSON.stringify(next),{
+   headers:{'Content-Type':'application/json','Cache-Control':'no-store'}
+  }));
+  localeSnapshot=next;
+ });
+ return localeQueue;
+}
+async function notificationLanguage(){
+ await localeQueue.catch(()=>{});
+ return (await loadLocaleSnapshot()).language;
 }
 const PUSH_BODIES=Object.freeze({
  my:'ချစ်သူဆီက စာအသစ်လေး ရောက်လာပြီ ♡',
@@ -30,12 +46,13 @@ const PUSH_BODIES=Object.freeze({
 });
 self.addEventListener('message',event=>{
  if(event.data?.type!=='ay-v2-push-language')return;
- // Only messages from controlled same-scope windows may change this display preference.
+ // Allow only pages of this Our Love Hub site, not other same-origin repositories.
  const src=event.source;
- if(!src?.url?.startsWith(self.registration.scope))return;
- const lang=event.data.language;
- if(!PUSH_LOCALES.has(lang))return;
- event.waitUntil(rememberPushLocale(lang).catch(()=>{}));
+ if(typeof src?.url!=='string'||!src.url.startsWith(SITE_SCOPE))return;
+ const lang=event.data.language,stamp=event.data.updatedAt;
+ if(!PUSH_LOCALES.has(lang)||!Number.isSafeInteger(stamp)||
+    Math.abs(Date.now()-stamp)>300000)return;
+ event.waitUntil(rememberPushLocale(lang,stamp).catch(()=>{}));
 });
 
 self.addEventListener('message',event=>{

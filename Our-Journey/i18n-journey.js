@@ -53,3 +53,36 @@ function setup(){
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',setup,{once:true});else setup();
 })();
+
+
+/* Phase 13: propagate the site's selected interface language to chat notifications.
+ * Only my/zh/en is sent; never reads messages, passwords, keys or fingerprints. */
+(()=>{'use strict';
+  if(!('serviceWorker' in navigator))return;
+  // Chat itself has its dedicated push-locale.js bridge.
+  if(location.pathname.startsWith('/Our-Love-Hub/Always-Yours-Chat/'))return;
+  const options=new Set(['my','zh','en']);
+  const scope=new URL('/Our-Love-Hub/Always-Yours-Chat/',location.origin).href;
+  let lastStamp=0;
+  function syncPushLanguage(){
+    let selected='my';
+    try{const stored=localStorage.getItem('olh_language');if(options.has(stored))selected=stored;}catch{}
+    navigator.serviceWorker.getRegistration(scope).then(reg=>{
+      if(!reg?.active)return;
+      // Read preference AFTER async registration lookup, not from stale callback state.
+      try{const latest=localStorage.getItem('olh_language');selected=options.has(latest)?latest:'my';}catch{}
+      lastStamp=Math.max(Date.now(),lastStamp+1);
+      reg.active.postMessage({type:'ay-v2-push-language',language:selected,updatedAt:lastStamp});
+    }).catch(()=>{});
+  }
+  document.addEventListener('change',event=>{
+    if(event.target?.matches?.('.olh-language-picker select'))queueMicrotask(syncPushLanguage);
+  });
+  document.addEventListener('olh:languagechange',syncPushLanguage);
+  window.addEventListener('olh-language-change',syncPushLanguage);
+  window.addEventListener('storage',event=>{if(event.key==='olh_language')syncPushLanguage();});
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)syncPushLanguage();});
+  window.addEventListener('pageshow',syncPushLanguage);
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',syncPushLanguage,{once:true});
+  else syncPushLanguage();
+})();

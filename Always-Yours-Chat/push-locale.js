@@ -5,9 +5,11 @@
     try{const value=localStorage.getItem('olh_language');return valid.has(value)?value:'my';}
     catch{return 'my';}
   };
+  let lastStamp=0;
   function send(){
     if(!('serviceWorker' in navigator))return;
-    const data={type:'ay-v2-push-language',language:current()};
+    lastStamp=Math.max(Date.now(),lastStamp+1);
+    const data={type:'ay-v2-push-language',language:current(),updatedAt:lastStamp};
     // The controller may be absent right after installation; the active worker
     // will still receive the language update.
     try{navigator.serviceWorker.controller?.postMessage(data);}catch{}
