@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="css/style.css">
 <link rel="stylesheet" href="../css/2025-responsive.css?v=20261009f">
 <link rel="stylesheet" href="../css/2025-inner.css?v=20261009a">
+  <link rel="stylesheet" href="../i18n-inner-2025.css?v=20261011p4">
 </head>
 <body class="page-2025-letter">
 <nav class="year2025-subnav" role="navigation" aria-label="2025 章节导航">
@@ -93,6 +94,7 @@
     <source src="../Love/Yar Tat Pan.mp3" type="audio/mpeg">
   </audio>
 
+  <script src="../i18n-inner-2025.js?v=20261011p4" data-olh-inner-page="message"></script>
   <script>
     (() => {
       const audio = document.getElementById('main-audio');
@@ -195,8 +197,8 @@
       function setState(playing){
         button.classList.toggle('playing', playing);
         button.setAttribute('aria-pressed', String(playing));
-        button.setAttribute('aria-label', playing ? 'Stop music' : 'Play music');
-        text.textContent = playing ? 'Stop Song' : 'Our Song';
+        button.setAttribute('aria-label', window.OLH2025Inner ? window.OLH2025Inner.t(playing ? 'songStop' : 'songPlay') : (playing ? 'Stop music' : 'Play music'));
+        text.textContent = window.OLH2025Inner ? window.OLH2025Inner.t(playing ? 'songStop' : 'songPlay') : (playing ? 'Stop Song' : 'Our Song');
       }
 
       async function startMusic(){
@@ -224,6 +226,7 @@
       audio.addEventListener('play', () => setState(true));
       audio.addEventListener('pause', () => setState(false));
       audio.addEventListener('ended', () => setState(false));
+      window.addEventListener('olh-language-change', () => setState(!audio.paused));
       window.addEventListener('load', () => startMusic());
     })();
   </script>

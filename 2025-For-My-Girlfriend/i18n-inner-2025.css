@@ -1,0 +1,16 @@
+/* 2025 child page language switch - independent from all animation and encryption */
+.year2025-subnav{gap:clamp(5px,1vw,15px)!important}
+.olh-inner-language{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;min-height:38px;max-width:155px;border:1px solid rgba(224,189,220,.8);border-radius:999px;background:rgba(255,255,255,.94);color:#8b608b;white-space:nowrap;flex:0 0 auto;box-sizing:border-box;font:650 12px/1.5 "Noto Sans Myanmar","Myanmar Sangam MN","Padauk",system-ui,sans-serif;pointer-events:auto}
+.olh-inner-language select{appearance:auto;border:0;background:transparent;color:inherit;min-width:0;max-width:112px;font:inherit;cursor:pointer;outline-offset:2px}
+.love-entry-page .olh-inner-language{justify-content:center;margin:15px auto 0;max-width:180px}
+html[lang=my] .page-2025-heartbeat .heartbeat-message h1,html[lang=my] .page-2025-letter .letter-card h1{font-family:"Noto Sans Myanmar","Myanmar Sangam MN","Padauk","Myanmar Text",sans-serif;line-height:1.5;letter-spacing:0}
+html[lang=my] .year2025-subnav,html[lang=my] .heartbeat-experience-controls{font-family:"Noto Sans Myanmar","Myanmar Sangam MN","Padauk",system-ui,sans-serif}
+.year2025-subnav-chapter{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis}
+@media(max-width:700px){
+  .year2025-subnav .olh-inner-language{min-height:34px;padding:3px 4px;font-size:11px;gap:2px;max-width:103px}
+  .year2025-subnav .olh-inner-language select{max-width:80px}
+  .year2025-subnav .year2025-subnav-back{min-width:0;flex:0 1 115px}
+  .year2025-subnav .year2025-subnav-back span{display:inline-block;max-width:100px;overflow:hidden;text-overflow:ellipsis;vertical-align:middle;white-space:nowrap}
+  .year2025-subnav .year2025-subnav-hub{min-width:0;flex:0 0 auto}
+}
+@media(max-width:390px){.year2025-subnav .year2025-subnav-hub{font-size:10px;padding-inline:5px}.year2025-subnav .year2025-subnav-back{flex-basis:103px}}

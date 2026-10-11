@@ -17,27 +17,28 @@ let heartbeatTimeline = null;
 let rotationTween = null;
 let vibrationBlocked = false;
 
+function i18n25(k){ return (window.OLH2025Inner && window.OLH2025Inner.t(k)) || k; }
 function syncMotionButton(){
   if (!motionButton) return;
   motionButton.setAttribute('aria-pressed', String(userPaused));
-  motionButton.setAttribute('aria-label', userPaused ? '播放心跳动画' : '暂停心跳动画');
-  motionButton.innerHTML = userPaused ? '▶ <span>播放动画</span>' : 'Ⅱ <span>暂停动画</span>';
+  motionButton.setAttribute('aria-label', userPaused ? i18n25('motionPlay') : i18n25('motionPause'));
+  motionButton.innerHTML = userPaused ? '▶ <span>' + i18n25('motionPlay') + '</span>' : 'Ⅱ <span>' + i18n25('motionPause') + '</span>';
 }
 function syncExperienceButton(){
   if (!experienceButton) return;
   const supported = supportsVibration || !!AudioConstructor;
   experienceButton.disabled = !supported;
   experienceButton.setAttribute('aria-pressed', String(experienceEnabled));
-  experienceButton.innerHTML = experienceEnabled ? '♡ <span>关闭心跳感</span>' : '♡ <span>感受心跳</span>';
+  experienceButton.innerHTML = experienceEnabled ? '♡ <span>' + i18n25('feelOff') + '</span>' : '♡ <span>' + i18n25('feelOn') + '</span>';
   if (!experienceStatus) return;
-  if (!supported) experienceStatus.textContent = '当前浏览器不支持网页震动或心跳音效';
-  else if (userPaused && experienceEnabled) experienceStatus.textContent = '已暂停 · 点击播放恢复心跳';
-  else if (experienceEnabled && document.hidden) experienceStatus.textContent = '页面切到后台，心跳已暂停';
-  else if (experienceEnabled && supportsVibration && !vibrationBlocked) experienceStatus.textContent = '咚—咚 ♡ 震动与轻柔心跳声';
-  else if (experienceEnabled && supportsVibration && vibrationBlocked) experienceStatus.textContent = '系统限制了震动，心跳音效仍可使用';
-  else if (experienceEnabled) experienceStatus.textContent = '咚—咚 ♡ 苹果浏览器以心跳音效代替震动';
-  else if (supportsVibration) experienceStatus.textContent = '安卓：点一下，感受每次双拍心跳';
-  else experienceStatus.textContent = '苹果网页暂不支持震动 · 可开启轻柔心跳声';
+  if (!supported) experienceStatus.textContent = i18n25('unsupported');
+  else if (userPaused && experienceEnabled) experienceStatus.textContent = i18n25('pausedStatus');
+  else if (experienceEnabled && document.hidden) experienceStatus.textContent = i18n25('backgroundStatus');
+  else if (experienceEnabled && supportsVibration && !vibrationBlocked) experienceStatus.textContent = i18n25('hapticStatus');
+  else if (experienceEnabled && supportsVibration && vibrationBlocked) experienceStatus.textContent = i18n25('vibrationBlocked');
+  else if (experienceEnabled) experienceStatus.textContent = i18n25('appleSound');
+  else if (supportsVibration) experienceStatus.textContent = i18n25('androidHint');
+  else experienceStatus.textContent = i18n25('appleHint');
 }
 function playThump(delay, louder) {
   if (!audioContext || audioContext.state !== 'running') return;
@@ -286,3 +287,5 @@ function onWindowResize() {
   if (fallback) fallback.hidden = false;
   console.warn('3D heart unavailable; synchronized heartbeat controls remain active.');
 }
+
+window.addEventListener("olh-language-change", function(){syncMotionButton();syncExperienceButton();});

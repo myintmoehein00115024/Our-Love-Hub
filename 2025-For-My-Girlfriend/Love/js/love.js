@@ -208,8 +208,8 @@
       var paused = audio.paused;
       button.classList.toggle("is-paused", paused);
       button.setAttribute("aria-pressed", paused ? "true" : "false");
-      button.setAttribute("aria-label", paused ? "Play song" : "Pause song");
-      if(label) label.textContent = paused ? "Play Song" : "Pause Song";
+      button.setAttribute("aria-label", window.OLH2025Inner ? window.OLH2025Inner.t(paused ? "musicPlay" : "musicPause") : (paused ? "Play song" : "Pause song"));
+      if(label) label.textContent = window.OLH2025Inner ? window.OLH2025Inner.t(paused ? "musicPlay" : "musicPause") : (paused ? "Play Song" : "Pause Song");
       if(icon) icon.textContent = paused ? "▶" : "♫";
     }
 
@@ -227,6 +227,7 @@
 
     audio.addEventListener("play", render);
     audio.addEventListener("pause", render);
+    window.addEventListener("olh-language-change", render);
     render();
 
     function tryUnlock(event){
@@ -432,8 +433,22 @@
       existing = $('<span class="love-copy-whisper"></span>');
       $text.find('.love-copy-kicker').after(existing);
     }
-    existing.text(whisper);
+    existing.text(window.OLH2025Inner ? window.OLH2025Inner.whisper(lineIndex, whisper) : whisper);
   }
+
+  window.addEventListener('olh-language-change', function(){
+    var host = document.querySelector('.love_you');
+    if (!host) return;
+    var index = Number(host.getAttribute('data-chapter') || 0);
+    if (!index || !loves[index - 1]) return;
+    var line = loves[index - 1];
+    var kicker = host.querySelector('.love-copy-kicker');
+    var main = host.querySelector('.love-copy-main');
+    var whisper = host.querySelector('.love-copy-whisper');
+    if (kicker) kicker.textContent = '♡ ' + (window.OLH2025Inner ? window.OLH2025Inner.loveK(line.k) : line.k) + ' ♡';
+    if (main) main.textContent = window.OLH2025Inner ? window.OLH2025Inner.loveMain(index, line.t) : line.t;
+    if (whisper) whisper.textContent = window.OLH2025Inner ? window.OLH2025Inner.whisper(index, loveWhispers[index - 1]) : loveWhispers[index - 1];
+  });
 
   function renderLoveLine(){
     if(finaleStarted) return false;
@@ -455,8 +470,8 @@
     // Render every character in one operation. Nothing from the previous
     // chapter is allowed to remain partially rendered.
     $text.empty();
-    $('<span class="love-copy-kicker"></span>').text('♡ ' + line.k + ' ♡').appendTo($text);
-    $('<span class="love-copy-main"></span>').text(line.t).appendTo($text);
+    $('<span class="love-copy-kicker"></span>').text('♡ ' + (window.OLH2025Inner ? window.OLH2025Inner.loveK(line.k) : line.k) + ' ♡').appendTo($text);
+    $('<span class="love-copy-main"></span>').text(window.OLH2025Inner ? window.OLH2025Inner.loveMain(currentIndex, line.t) : line.t).appendTo($text);
     ensureChapterWhisper($text, currentIndex);
     $text.attr('data-chapter', String(currentIndex));
     $text.addClass('line-variant-' + variant);
@@ -609,7 +624,7 @@
     document.body.classList.add("finale-mode");
     document.body.classList.add("final-stage");
     updateMemoryProgress(progressTotal);
-    document.title = "Forever, Chit Chit ♡";
+    document.title = window.OLH2025Inner ? window.OLH2025Inner.t("finalTitle") : "Forever, Chit Chit ♡";
     var progressHeader = document.querySelector(".memory-header");
     if(progressHeader) progressHeader.setAttribute("aria-label", "Our little chapter, complete");
 
