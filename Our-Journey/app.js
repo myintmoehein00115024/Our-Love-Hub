@@ -12,8 +12,10 @@ function updateDaysTogether() {
   const day = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
   const start = Date.UTC(2024, 2, 23);
   const count = Math.max(0, Math.round((day - start) / 86400000));
-  output.textContent = count.toLocaleString('zh-CN');
-  output.setAttribute('aria-label', `已经相恋 ${count} 天`);
+  const language=window.OLHJourneyLanguage?.()||'my';
+  const t=(key,values)=>window.OLHJourneyTranslate?.(key,values)||'';
+  output.textContent = count.toLocaleString(language==='my'?'my-MM':language==='en'?'en-US':'zh-CN');
+  output.setAttribute('aria-label',t('daysAria',{count})||`已经相恋 ${count} 天`);
   const next = $('nextAnniversary');
   if (next) {
     const thisYear = now.getFullYear();
@@ -21,12 +23,13 @@ function updateDaysTogether() {
     const nextYear = day > anniversaryThisYear ? thisYear + 1 : thisYear;
     const daysRemaining = Math.round((Date.UTC(nextYear, 2, 23) - day) / 86400000);
     next.textContent = daysRemaining === 0
-      ? '今天是我们的相恋纪念日 ♡'
-      : `下一次 3 月 23 日纪念日，还有 ${daysRemaining} 天 ♡`;
+      ? (t('annivNow')||'今天是我们的相恋纪念日 ♡')
+      : (t('annivFuture',{count:daysRemaining})||`下一次 3 月 23 日纪念日，还有 ${daysRemaining} 天 ♡`);
   }
 }
 updateDaysTogether();
 window.addEventListener('pageshow', updateDaysTogether);
+document.addEventListener('olh:languagechange', updateDaysTogether);
 window.setInterval(updateDaysTogether, 60 * 1000);
 
 const backToTop = $('backTop');
@@ -67,7 +70,8 @@ if ('serviceWorker' in navigator) {
  let audio=null,audioUnlocked=false;
  function b64(v){let s='';for(const x of new Uint8Array(v))s+=String.fromCharCode(x);return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');}
  const sha=async v=>b64(await crypto.subtle.digest('SHA-256',te.encode(v)));
- function clearUnread(message='打开悄悄话，未读状态需要重新验证'){prev=null;counter.hidden=true;counter.textContent='0';bell.classList.remove('has-unread');bell.setAttribute('aria-label',message);document.title='Our Journey · 只属于我们的故事 ♡';}
+ const tr=(key,values)=>window.OLHJourneyTranslate?.(key,values)||key;
+ function clearUnread(messageKey='unreadVerify'){prev=null;counter.hidden=true;counter.textContent='0';bell.classList.remove('has-unread');bell.setAttribute('aria-label',tr(messageKey));document.title=tr('pageTitle');}
  function note(){if(!audioUnlocked||!audio||audio.state!=='running'||document.hidden)return;
   const t=audio.currentTime;for(const [delay,f] of [[0,700],[.14,860]]){
    const o=audio.createOscillator(),g=audio.createGain();o.type='sine';o.frequency.value=f;
@@ -120,7 +124,7 @@ if ('serviceWorker' in navigator) {
   if(!r.ok){if(r.status===401)session=null;throw Error('Unread authorization failed');}
   const value=await r.json();if(!Number.isInteger(value.unread)||value.unread<0)throw Error('Invalid unread count');return value.unread;
  }
- async function update(){if(active||document.hidden)return;if(!navigator.onLine){clearUnread('打开悄悄话，离线时不能确认未读消息');return;}active=true;
+ async function update(){if(active||document.hidden)return;if(!navigator.onLine){clearUnread('unreadOffline');return;}active=true;
   try{const role=localStorage.getItem('ay-secure-role-v1');if(role!=='Ko Ko'&&role!=='Chit Chit'){clearUnread();session=null;identity=null;return;}
    const id=await getIdentity(role);if(!id){clearUnread();session=null;return;}
    const n=await unread(role,id);
@@ -128,16 +132,20 @@ if ('serviceWorker' in navigator) {
    if(document.hidden||localStorage.getItem('ay-secure-role-v1')!==role)return;
    if(prev!==null&&n>prev)note();prev=n;counter.hidden=n===0;counter.textContent=n>99?'99+':String(n);
    bell.classList.toggle('has-unread',n>0);
-   bell.setAttribute('aria-label',n?'打开悄悄话，'+n+' 条未读消息':'打开悄悄话，没有未读消息');
-   document.title=n?'（'+(n>99?'99+':n)+'）Our Journey · 悄悄话 ♡':'Our Journey · 只属于我们的故事 ♡';
+   bell.setAttribute('aria-label',n?tr('unreadCount',{count:n}):tr('unreadEmpty'));
+   document.title=n?tr('pageTitleUnread',{count:n>99?'99+':n}):tr('pageTitle');
   }catch(e){
    // Fail closed: do not display a cached unread count when authorization or connectivity cannot be verified.
-   session=null;expires=0;clearUnread('打开悄悄话，目前无法验证未读状态');
+   session=null;expires=0;clearUnread('unreadFailed');
   }finally{active=false;}
  }
+ document.addEventListener('olh:languagechange',()=>{
+  bell.setAttribute('aria-label',prev===null?tr('unreadVerify'):prev>0?tr('unreadCount',{count:prev}):tr('unreadEmpty'));
+  document.title=prev>0?tr('pageTitleUnread',{count:prev>99?'99+':prev}):tr('pageTitle');
+ });
  const channel='BroadcastChannel' in window?new BroadcastChannel('ay-v2-chat'):null;
  if(channel)channel.onmessage=()=>update();
- window.setInterval(update,6000);window.addEventListener('offline',()=>clearUnread('打开悄悄话，离线时不能确认未读消息'));window.addEventListener('online',update);document.addEventListener('visibilitychange',()=>{if(!document.hidden)update();});
+ window.setInterval(update,6000);window.addEventListener('offline',()=>clearUnread('unreadOffline'));window.addEventListener('online',update);document.addEventListener('visibilitychange',()=>{if(!document.hidden)update();});
  window.addEventListener('pageshow',update);window.addEventListener('storage',e=>{if(e.key==='ay-secure-role-v1'){identity=null;session=null;prev=null;update();}});
  update();
 })();

@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="my">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
@@ -12,9 +12,10 @@
   <link rel="apple-touch-icon" sizes="180x180" href="../assets/apple-touch-icon.png">
   <link rel="manifest" href="../manifest.webmanifest">
   <title>Our Journey · 只属于我们的故事 ♡</title>
-  <link rel="stylesheet" href="./styles.css?v=20261009-j2">
+  <link rel="stylesheet" href="./styles.css?v=20261011-jlang1">
   <script src="./routes.js" defer></script>
-  <script src="./app.js?v=20261010-j4" defer></script>
+  <script src="./i18n-journey.js?v=20261011-jlang1" defer></script>
+  <script src="./app.js?v=20261011-jlang1" defer></script>
 </head>
 <body>
   <div class="ambient-hearts" aria-hidden="true"><span>♡</span><span>♡</span><span>♡</span></div>
@@ -29,6 +30,12 @@
         <a href="#our-timeline">纪念日</a>
         <a class="nav-chat" data-site-route="chat" href="../Always-Yours-Chat/">悄悄话 <span aria-hidden="true">↗</span></a>
       </nav>
+      <label class="olh-journey-language" for="olhLanguage" aria-label="Language / 语言 / ဘာသာစကား">
+        <span class="olh-journey-language-icon" aria-hidden="true">🌐</span>
+        <select id="olhLanguage" aria-label="Language / 语言 / ဘာသာစကား">
+          <option value="my">မြန်မာ</option><option value="zh">中文</option><option value="en">English</option>
+        </select>
+      </label>
       <a id="chatBell" class="chat-bell" href="../Always-Yours-Chat/" data-site-route="chat" aria-label="打开悄悄话，检查新消息" title="查看 HE / SHE 消息"><span class="bell-glyph" aria-hidden="true">♢</span><span class="bell-emoji" aria-hidden="true">🔔</span><span id="chatBellCount" class="chat-bell-count" hidden>0</span></a>
       <button class="install-button" id="installOpen" type="button" aria-label="前往 Our Love Hub 安装主应用" title="统一安装 Our Love Hub">♡ <span>添加到桌面</span></button>
     </header>
