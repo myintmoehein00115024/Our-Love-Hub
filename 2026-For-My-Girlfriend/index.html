@@ -422,6 +422,7 @@ footer{padding-top:55px}
 <link rel="stylesheet" href="../assets/love-hub-family.css?v=20261009">
 <script defer src="../assets/love-hub-family.js?v=20261009"></script>
 <link rel="stylesheet" href="css/2026-responsive.css?v=20261009b">
+<script defer src="./i18n-2026.js?v=20261011-a"></script>
 
 <style id="birthday-music-minimal">
 /* Our Love Hub · native birthday music. One button, no external video service. */
@@ -468,6 +469,34 @@ footer{padding-top:55px}
 }
 @media(prefers-reduced-motion:reduce){#musicPlayer{transition:none}}
 </style>
+<style id="olh-i18n-2026-style">
+.olh-language-control{display:inline-flex;align-items:center;gap:6px;padding:6px 9px;
+  border:1px solid rgba(216,176,207,.65);background:rgba(255,255,255,.89);border-radius:100px;color:#8c6488}
+.olh-language-control select{appearance:auto;-webkit-appearance:auto;min-height:32px;max-width:112px;border:0;
+  background:transparent;color:#67465f;font:700 12px/1.5 system-ui,sans-serif;cursor:pointer}
+.olh-language-control select:focus-visible{outline:2px solid #976ba3;outline-offset:3px}
+html[lang="my"] :is(body,.hub-family-nav,.hub-family-popup,.hub-chapter-ribbon){
+  font-family:"Noto Sans Myanmar","Myanmar Sangam MN","Pyidaungsu",system-ui,sans-serif}
+html[lang="my"] .hero-card h1{font-family:"Noto Sans Myanmar","Myanmar Sangam MN","Pyidaungsu",sans-serif;
+  font-size:clamp(28px,5.3vw,56px);line-height:1.5;letter-spacing:0;overflow-wrap:anywhere}
+html[lang="my"] .hero-card h1 em{font-family:inherit}
+html[lang="my"] :is(.section-title,.dream h2,.hub-chapter-ribbon strong){line-height:1.65;letter-spacing:0;overflow-wrap:anywhere}
+html[lang="my"] :is(.letter,.hero p,.card p,.section-sub,.moment,footer p){line-height:1.95;overflow-wrap:anywhere}
+html[lang="my"] .birthday-chip{white-space:normal;display:flex;flex-wrap:wrap;justify-content:center;line-height:1.75;max-width:100%;letter-spacing:0}
+html[lang="my"] .birthday-first-day{max-width:100%;}
+html[lang="my"] .birthday-first-day :is(small,strong,time){white-space:normal;overflow-wrap:anywhere;line-height:1.6}
+html[lang="my"] .birthday-first-day small{font-family:inherit;letter-spacing:0}
+html[lang="my"] .birthday-first-day strong{font-family:inherit;font-size:12px;line-height:1.6}
+html[lang="my"] .birthday-gift-year span{font-size:.25em;line-height:1.5}
+@media(max-width:650px){html[lang="my"] .birthday-first-day{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:8px;gap:6px;width:100%;padding:13px 8px}
+html[lang="my"] .birthday-first-day>span:first-child,html[lang="my"] .birthday-first-day>i{display:none}
+html[lang="my"] .birthday-first-day>span:not(:first-child){display:grid;text-align:center;min-width:0;gap:5px}
+html[lang="my"] .birthday-first-day :is(small,strong){font-size:10px;line-height:1.7}}
+html[lang="my"] .eyebrow,html[lang="my"] .section-kicker{letter-spacing:0;text-transform:none;line-height:1.7}
+@media(max-width:480px){.hub-family-nav .olh-language-control{margin-left:0;order:2}
+ .olh-language-control select{max-width:94px;font-size:11px}
+ html[lang="my"] .hero-card h1{font-size:clamp(26px,7vw,35px)}}
+</style>
 </head>
 <body>
 <!-- Unified Our Love Hub navigation -->
@@ -482,6 +511,12 @@ footer{padding-top:55px}
     <a href="../2026-For-My-Girlfriend/" data-hub-page="2026">2026</a>
     <a href="../Always-Yours-Chat/" data-hub-page="chat">悄悄话 ↗</a>
   </nav>
+  <label class="olh-language-control" for="olhLanguage" aria-label="Language / 语言 / ဘာသာစကား">
+    <span aria-hidden="true">🌐</span>
+    <select id="olhLanguage" aria-label="Language / 语言 / ဘာသာစကား">
+      <option value="my">မြန်မာ</option><option value="zh">中文</option><option value="en">English</option>
+    </select>
+  </label>
   <button class="hub-install-button" type="button" data-hub-install>♡ <span>添加到桌面</span></button>
 </header>
 
@@ -681,11 +716,12 @@ footer{padding-top:55px}
     window.clearTimeout(toastTimer);
     if(delay>0)toastTimer=window.setTimeout(()=>{toast.hidden=true;},delay);
   }
+  function musicT(key,fallback){return window.OLH2026Translate?window.OLH2026Translate(key):fallback;}
   function updateButton(){
     const isPlaying=!song.paused&&!song.ended;
     button.classList.toggle('playing',isPlaying);
     button.setAttribute('aria-pressed',String(isPlaying));
-    const label=isPlaying?'暂停生日歌曲':'播放生日歌曲';
+    const label=isPlaying?musicT('future_music_playing','暂停生日歌曲'):musicT('future_music_idle','播放生日歌曲');
     button.setAttribute('aria-label',label);
     button.title=label;
     icon.textContent=isPlaying?'Ⅱ':'♫';
@@ -696,9 +732,9 @@ footer{padding-top:55px}
   function humanError(){
     const err=song.error;
     if(err && err.code===MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED){
-      return '音乐格式暂时无法播放，请稍后重试 ♡';
+      return musicT('music_bad_format','音乐格式暂时无法播放，请稍后重试 ♡');
     }
-    return '歌曲暂时无法播放，请检查网络后重试 ♡';
+    return musicT('music_retry_network','歌曲暂时无法播放，请检查网络后重试 ♡');
   }
   async function playSong(){
     if(pendingPlay || !song.paused)return;
@@ -709,12 +745,12 @@ footer{padding-top:55px}
       const attempt=song.play();
       updateButton();
       if(attempt&&typeof attempt.then==='function')await attempt;
-      if(current===requestSequence)notify('♫ 送给你的生日歌，正在播放 ♡');
+      if(current===requestSequence)notify(musicT('music_song_playing','♫ 送给你的生日歌，正在播放 ♡'));
     }catch(error){
       if(current===requestSequence){
         updateButton();
         notify(error && error.name==='NotAllowedError'
-          ? '请点击音乐按钮，再试一次 ♡' : humanError(),6000);
+          ? musicT('music_retry','请点击音乐按钮，再试一次 ♡') : humanError(),6000);
       }
     }finally{pendingPlay=false;}
   }
@@ -722,7 +758,7 @@ footer{padding-top:55px}
     requestSequence++;
     song.pause();
     updateButton();
-    notify('已暂停 ♡');
+    notify(musicT('music_paused','已暂停 ♡'));
   }
   button.addEventListener('click',()=>{
     if(!song.paused || pendingPlay){
@@ -734,10 +770,10 @@ footer{padding-top:55px}
   });
   song.addEventListener('play',updateButton);
   song.addEventListener('pause',updateButton);
-  song.addEventListener('ended',()=>{updateButton();notify('歌曲播放完啦 ♡');});
+  song.addEventListener('ended',()=>{updateButton();notify(musicT('music_ended','歌曲播放完啦 ♡'));});
   song.addEventListener('error',()=>{updateButton();notify(humanError(),6500);});
   song.addEventListener('waiting',()=>{
-    if(!song.paused)notify('正在缓冲音乐…',4500);
+    if(!song.paused)notify(musicT('music_waiting','正在缓冲音乐…'),4500);
   });
   // Controls on a lock screen / headset are offered on browsers that support Media Session.
   if('mediaSession' in navigator){
@@ -761,6 +797,7 @@ footer{padding-top:55px}
       });
     }catch(_){}
   }
+  document.addEventListener('olh:languagechange',updateButton);
   updateButton();
 })();
 </script>
